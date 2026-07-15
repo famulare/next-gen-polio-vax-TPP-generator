@@ -2,11 +2,12 @@
 
 **Status:** LOCKED FOR IMPLEMENTATION
 
-**Contract version:** 1.1
+**Contract version:** 1.2
 
 **Locked:** 2026-07-15
 
-**Process amendment:** 2026-07-15; supervised-agent and content-block fallback
+**Process amendments:** 2026-07-15; supervised-agent/content-block fallback and
+primary false-positive judgment
 
 **Primary audience:** vaccine developers, polio program scientists, modelers, and funders
 
@@ -1077,17 +1078,38 @@ context needed to interpret the task. Delegates may commit only on isolated
 task branches. Only the primary integrator merges into the integration branch,
 pushes, or changes shared scientific state.
 
-A **content block** means a model or provider refuses a legitimate bounded
-software, mathematical, or scientific-adaptation task before producing a usable
-technical result. The block does not by itself determine whether the task is
-safe; the primary integrator must assess the underlying request. On a block:
+A **content block** means a model or provider refuses before producing a usable
+technical result. The block is an input to judgment, not the judgment itself.
+The primary integrator is expected to assess the actual requested operations,
+inputs, and outputs and classify the block as `likely_false_positive`,
+`substantive`, or `unclear`, with a short rationale. Source-model translation,
+deterministic simulation, uncertainty propagation, static visualization, and
+software testing under this contract are presumptively legitimate scientific
+software work; biological vocabulary alone does not change that assessment.
+Because this project has already produced false positives on a software-plan
+review, that observed propensity is a legitimate prior: a block on a plainly
+code-level task should increase the priority of an exact file/function/test
+reframe rather than trigger automatic escalation. The prior does not override
+the substance of the requested work.
 
-1. confirm that the task remains within this public-health software contract;
-2. narrow it to the relevant code, equations, data transformations, and tests,
-   while retaining context needed to protect scientific meaning;
+When the primary integrator judges a block to be a likely false positive with
+high confidence, the integrator may reframe and continue without asking Mike
+first. A good reframe truthfully narrows the task to named files, equations,
+data transformations, outputs, invariants, and tests. It may omit unrelated
+conversation and earlier refusals, but it must preserve the scientific purpose,
+target, requested output, and every consequential semantic constraint.
+
+The false-positive path is:
+
+1. record the classification and reason;
+2. make the truthful technical reframe;
 3. make at most one fresh-context retry with a high-capability agent if
    available; and
 4. if needed, delegate the bounded task to GPT-5.5 under direct supervision.
+
+A `substantive` block stops delegation. An `unclear` block triggers direct
+source/contract review by the primary integrator; if it remains unclear and the
+distinction could change harm or meaning, ask Mike before proceeding.
 
 This fallback is not permission to evade a genuine safety restriction. Do not
 ask an agent to ignore policy, conceal the purpose, reconstruct prohibited
@@ -1110,10 +1132,11 @@ unilaterally change scientific defaults, model interpretation, calibration
 tolerances, uncertainty semantics, or success criteria.
 
 `IMPLEMENTATION_LOG.md` records each delegation's bounded objective, executor
-and version when available, affected files, content-block/retry status, output
-disposition, reviewer, and verification performed. It records concise task
-contracts and outcomes, not full chat transcripts. A blocked or fallback result
-is never merged merely because it is the only result obtained.
+and version when available, affected files, content-block classification and
+rationale, retry status, output disposition, reviewer, and verification
+performed. It records concise task contracts and outcomes, not full chat
+transcripts. A blocked or fallback result is never merged merely because it is
+the only result obtained.
 
 ---
 
@@ -1316,8 +1339,9 @@ The following decisions are binding for v1:
     material `R_loc` disagreement triggers refitting review.
 14. Close-contact control is deliberately treated as sufficient for the v1 TPP
     criterion, with the qualification in Section 2.
-15. Implementation may use bounded fresh-context agents and, after a legitimate
-    content block, supervised GPT-5.5 only under the controls in Section 14.6.
+15. Implementation may use bounded fresh-context agents and, after a
+    high-confidence `likely_false_positive` block, supervised GPT-5.5 only under
+    the controls in Section 14.6.
 
 Implementation discretion is limited to presentation details, accessible color
 choices, module decomposition below the ownership boundaries, and equivalent

@@ -12,7 +12,8 @@ does not replace source provenance, git history, or verification output.
 - Contract sections and source files supplied:
 - Allowed files or worktree:
 - Required output and discriminator:
-- Content-block/retry status:
+- Content-block classification and rationale:
+- Reframe/retry status:
 - Result disposition: accepted, revised, rejected, or no result
 - Primary review:
 - Verification run:
@@ -28,6 +29,10 @@ does not replace source provenance, git history, or verification output.
 - **Initial executor:** Claude Opus 4.8 through the local supervised wrapper.
 - **Content-block status:** the broad review was refused under the provider's
   acceptable-use filter before substantive review output.
+- **Primary assessment:** `likely_false_positive`; the requested output was a
+  bounded software-design critique over code contracts, tests, and release
+  gates. The successful reframe preserved that purpose and narrowed the task to
+  those technical artifacts.
 - **Fallback:** a broad GPT-5.5 review also blocked; a fresh, explicitly bounded
   software-design review produced usable findings.
 - **Disposition:** revised and accepted selectively by the primary integrator.
