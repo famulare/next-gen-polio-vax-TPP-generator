@@ -2,9 +2,11 @@
 
 **Status:** LOCKED FOR IMPLEMENTATION
 
-**Contract version:** 1.0
+**Contract version:** 1.1
 
 **Locked:** 2026-07-15
+
+**Process amendment:** 2026-07-15; supervised-agent and content-block fallback
 
 **Primary audience:** vaccine developers, polio program scientists, modelers, and funders
 
@@ -949,6 +951,7 @@ npm run verify       # runs all of the above in release order
 ```text
 README.md
 DESIGN_CONTRACT.md
+IMPLEMENTATION_LOG.md
 package.json
 package-lock.json
 tsconfig.json
@@ -1049,6 +1052,68 @@ and a named switch in tests.
 The same URL state, app version, and parameter manifest must produce bitwise-
 stable serialized outputs on the same JavaScript engine and numerically stable
 outputs across supported browsers. Runtime random draws are prohibited.
+
+### 14.6 Implementation orchestration and content-block fallback
+
+The primary implementation agent is the integrator and remains accountable for
+the meaning and correctness of the merged result. Preferred execution is direct
+implementation by that agent, aided where useful by as many as five or six
+high-capability, fresh-context coding/scientific agents ("Sol/Terra-level" in
+the planning shorthand). Suitable independent lanes are:
+
+1. source extraction and fixture provenance;
+2. bins-native biological-kernel port;
+3. distribution-native transmission and calibration parity;
+4. frontier/UI/accessibility implementation;
+5. build, self-contained artifact, and GitHub Pages checks; and
+6. adversarial semantic and test review.
+
+Parallel agents receive bounded task manifests: objective, contract sections,
+allowed files, source files, required outputs, invariants, and acceptance tests.
+Use isolated worktrees for writers and read-only access for reviewers. Do not
+give an agent the entire conversation when the contract and named sources are
+sufficient. This limits context contamination without removing scientific
+context needed to interpret the task. Delegates may commit only on isolated
+task branches. Only the primary integrator merges into the integration branch,
+pushes, or changes shared scientific state.
+
+A **content block** means a model or provider refuses a legitimate bounded
+software, mathematical, or scientific-adaptation task before producing a usable
+technical result. The block does not by itself determine whether the task is
+safe; the primary integrator must assess the underlying request. On a block:
+
+1. confirm that the task remains within this public-health software contract;
+2. narrow it to the relevant code, equations, data transformations, and tests,
+   while retaining context needed to protect scientific meaning;
+3. make at most one fresh-context retry with a high-capability agent if
+   available; and
+4. if needed, delegate the bounded task to GPT-5.5 under direct supervision.
+
+This fallback is not permission to evade a genuine safety restriction. Do not
+ask an agent to ignore policy, conceal the purpose, reconstruct prohibited
+material, or fragment a disallowed task across agents. If narrowing would change
+the requested semantics, or if the block identifies a substantive safety issue,
+the primary agent stops and asks for a compliant contract amendment.
+
+If the supervised GPT-5.5 fallback also blocks, the primary agent either
+implements the bounded task directly or records the blocker and asks Mike when
+no safe progress remains. Do not continue hopping among providers to obtain a
+different safety decision.
+
+GPT-5.5 is an execution fallback, not a semantic authority. Each delegated task
+must have a predeclared output and discriminator. The primary agent must inspect
+the complete result or diff, compare it directly with the named source model,
+run the applicable parity/invariant/schema/browser tests, and reject
+helpfulness-shaped residue such as silent defaults, compatibility aliases,
+mean-propagation shortcuts, or weakened uncertainty claims. GPT-5.5 may not
+unilaterally change scientific defaults, model interpretation, calibration
+tolerances, uncertainty semantics, or success criteria.
+
+`IMPLEMENTATION_LOG.md` records each delegation's bounded objective, executor
+and version when available, affected files, content-block/retry status, output
+disposition, reviewer, and verification performed. It records concise task
+contracts and outcomes, not full chat transcripts. A blocked or fallback result
+is never merged merely because it is the only result obtained.
 
 ---
 
@@ -1179,11 +1244,12 @@ The release build must pass:
 
 Auditability is part of the release, not local scaffolding. Commit the lockfile,
 fixture/ensemble generators, generated fixtures, parameter and grid manifests,
-provenance records, tests, workflows, and `dist/index.html`. Generated records
-include commands, source commits, schema versions, filters, and hashes. CI uses
-`npm ci`, runs `npm run verify`, rebuilds the committed artifact without a diff,
-and deploys that tested artifact. No release-critical input may exist only in an
-untracked local source checkout or CI workspace.
+provenance records, `IMPLEMENTATION_LOG.md`, tests, workflows, and
+`dist/index.html`. Generated records include commands, source commits, schema
+versions, filters, and hashes. CI uses `npm ci`, runs `npm run verify`, rebuilds
+the committed artifact without a diff, and deploys that tested artifact. No
+release-critical input may exist only in an untracked local source checkout or
+CI workspace.
 
 ---
 
@@ -1216,6 +1282,8 @@ Implementation is complete only when all of the following are true:
     result.
 15. All audit inputs and the self-contained artifact are committed, and a clean
     CI rebuild produces no diff.
+16. Every delegated or fallback task is dispositioned and verified in
+    `IMPLEMENTATION_LOG.md`; no unreviewed agent output remains in the release.
 
 ---
 
@@ -1248,6 +1316,8 @@ The following decisions are binding for v1:
     material `R_loc` disagreement triggers refitting review.
 14. Close-contact control is deliberately treated as sufficient for the v1 TPP
     criterion, with the qualification in Section 2.
+15. Implementation may use bounded fresh-context agents and, after a legitimate
+    content block, supervised GPT-5.5 only under the controls in Section 14.6.
 
 Implementation discretion is limited to presentation details, accessible color
 choices, module decomposition below the ownership boundaries, and equivalent
