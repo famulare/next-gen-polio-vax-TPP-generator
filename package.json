@@ -1,0 +1,31 @@
+{
+  "name": "next-gen-polio-vax-tpp-generator",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24.0.0" },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test tests/model/model.test.ts",
+    "build": "node scripts/build.mjs",
+    "check:artifact": "node scripts/check-artifact.mjs && node scripts/browser-smoke.mjs",
+    "verify": "npm run typecheck && npm test && npm run build && npm run check:artifact"
+  },
+  "dependencies": {
+    "d3-array": "^3.2.4",
+    "d3-contour": "^4.0.2",
+    "d3-scale": "^4.0.2",
+    "d3-shape": "^3.2.0"
+  },
+  "devDependencies": {
+    "@types/d3-array": "^3.2.1",
+    "@types/d3-contour": "^3.0.6",
+    "@types/d3-scale": "^4.0.9",
+    "@types/d3-shape": "^3.1.7",
+    "@types/node": "^22.15.21",
+    "esbuild": "^0.25.6",
+    "playwright": "^1.52.0",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3"
+  }
+}

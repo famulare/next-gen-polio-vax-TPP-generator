@@ -51,4 +51,30 @@ does not replace source provenance, git history, or verification output.
 
 ## Implementation status
 
-Implementation has not started.
+### 2026-07-15 -- direct integrator implementation
+
+- **Objective:** implement the locked v1 deterministic browser TPP generator.
+- **Executor/model version:** Codex direct implementation.
+- **Contract sections and source files supplied:** Sections 1-20; locked
+  manifests from `india-polio` commit
+  `1e3e832742e84a36fbc75d81b3a2d19cde8208e6` and `cessationStability` commit
+  `3d779963e9febe8e6262964b185c8277234f41e0`.
+- **Allowed files or worktree:** this repository only; source repositories
+  read-only.
+- **Required output and discriminator:** one self-contained `dist/index.html`,
+  pure model boundary, deterministic 51x51 product grid and 81x40 setting
+  surface, strict schemas, and release checks.
+- **Content-block classification and rationale:** not applicable; direct
+  bounded software implementation.
+- **Reframe/retry status:** not applicable.
+- **Result disposition:** revised and accepted locally.
+- **Primary review:** direct contract review; removed a temporary global
+  indirection and prevented anchor metadata from leaking into `SettingV1`.
+- **Verification run:** `npm run typecheck`, `npm test`, `npm run build`,
+  `npm run check:artifact`; Chromium smoke checks cover load, figures, URL
+  round-trip, keyboard focus, console errors, and external requests.
+- **Residual uncertainty:** reviewed source parity fixtures and a joint
+  calibration/uncertainty ensemble are not present in the locked input state.
+  The implementation fails closed on upper-95 availability and does not claim
+  posterior probability. The existing R fixture script refuses tracked source
+  changes before future fixture generation.

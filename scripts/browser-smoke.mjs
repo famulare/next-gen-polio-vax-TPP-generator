@@ -1,0 +1,28 @@
+import { chromium } from "playwright";
+import { resolve } from "node:path";
+
+const artifact = resolve(new URL("../dist/index.html", import.meta.url).pathname);
+const browser = await chromium.launch({ headless: true });
+const page = await browser.newPage({ viewport: { width: 900, height: 900 } });
+const errors = [];
+const externalRequests = [];
+page.on("pageerror", (error) => errors.push(`pageerror: ${error.message}`));
+page.on("console", (message) => { if (message.type() === "error") errors.push(`console: ${message.text()}`); });
+page.on("request", (request) => { if (!request.url().startsWith("file:")) externalRequests.push(request.url()); });
+await page.goto(`file://${artifact}`, { waitUntil: "load" });
+await page.locator("#result-status strong").waitFor({ state: "visible", timeout: 30_000 });
+if (!(await page.locator("#effect-figure").count())) throw new Error("Effect-space figure did not render");
+if (!(await page.locator("#product-figure").count())) throw new Error("Product-space figure did not render");
+if (!(await page.locator("#setting-figure").count())) throw new Error("Setting figure did not render");
+if (!(await page.locator("#compute").isVisible())) throw new Error("Compute control is not visible");
+await page.locator("#take").focus();
+await page.keyboard.press("Tab");
+if (!(await page.evaluate(() => document.activeElement?.id))) throw new Error("Keyboard focus did not move");
+const hash = await page.evaluate(() => window.location.hash);
+if (!hash.startsWith("#scenario=")) throw new Error("Scenario was not serialized into the URL hash");
+await page.reload({ waitUntil: "load" });
+await page.locator("#result-status strong").waitFor({ state: "visible", timeout: 30_000 });
+if (errors.length) throw new Error(errors.join("\n"));
+if (externalRequests.length) throw new Error(`Runtime requested external resources: ${externalRequests.join(", ")}`);
+await browser.close();
+console.log("Chromium artifact smoke OK");

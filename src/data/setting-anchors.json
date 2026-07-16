@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "SettingManifestV1",
+  "version": "settings-1.0.0",
+  "anchors": [
+    { "id": "low", "label": "Low transmission", "T_ih": { "value": 0.5, "unit": "micrograms/exposure", "basis": "per_exposure" }, "T_hs": { "value": 0.5, "unit": "micrograms/exposure", "basis": "per_exposure" }, "dIh": { "value": 1, "unit": "exposures/person/day", "basis": "per_day" }, "dHs": { "value": 8.9685, "unit": "exposures/person/day", "basis": "per_day" }, "Ns": 3, "kind": "published" },
+    { "id": "houston", "label": "Houston/Louisiana moderate", "T_ih": { "value": 5, "unit": "micrograms/exposure", "basis": "per_exposure" }, "T_hs": { "value": 5, "unit": "micrograms/exposure", "basis": "per_exposure" }, "dIh": { "value": 1, "unit": "exposures/person/day", "basis": "per_day" }, "dHs": { "value": 8.9685, "unit": "exposures/person/day", "basis": "per_day" }, "Ns": 3, "kind": "published" },
+    { "id": "matlab", "label": "Matlab household exposure", "T_ih": { "value": 18.6, "unit": "micrograms/day", "basis": "per_day" }, "T_hs": { "value": 18.6, "unit": "micrograms/day", "basis": "per_day" }, "dIh": { "value": 1, "unit": "exposures/person/day", "basis": "per_day" }, "dHs": { "value": 8.9685, "unit": "exposures/person/day", "basis": "per_day" }, "Ns": 3, "kind": "hybrid", "interval": { "low": 3.2, "high": 61.7, "unit": "micrograms/day" }, "tooltip": "The trial estimated the index-to-household link only; the social-contact component is inherited from the published moderate-setting reduction." },
+    { "id": "up-bihar", "label": "UP/Bihar high", "T_ih": { "value": 230, "unit": "micrograms/exposure", "basis": "per_exposure" }, "T_hs": { "value": 230, "unit": "micrograms/exposure", "basis": "per_exposure" }, "dIh": { "value": 1, "unit": "exposures/person/day", "basis": "per_day" }, "dHs": { "value": 8.9685, "unit": "exposures/person/day", "basis": "per_day" }, "Ns": 10, "kind": "published" }
+  ],
+  "matlabInterval": { "low": 3.2, "high": 61.7, "unit": "micrograms/day" },
+  "envelope": { "TMin": 0.1, "TMax": 2000, "NsMin": 1, "NsMax": 40, "dIhMin": 1, "dIhMax": 1, "dHsMin": 8.9685, "dHsMax": 8.9685 }
+}
