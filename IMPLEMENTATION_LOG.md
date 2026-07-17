@@ -21,6 +21,55 @@ does not replace source provenance, git history, or verification output.
 
 ## Planning-stage review record
 
+### 2026-07-17 -- backend review completion
+
+- **Objective:** complete every handoff item in `BACKEND_REVIEW_PARTIAL.md`,
+  convert the partial review into a final backend disposition, and leave the
+  implementation, generated artifact, commit history, and remote branch
+  synchronized.
+- **Executor/model version:** Codex direct implementation; no delegation.
+- **Contract sections and source files supplied:** Contract 1.7 Sections 4,
+  7--11, 14--17; the complete backend/model surface; pinned India and Cessation
+  sources; source fixtures and calibration report; build, artifact, browser,
+  performance, and CI scripts.
+- **Allowed files or worktree:** this repository; pinned source repositories
+  read-only; no expansion into wet-lab, vaccine-virus, evolutionary, campaign,
+  geographic, or complete-population modeling.
+- **Required output and discriminator:** close every P1--P3 finding; audit all
+  calibration and fixture inputs; add strict manifest/output schemas and
+  collision-resistant identities; bound browser-lifetime caches without
+  violating fixed performance targets; prove deterministic stale-resistant
+  builds; pass the complete repository verification chain.
+- **Content-block classification and rationale:** not applicable; defensive
+  scientific-software review and direct implementation.
+- **Reframe/retry status:** not applicable. The first full verification exposed
+  cache-thrashing in the setting surface (`1132.9 ms` against a `300 ms`
+  target). The implementation was revised to retain at most four small,
+  content-keyed surface-value arrays rather than increasing the large tensor
+  cache.
+- **Result disposition:** accepted. All original findings and all eight handoff
+  tasks are resolved in commits `0a85b7c` and `8595482`; the review document now
+  records final scope, resolution, verification, and residual limitations.
+- **Primary review:** every fixture input family was traced to source,
+  contract/grid input, or explicit diagnostic status. Calibration uses strict
+  full-input/full-output validation, deterministic grids/tie rules, and a
+  visible near-optimal-region diagnostic rather than posterior language.
+  Production/source conflicts remain explicit and production follows the
+  locked contract. Output provenance, probabilities, nonnegative quantities,
+  grid dimensions, comparator count, and source commits fail closed.
+- **Verification run:** final `npm run verify` passed: typecheck; 36/36 tests;
+  R provenance preflight; seven Section 15.1 artifact checks; Section 15.2
+  calibration; performance (`1.6/0.7/410.7 ms` selected/surface/frontier);
+  memory (`17.0 MiB` retained after twelve distinct envelopes, every cache at
+  or below capacity); deterministic build `source-434c9bfdda3bc11a`; artifact
+  and Chromium/path-prefix smoke; stale-artifact and CI-identity negative
+  tests. Artifact SHA-256 is
+  `a427fedcfde8b1bb658d63e081ce16ba325891e51da3567aeb0891377fab9ea8`.
+- **Residual uncertainty:** this is a completed backend review, not an overall
+  application-release decision. Parameter uncertainty/upper-95 remains
+  unavailable by scope and fails closed. The separate visualization and
+  science-communication review remains deferred.
+
 ### 2026-07-17 -- backend review remediation checkpoint
 
 - **Objective:** resolve the confirmed backend contract mismatches and preserve
@@ -52,7 +101,8 @@ does not replace source provenance, git history, or verification output.
   fixture check; regenerated and checked Section 15.2 calibration report.
 - **Residual uncertainty:** full runtime output-schema validation, memory
   process discriminator, deterministic artifact/hash/CI negative gates, and
-  the final review disposition remain to be completed.
+  the final review disposition remained to be completed at this checkpoint;
+  the completion entry above supersedes this intermediate residual.
 
 ### 2026-07-15 -- independent software-plan review
 

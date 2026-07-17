@@ -1,5 +1,7 @@
 # Backend review remediation task
 
+**Status:** Complete through remediation commits `0a85b7c` and `8595482`.
+
 ## Decision purpose
 
 Complete the defensive backend review recorded in
@@ -55,3 +57,13 @@ Sections 4, 7.1, 7.2, 7.6, 9.4, 10.3, 11.4, 14.3--14.5,
 Backend scientific model, schemas, fixtures, calibration, tests, performance,
 and release pipeline only. Web visualization and science-communication review
 remain separate except for adapting consumers to corrected backend schemas.
+
+## Completion evidence
+
+Every requested output and acceptance test is closed in
+[`BACKEND_REVIEW_PARTIAL.md`](../BACKEND_REVIEW_PARTIAL.md). The final
+`npm run verify` passed 36 tests, pinned fixture and calibration gates,
+performance and retained-memory limits, deterministic build and recorded
+artifact checks, Chromium/path-prefix smoke, and stale-artifact/CI-identity
+negative tests. The final artifact SHA-256 is
+`a427fedcfde8b1bb658d63e081ce16ba325891e51da3567aeb0891377fab9ea8`.

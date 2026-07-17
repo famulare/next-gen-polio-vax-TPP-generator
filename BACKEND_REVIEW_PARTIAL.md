@@ -1,8 +1,11 @@
-# Partial backend review and handoff
+# Backend review completion record
 
-**Status:** In progress; this is not a release approval or a completed review.
+**Status:** Backend review and its remediation task list are complete through
+commits `0a85b7c` and `8595482`. This is not an overall application-release
+approval; the separate web-visualization/science-communication review remains
+outside this document's scope.
 
-**Review target:** commit `d3c18e4bebe7aa0aa588201411f19b09e6350384`
+**Review baseline:** commit `d3c18e4bebe7aa0aa588201411f19b09e6350384`
 
 **Review date:** 2026-07-17
 
@@ -19,50 +22,68 @@ The intended versioned default for the hypothetical new vaccine is:
 - `mu0_new = 6`
 - `sigma0_new = 2.4` remains fixed
 
-The current manifest instead uses `take_context = 0.8` and `mu0_new = 4` in
-[`src/data/parameters.json`](src/data/parameters.json#L28-L33). The take default
-is already contradicted by the locked contract. The contract names `mu0_new` as
-variable but does not name its default, so changing the boost default to 6
-should be recorded as a small contract/default-manifest amendment rather than a
-silent data edit.
+The baseline manifest instead used `take_context = 0.8` and `mu0_new = 4`.
+Contract 1.7 and parameter manifest 1.1.0 now record and implement the selected
+`take_context = 1`, `mu0_new = 6` default explicitly.
 
 At current parameters, the default change materially changes the reported
 model output:
 
 | Default | `R_loc` envelope maximum | `q_acq` | `q_shed` |
 |---|---:|---:|---:|
-| current `take=0.8, mu0=4` | 31.3458069892 | 0.2144967561 | 0.1459338521 |
-| intended `take=1, mu0=6` | 12.1133719492 | 0.0928709707 | 0.0068430156 |
+| baseline `take=0.8, mu0=4` | 31.3458069892 | 0.2144967561 | 0.1459338521 |
+| versioned `take=1, mu0=6` | 12.1133719492 | 0.0928709707 | 0.0068430156 |
 
 These values are included to show that this is a consequential default, not to
 make a biological claim about either design.
 
-## Provisional bottom line
+## Final backend bottom line
 
-The implementation has several strong properties: it is deterministic, the
-main schedule calculation is distribution-native, the pinned-source fixtures
-regenerate byte-for-byte, and the existing verification suite passes. However,
-the passing suite is not sufficient to conclude that the backend implements
-the locked contract as intended. I have confirmed multiple contract/model
-mismatches, one contradictory output-schema behavior, and a browser-lifetime
-memory problem. Several of these require a contract decision before patching
-because the pinned source behavior and the written contract disagree.
+All P1--P3 findings and all eight handoff tasks recorded below have been
+resolved. The audited backend now implements the controlling Contract 1.7
+semantics for the exact dose-response equation, exact Cessation shedding
+constants, independent per-infection transmission horizon, selected-design
+identity, linked/unlinked envelopes, hard validation bounds, and explicit
+point-rule uncertainty limitation. The model and generated artifact remain
+deterministic and self-contained.
 
-The earlier external review supplied during this task concluded that there was
-no model-math correctness bug. I do **not** adopt that conclusion. Its useful
-cross-path checks are recorded below, but it missed or downgraded the exact
-equation mismatch, the failing horizon discriminator, the selected-design
-snap, the default mismatch, and the measured cache growth.
+This conclusion is narrower than product release or scientific validation.
+The reviewed joint uncertainty ensemble remains absent and therefore fails
+closed; no upper-95 or complete-population decision claim is available. Source
+fixtures with deliberately different numerical policies remain clearly labeled
+diagnostics, not production-parity evidence. The separate visualization and
+science-communication review is still deferred.
 
-## Findings
+## Original findings at the baseline (all resolved)
 
-Severity convention for this partial review:
+The findings below preserve what was observed at `d3c18e4`; their present-tense
+descriptions are historical, not descriptions of the remediated backend.
+Severity convention used during the review:
 
 - **P1:** resolve before treating the backend as an implementation of the
   locked design contract or relying on its canonical outputs.
 - **P2:** important correctness, completeness, or auditability defect, but
   currently fail-closed, bounded, or not known to change the default result.
 - **P3:** test hardening, performance polish, or misleading maintenance residue.
+
+### Resolution index
+
+| Baseline finding | Resolution |
+|---|---|
+| Wrong default and off-grid selected output | Contract 1.7 and parameter manifest 1.1.0 set `take_context=1`, `mu0_new=6`; `selectedDesign` is the exact scenario and `nearestGridPoint` is separately named. |
+| Grid cell substituted for selected scenario | Direct selected-design evaluation is retained even outside the display grid; rendering does not imply an in-grid selected cell. |
+| Approximate low-dose production branch | Production uses the stable exact beta-Poisson equation. The India branch is a discriminating source diagnostic only. |
+| Global rather than per-infection horizon | Each link receives an independent 120-day post-infection horizon; all product/anchor cases pass the 120-to-240-day tail test. |
+| Unbounded transmission caches | Large transmission caches are content-keyed LRU caches capped at 12. Small boost, integrated-shedding, and surface-value caches are also explicitly bounded. |
+| Nonreproducible CI build identity | Build identity is a deterministic source hash; the committed artifact has a recorded SHA-256, CI checks a clean rebuild, and negative tests prove stale-artifact rejection and `GITHUB_SHA` independence. |
+| Inconsistent shedding `b2` | Production uses exact Cessation `ln(1.164)`; the India rounded value remains diagnostic and is not claimed as parity. |
+| Mutable cached/output state | Scenario and provenance are owned copies; committed manifests and cached boost matrices are frozen; invalid mutations cannot corrupt later evaluations. |
+| Missing unlinked envelope | `Tih` and `Ths` bounds are independently represented and validated; linked envelopes require equal bounds. |
+| Undeclared hypothetical hard bounds | Contract 1.7 and the versioned parameter manifest declare and enforce alpha, beta, dose, take, and boost bounds. |
+| Invalid bins silently repaired | Nonfinite, negative, and zero-mass state fails closed; floating residual is assigned to the largest existing component. |
+| Missing runtime manifest/output schemas and weak identity | All committed scientific manifests and `ModelOutputsV1`, including provenance, receive exact-key/type/range validation; identities use SHA-256 scientific content. |
+| Missing cross-path regression | Direct factorized `R_loc` is compared with explicit independently timed `transmitLink` composition over products and anchors; maximum allowed relative difference is `1e-12`. |
+| Performance/test-discovery residue | Redundant shedding work is bounded-memoized, surface scalar results use a four-entry content cache, tests are recursively discovered, and stale partial wording was reconciled. |
 
 ### P1. The canonical hypothetical default is wrong, and the intended `mu0=6` default exposes a second output bug
 
@@ -361,11 +382,49 @@ path exercised by the prevalence calibration gate.
   existing component or normalizing proportionally would avoid a directional
   convention with no mathematical justification.
 
-## Verification completed
+## Final verification after remediation
+
+`npm run verify` passed against commit `8595482` plus this documentation-only
+closure:
+
+- TypeScript typecheck: passed.
+- Recursively discovered Node tests: 36/36 passed.
+- R fixture-generator provenance preflight: passed.
+- All seven Section 15.1 artifacts and the Section 15.2 calibration gate:
+  current and passing.
+- Calibration fixture validation: exact root/case/mapping/output schemas,
+  finite/range checks, clean pinned provenance, consecutive day conventions,
+  unique case IDs, full trajectory lengths, and explicit gate failure behavior.
+- Performance medians: selected scenario 1.6 ms, setting surface 0.7 ms,
+  frontier 410.7 ms; all below their fixed targets.
+- Twelve distinct envelopes retained 17.0 MiB of ArrayBuffers. Cache entries
+  remained within their declared capacities: 12 link kernels, 1 shedding
+  profile, 12 per-exposure profiles, and 4 setting surfaces.
+- Deterministic build identity: `source-434c9bfdda3bc11a`.
+- Single-file artifact and Chromium smoke: passed, including local-file load,
+  no runtime network requests, GitHub Pages path prefix, fixed-comparator UI
+  semantics, stale/invalid output withholding, exports, and narrow viewport.
+- Built artifact SHA-256:
+  `a427fedcfde8b1bb658d63e081ce16ba325891e51da3567aeb0891377fab9ea8`.
+- Negative release tests: a deliberately stale artifact was rejected and two
+  builds with different CI-like `GITHUB_SHA` values were byte-identical.
+- `git diff --check`: passed before each remediation commit.
+
+The source/contract audit in
+[`docs/backend-source-authority-audit.md`](docs/backend-source-authority-audit.md)
+accounts for every generator input family and records which values are direct
+source constants, versioned contract/grid inputs, or diagnostics. Calibration
+optimization remains deterministic with declared grids and tie breaks. The
+India joint-fit report exposes the near-optimal mean/`Tih` region rather than
+presenting a point estimate as posterior identification; invalid mapped state,
+invalid mass, invalid horizon, stale report, and failed calibration-gate paths
+fail closed.
+
+## Baseline verification (superseded)
 
 ### Repository suite
 
-`npm run verify` passed from a clean worktree:
+At the baseline, `npm run verify` passed from a clean worktree:
 
 - TypeScript typecheck: passed.
 - Node tests: 25/25 passed.
@@ -379,7 +438,7 @@ path exercised by the prevalence calibration gate.
   `566954ee17799cdde12b34dd2548b0a2c3e0a842c2e2c547bd4d1ef93fd1e939`.
 - The worktree remained clean after the local build.
 
-Passing this command does not exercise the post-build git-diff release gate,
+That baseline command did not exercise the post-build git-diff release gate,
 horizon-extension criterion, cache lifetime, or off-grid selected-design
 consistency described above.
 
@@ -399,9 +458,9 @@ files. There were no differences. This is strong reproducibility evidence for
 the current generator inputs. It does not make injected constants such as
 `b2` independent source evidence.
 
-## Important properties that appear correct
+## Important properties preserved and reverified
 
-These observations should be preserved during remediation:
+These baseline strengths were preserved during remediation:
 
 - Scheduled live-vaccine take is split bin-by-bin into conditioned take and
   no-take subdistributions; it is not applied to an unchanged average-person
@@ -421,31 +480,36 @@ These observations should be preserved during remediation:
 - Parameter uncertainty and the upper-95 rule fail closed as out of scope.
 - There is no runtime network dependency or runtime randomness in the model.
 
-## Remaining work for the next reviewing agent
+## Handoff task-list disposition
 
-1. Reproduce and commit or document the external cross-path
-   `rLocForSetting`/`transmitLink` comparison.
-2. Finish a line-by-line audit of calibration optimization, identifiability
-   checks, report schema, and failure behavior; existing outputs have been read
-   but not all negative paths have been independently exercised.
-3. Review every fixture generator input against source-vs-contract authority,
-   especially all injected constants, not only `b2`.
-4. Complete release-pipeline negative tests: deliberately stale `dist`, CI-like
-   `GITHUB_SHA`, path prefix, changed manifest content, and failed cache
-   invalidation.
-5. Decide and document the three source/contract conflicts before editing model
-   behavior: low-dose branch, horizon semantics, and shedding `b2`.
-6. Amend the versioned default to the user's chosen `take_context=1, mu0=6`,
-   then ensure exact selected-scenario output remains distinct from any display
-   grid snap.
-7. Add focused regression tests for every accepted remediation before rerunning
-   fixture, calibration, invariant, performance, build, and clean-diff gates.
-8. Keep the later web visualization and science-communication review separate,
-   except where the backend output schema currently carries contradictory or
-   misleading values.
+1. **Complete.** The cross-path comparison is a committed regression over
+   hypothetical/IPV states and every named anchor.
+2. **Complete.** Calibration optimization, deterministic tie rules,
+   near-optimal-region identifiability diagnostics, strict fixture/report
+   schemas, and negative paths were audited and tested.
+3. **Complete.** Every fixture-generator input family is classified in the
+   source-authority audit, including all injected rather than inferred values.
+4. **Complete.** Release negative tests cover deliberately stale `dist`,
+   CI-like `GITHUB_SHA`, Pages path prefix, scientific-content identities, cache
+   bounds, and CI clean rebuilds.
+5. **Complete.** Contract 1.7 resolves all three conflicts: exact production
+   dose response, independent 120-day per-infection horizons, and exact
+   Cessation shedding constants. Divergent source behavior is diagnostic.
+6. **Complete.** The default is versioned as `take_context=1`, `mu0=6`; exact
+   selected-scenario output is distinct from `nearestGridPoint`.
+7. **Complete.** Focused regressions were added and the complete fixture,
+   calibration, invariant, performance, memory, build, artifact, browser, and
+   release-negative chain passes.
+8. **Complete for backend scope.** Backend output no longer carries the
+   selected-design contradiction. The later visualization and
+   science-communication review remains deliberately separate.
 
-## Worktree note
+## Commit and worktree record
 
-The worktree was clean before this handoff. This file is the only intended new
-review artifact; no model, fixture, manifest, generated artifact, or source
-repository was changed during the review.
+- `0a85b7c` — contract/default/equation/horizon/envelope/cache semantic fixes,
+  regenerated fixtures, and focused regressions.
+- `8595482` — strict output/calibration validation, complete source-authority
+  audit, bounded secondary caches, deterministic build/artifact gates,
+  release-negative tests, recursive test discovery, and the final artifact.
+- No pinned source repository was modified. This completion update changes
+  documentation only on top of those verified implementation commits.
