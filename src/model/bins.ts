@@ -121,17 +121,64 @@ export function applyBoost(probs: readonly number[], mu0: number, sigma0: number
 }
 
 export function normalCdf(x: number): number {
-  if (x === Infinity) return 1;
-  if (x === -Infinity) return 0;
-  return 0.5 * (1 + erf(x / Math.SQRT2));
+  return normalProbabilities(x).cdf;
 }
 
-function erf(x: number): number {
-  const sign = x < 0 ? -1 : 1;
-  const value = Math.abs(x);
-  const t = 1 / (1 + 0.3275911 * value);
-  const polynomial = (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t;
-  return sign * (1 - polynomial * Math.exp(-value * value));
+function normalProbabilities(x: number): { cdf: number } {
+  if (x === Infinity) return { cdf: 1 };
+  if (x === -Infinity) return { cdf: 0 };
+  if (!Number.isFinite(x)) throw new Error("Normal probability requires a finite argument");
+
+  const a = [2.2352520354606839287, 161.02823106855587881, 1067.6894854603709582, 18154.981253343561249, 0.065682337918207449113];
+  const b = [47.20258190468824187, 976.09855173777669322, 10260.932208618978205, 45507.789335026729956];
+  const c = [0.39894151208813466764, 8.8831497943883759412, 93.506656132177855979, 597.27027639480026226, 2494.5375852903726711, 6848.1904505362823326, 11602.651437647350124, 9842.7148383839780218, 1.0765576773720192317e-8];
+  const d = [22.266688044328115691, 235.38790178262499861, 1519.377599407554805, 6485.558298266760755, 18615.571640885098091, 34900.952721145977266, 38912.003286093271411, 19685.429676859990727];
+  const p = [0.21589853405795699, 0.1274011611602473639, 0.022235277870649807, 0.001421619193227893466, 2.9112874951168792e-5, 0.02307344176494017303];
+  const q = [1.28426009614491121, 0.468238212480865118, 0.0659881378689285515, 0.00378239633202758244, 7.29751555083966205e-5];
+  const y = Math.abs(x);
+  let tail: number;
+
+  if (y <= 0.67448975) {
+    let numerator = 0;
+    let denominator = 0;
+    if (y > Number.EPSILON / 2) {
+      const square = x * x;
+      numerator = a[4]! * square;
+      denominator = square;
+      for (let index = 0; index < 3; index += 1) {
+        numerator = (numerator + a[index]!) * square;
+        denominator = (denominator + b[index]!) * square;
+      }
+    }
+    const offset = x * (numerator + a[3]!) / (denominator + b[3]!);
+    return { cdf: 0.5 + offset };
+  }
+
+  if (y <= Math.sqrt(32)) {
+    let numerator = c[8]! * y;
+    let denominator = y;
+    for (let index = 0; index < 7; index += 1) {
+      numerator = (numerator + c[index]!) * y;
+      denominator = (denominator + d[index]!) * y;
+    }
+    tail = (numerator + c[7]!) / (denominator + d[7]!);
+  } else if (y < 38.4674) {
+    const inverseSquare = 1 / (x * x);
+    let numerator = p[5]! * inverseSquare;
+    let denominator = inverseSquare;
+    for (let index = 0; index < 4; index += 1) {
+      numerator = (numerator + p[index]!) * inverseSquare;
+      denominator = (denominator + q[index]!) * inverseSquare;
+    }
+    tail = (0.3989422804014327 - inverseSquare * (numerator + p[4]!) / (denominator + q[4]!)) / y;
+  } else {
+    return x > 0 ? { cdf: 1 } : { cdf: 0 };
+  }
+
+  const truncated = Math.trunc(y * 16) / 16;
+  const correction = (y - truncated) * (y + truncated);
+  tail *= Math.exp(-truncated * truncated / 2) * Math.exp(-correction / 2);
+  return x > 0 ? { cdf: 1 - tail } : { cdf: tail };
 }
 
 function clamp(value: number): number {

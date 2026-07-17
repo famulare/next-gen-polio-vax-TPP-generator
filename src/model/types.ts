@@ -4,6 +4,7 @@ export const MICROGRAMS_PER_GRAM = 1_000_000;
 export type Bins = number[];
 export type ProductId = "sabin2" | "ipv" | "hypothetical";
 export type SettingId = "low" | "houston" | "matlab" | "up-bihar" | "global" | "custom";
+export type AnchorSettingId = Exclude<SettingId, "global" | "custom">;
 export type SuccessRule = "point" | "upper95";
 
 export interface UnitValueV1 {
@@ -66,6 +67,7 @@ export interface ScenarioV1 {
   indexReferenceExposure: number;
   horizonDays: number;
   parameterManifestVersion: string;
+  settingManifestVersion: string;
   frontierGridVersion: string;
   uncertaintyEnsembleVersion: string;
 }
@@ -82,6 +84,9 @@ export interface ParameterManifestV1 {
     bin0WanedCenter: number;
     bin0WanedSd: number;
   };
+  numerics: {
+    sourceLowDoseLinearRatio: number;
+  };
   immunity: { bins: number; maxLog2: number; waningLambda: number };
   wpv1: {
     alpha: number;
@@ -93,7 +98,7 @@ export interface ParameterManifestV1 {
   vaccineDefaults: Record<ProductId, { alpha: number; beta: number; dose: number; takeContext: number; mu0: number; sigma0: number }> & { gamma: number; formulationMultiplier: number };
   boosts: { sabin: { mu0: number; sigma0: number }; wpv: { mu0: number; sigma0: number } };
   shedding: {
-    age: { aMax: number; aMin: number; tauMonths: number };
+    age: { aMax: number; aMin: number; tauMonths: number; legacyPlateauUntilMonths: number };
     immunitySuppression: number;
     temporal: { mu: number; sigma: number; kappa: number };
     titerFloor: number;
@@ -139,12 +144,10 @@ export interface PointMetrics {
   qAcq: number;
   qShed: number;
   qIndex: number;
-  rLocMax: number;
-  rLocLow: number;
-  rLocHouston: number;
-  rLocMatlab: number;
-  rLocHigh: number;
-  naiveRLocMax: number;
+  rLocSelectedSetting: number | null;
+  rLocEnvelopeMax: number;
+  rLocAnchors: Record<AnchorSettingId, number>;
+  naiveRLocEnvelopeMax: number;
   effectiveFirstDoseTake: number;
   assessmentAgeDays: number;
   assessmentLagDays: number;
@@ -156,16 +159,30 @@ export interface DesignGridPoint {
   mu0: number;
   qAcq: number;
   qShed: number;
-  rLocMax: number;
+  rLocEnvelopeMax: number;
   passes: boolean;
 }
 
+export interface ComparatorPoint {
+  productId: Exclude<ProductId, "hypothetical">;
+  label: string;
+  takeContext: number | null;
+  mu0: number | null;
+  qAcq: number;
+  qShed: number;
+  rLocEnvelopeMax: number;
+  passes: boolean;
+  selected: boolean;
+}
+
 export interface FrontierResult {
+  familyProductId: "hypothetical";
   takeValues: number[];
   mu0Values: number[];
   points: DesignGridPoint[];
   pareto: DesignGridPoint[];
-  selected: DesignGridPoint;
+  selectedDesign: DesignGridPoint | null;
+  comparators: ComparatorPoint[];
 }
 
 export interface ModelOutputsV1 {
@@ -182,6 +199,7 @@ export interface ModelOutputsV1 {
   };
   assumptions: string[];
   modelIdentity: string;
+  provenance: unknown;
 }
 
 export interface SettingAnchorRecord extends SettingV1 {

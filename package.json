@@ -7,9 +7,14 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test tests/model/model.test.ts",
+    "test:fixtures": "Rscript tests/scripts/reference-fixture-generator.R",
+    "generate:calibration-report": "node --import tsx scripts/generate-calibration-report.ts --write",
+    "check:calibration": "node --import tsx scripts/generate-calibration-report.ts --check",
+    "check:performance": "node --import tsx scripts/check-performance.ts",
+    "check:reference-fixtures": "node scripts/check-reference-fixtures.mjs",
     "build": "node scripts/build.mjs",
     "check:artifact": "node scripts/check-artifact.mjs && node scripts/browser-smoke.mjs",
-    "verify": "npm run typecheck && npm test && npm run build && npm run check:artifact"
+    "verify": "npm run typecheck && npm test && npm run test:fixtures && npm run check:reference-fixtures && npm run check:calibration && npm run check:performance && npm run build && npm run check:artifact"
   },
   "dependencies": {
     "d3-array": "^3.2.4",

@@ -1,4 +1,4 @@
-import { PARAMETERS, UNCERTAINTY_ENSEMBLE, FRONTIER_GRID } from "./parameters";
+import { FRONTIER_GRID, GLOBAL_SETTING, PARAMETERS, SETTING_ANCHORS, SETTING_MANIFEST_VERSION, UNCERTAINTY_ENSEMBLE, vaccineDefaults } from "./parameters";
 import type { ScenarioV1, SettingV1, UnitValueV1, VaccineV1 } from "./types";
 
 export function canonicalJson(value: unknown): string {
@@ -20,15 +20,20 @@ export function encodeScenario(scenario: ScenarioV1): string {
 }
 
 export function decodeScenario(encoded: string): ScenarioV1 {
-  const decoded = base64UrlDecode(encoded);
-  const value: unknown = JSON.parse(decoded);
-  validateScenario(value);
-  return value;
+  try {
+    const decoded = base64UrlDecode(encoded);
+    const value: unknown = JSON.parse(decoded);
+    validateScenario(value);
+    return value;
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(`Invalid scenario URL state: ${detail}`);
+  }
 }
 
 export function validateScenario(value: unknown): asserts value is ScenarioV1 {
   if (!isRecord(value)) throw new Error("Scenario must be a JSON object");
-  exactKeys(value, ["schemaVersion", "targetId", "comparatorId", "vaccine", "schedule", "setting", "envelope", "successRule", "indexReferenceExposure", "horizonDays", "parameterManifestVersion", "frontierGridVersion", "uncertaintyEnsembleVersion"], "ScenarioV1");
+  exactKeys(value, ["schemaVersion", "targetId", "comparatorId", "vaccine", "schedule", "setting", "envelope", "successRule", "indexReferenceExposure", "horizonDays", "parameterManifestVersion", "settingManifestVersion", "frontierGridVersion", "uncertaintyEnsembleVersion"], "ScenarioV1");
   if (value.schemaVersion !== "ScenarioV1" || value.targetId !== "WPV1") throw new Error("Unsupported scenario schema or target");
   if (!isProductId(value.comparatorId)) throw new Error("Invalid comparator id");
   validateVaccine(value.vaccine);
@@ -39,7 +44,7 @@ export function validateScenario(value: unknown): asserts value is ScenarioV1 {
   if (value.successRule !== "point" && value.successRule !== "upper95") throw new Error("Invalid success rule");
   finitePositive(value.indexReferenceExposure, "indexReferenceExposure");
   integerRange(value.horizonDays, 1, 1000, "horizonDays");
-  for (const [key, expected] of [["parameterManifestVersion", PARAMETERS.manifestVersion], ["frontierGridVersion", FRONTIER_GRID.version], ["uncertaintyEnsembleVersion", UNCERTAINTY_ENSEMBLE.version]] as const) {
+  for (const [key, expected] of [["parameterManifestVersion", PARAMETERS.manifestVersion], ["settingManifestVersion", SETTING_MANIFEST_VERSION], ["frontierGridVersion", FRONTIER_GRID.version], ["uncertaintyEnsembleVersion", UNCERTAINTY_ENSEMBLE.version]] as const) {
     if (value[key] !== expected) throw new Error(`${key} does not match the bundled manifest`);
   }
 }
@@ -47,15 +52,21 @@ export function validateScenario(value: unknown): asserts value is ScenarioV1 {
 function validateVaccine(value: unknown): asserts value is VaccineV1 {
   if (!isRecord(value)) throw new Error("Vaccine must be an object");
   exactKeys(value, ["id", "label", "live", "alpha", "beta", "dose", "takeContext", "formulationMultiplier", "mu0", "sigma0", "gamma"], "VaccineV1");
-  if (!isProductId(value.id) || typeof value.label !== "string" || typeof value.live !== "boolean") throw new Error("Invalid vaccine identity");
+  if (!isProductId(value.id)) throw new Error("Invalid vaccine identity");
+  const catalog = vaccineDefaults(value.id);
+  if (value.label !== catalog.label || value.live !== catalog.live) throw new Error(`${value.id} identity does not match the bundled product catalog`);
+  if (value.id !== "hypothetical") {
+    if (!sameRecord(value, catalog)) throw new Error(`${value.id} is a fixed v1 comparator and cannot be parameterized`);
+    return;
+  }
   finiteRange(value.alpha, 0.001, 5, "alpha");
   finiteRange(value.beta, 0.001, 1e6, "beta");
-  finiteRange(value.dose, 0, 1e9, "dose");
+  finitePositive(value.dose, "dose");
   finiteRange(value.takeContext, 0, 1, "takeContext");
-  finiteRange(value.formulationMultiplier, 0, 10, "formulationMultiplier");
   finiteRange(value.mu0, 0, 15, "mu0");
-  finiteRange(value.sigma0, 0, 15, "sigma0");
-  if (Math.abs(value.gamma - PARAMETERS.vaccineDefaults.gamma) > 1e-12) throw new Error("gamma is fixed in v1");
+  if (value.formulationMultiplier !== catalog.formulationMultiplier) throw new Error("formulationMultiplier is fixed at 1 in v1");
+  if (value.sigma0 !== catalog.sigma0) throw new Error("sigma0 is fixed at 2.4 in v1");
+  if (value.gamma !== catalog.gamma) throw new Error("gamma is fixed at 0.4624 in v1");
 }
 
 function validateSchedule(value: unknown): void {
@@ -76,13 +87,19 @@ function validateSetting(value: unknown): asserts value is SettingV1 {
   validateUnitValue(value.dIh, "exposures/person/day", "per_day", "dIh");
   validateUnitValue(value.dHs, "exposures/person/day", "per_day", "dHs");
   integerRange(value.Ns, 0, 1000, "Ns");
+  if (value.id === "global") {
+    if (!sameRecord(value, GLOBAL_SETTING)) throw new Error("The global setting record must match its bundled placeholder; the envelope defines the evaluated range");
+  } else if (value.id !== "custom") {
+    const anchor = SETTING_ANCHORS.find((candidate) => candidate.id === value.id);
+    if (!anchor || !sameRecord(value, pickSetting(anchor))) throw new Error(`${value.id} does not match the bundled named setting`);
+  }
 }
 
 function validateEnvelope(value: unknown): void {
   if (!isRecord(value)) throw new Error("Envelope must be an object");
   exactKeys(value, ["linkedExposure", "TMin", "TMax", "NsMin", "NsMax", "dIhMin", "dIhMax", "dHsMin", "dHsMax"], "EnvelopeV1");
-  if (typeof value.linkedExposure !== "boolean") throw new Error("linkedExposure must be boolean");
-  finiteRange(value.TMin, 0, 1, "TMin");
+  if (value.linkedExposure !== true) throw new Error("Unlinked envelope bounds are not representable by ScenarioV1; keep linkedExposure true");
+  finitePositive(value.TMin, "TMin");
   finiteRange(value.TMax, value.TMin, 1, "TMax");
   integerRange(value.NsMin, 0, 1000, "NsMin");
   integerRange(value.NsMax, value.NsMin, 1000, "NsMax");
@@ -95,8 +112,7 @@ function validateEnvelope(value: unknown): void {
 function validateUnitValue(value: unknown, unit: string, basis: UnitValueV1["basis"], label: string): asserts value is UnitValueV1 {
   if (!isRecord(value)) throw new Error(`${label} must be a unit value`);
   exactKeys(value, ["value", "unit", "basis"], label);
-  if (value.unit === "exposures/person/day") finiteRange(value.value, 0, 1000, label);
-  else finitePositive(value.value, label);
+  finiteRange(value.value, 0, 1000, label);
   if (value.unit !== unit || value.basis !== basis) throw new Error(`${label} has the wrong unit or basis`);
 }
 
@@ -112,6 +128,14 @@ function isRecord(value: unknown): value is Record<string, any> {
 
 function isProductId(value: unknown): value is "sabin2" | "ipv" | "hypothetical" {
   return value === "sabin2" || value === "ipv" || value === "hypothetical";
+}
+
+function pickSetting(value: SettingV1): SettingV1 {
+  return { id: value.id, Tih: value.Tih, Ths: value.Ths, dIh: value.dIh, dHs: value.dHs, Ns: value.Ns };
+}
+
+function sameRecord(left: unknown, right: unknown): boolean {
+  return canonicalJson(left) === canonicalJson(right);
 }
 
 function finitePositive(value: unknown, label: string): void {

@@ -1,7 +1,7 @@
 {
   "schemaVersion": "ParameterManifestV1",
-  "manifestVersion": "parameters-1.0.0",
-  "designContractVersion": "1.2",
+  "manifestVersion": "parameters-1.0.3",
+  "designContractVersion": "1.4",
   "sourceSnapshot": {
     "cessationStability": { "commit": "3d779963e9febe8e6262964b185c8277234f41e0", "trackedDirty": false },
     "indiaPolio": { "commit": "1e3e832742e84a36fbc75d81b3a2d19cde8208e6", "trackedDirty": false }
@@ -13,6 +13,9 @@
     "sheddingWithinBinSd": 0.4,
     "bin0WanedCenter": 0.25,
     "bin0WanedSd": 0.14433756729740643
+  },
+  "numerics": {
+    "sourceLowDoseLinearRatio": 0.01
   },
   "immunity": { "bins": 16, "maxLog2": 15, "waningLambda": 0.87 },
   "wpv1": {
@@ -34,7 +37,7 @@
     "wpv": { "mu0": 7.2, "sigma0": 2.9 }
   },
   "shedding": {
-    "age": { "aMax": 6.67, "aMin": 4.29, "tauMonths": 9.92 },
+    "age": { "aMax": 6.67, "aMin": 4.29, "tauMonths": 9.92, "legacyPlateauUntilMonths": 7 },
     "immunitySuppression": 0.056,
     "temporal": { "mu": 1.64, "sigma": 0.18, "kappa": 0.32 },
     "titerFloor": 398.1071705534973

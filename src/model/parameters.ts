@@ -2,7 +2,7 @@ import rawParameters from "../data/parameters.json";
 import rawAnchors from "../data/setting-anchors.json";
 import rawFrontierGrid from "../data/frontier-grid.json";
 import rawEnsemble from "../data/uncertainty-ensemble.json";
-import type { FrontierGridManifestV1, ParameterManifestV1, ProductId, SettingAnchorRecord } from "./types";
+import type { FrontierGridManifestV1, ParameterManifestV1, ProductId, SettingAnchorRecord, SettingV1 } from "./types";
 
 export const PARAMETERS = rawParameters as ParameterManifestV1;
 export const FRONTIER_GRID = rawFrontierGrid as FrontierGridManifestV1;
@@ -23,18 +23,38 @@ function toGrams(value: number, unit: string): number {
   throw new Error(`Unsupported setting unit: ${unit}`);
 }
 
-export const SETTING_ANCHORS = (rawAnchors.anchors as Array<Record<string, unknown>>).map((record) => ({
-  id: record.id as SettingAnchorRecord["id"],
-  label: record.label as string,
-  kind: record.kind as SettingAnchorRecord["kind"],
-  Tih: { value: toGrams((record.T_ih as { value: number }).value, (record.T_ih as { unit: string }).unit), unit: "grams/exposure", basis: "per_exposure" as const },
-  Ths: { value: toGrams((record.T_hs as { value: number }).value, (record.T_hs as { unit: string }).unit), unit: "grams/exposure", basis: "per_exposure" as const },
-  dIh: record.dIh as SettingAnchorRecord["dIh"],
-  dHs: record.dHs as SettingAnchorRecord["dHs"],
-  Ns: record.Ns as number,
-  interval: record.interval as SettingAnchorRecord["interval"],
-  tooltip: record.tooltip as string | undefined
-})) as SettingAnchorRecord[];
+function canonicalExposure(
+  value: { value: number; unit: string; basis: "per_exposure" | "per_day" },
+  contactsPerDay: number
+): SettingV1["Tih"] {
+  const grams = toGrams(value.value, value.unit);
+  if (value.basis === "per_exposure") {
+    return { value: grams, unit: "grams/exposure", basis: "per_exposure" };
+  }
+  if (value.basis === "per_day" && contactsPerDay > 0) {
+    return { value: grams / contactsPerDay, unit: "grams/exposure", basis: "per_exposure" };
+  }
+  throw new Error("Daily setting exposure requires a positive exposure frequency");
+}
+
+export const SETTING_MANIFEST_VERSION = rawAnchors.version;
+
+export const SETTING_ANCHORS = (rawAnchors.anchors as Array<Record<string, unknown>>).map((record) => {
+  const dIh = record.dIh as SettingAnchorRecord["dIh"];
+  const dHs = record.dHs as SettingAnchorRecord["dHs"];
+  return {
+    id: record.id as SettingAnchorRecord["id"],
+    label: record.label as string,
+    kind: record.kind as SettingAnchorRecord["kind"],
+    Tih: canonicalExposure(record.T_ih as Parameters<typeof canonicalExposure>[0], dIh.value),
+    Ths: canonicalExposure(record.T_hs as Parameters<typeof canonicalExposure>[0], dHs.value),
+    dIh,
+    dHs,
+    Ns: record.Ns as number,
+    interval: record.interval as SettingAnchorRecord["interval"],
+    tooltip: record.tooltip as string | undefined
+  };
+}) as SettingAnchorRecord[];
 
 export const ENVELOPE = {
   linkedExposure: true,
@@ -55,6 +75,14 @@ export const PRODUCT_LABELS: Record<ProductId, string> = {
 };
 
 export const DEFAULT_PRODUCT_ID: ProductId = "hypothetical";
+export const GLOBAL_SETTING: SettingV1 = {
+  id: "global",
+  Tih: { value: 5 / 1_000_000, unit: "grams/exposure", basis: "per_exposure" },
+  Ths: { value: 5 / 1_000_000, unit: "grams/exposure", basis: "per_exposure" },
+  dIh: { value: PARAMETERS.transmission.dIh, unit: "exposures/person/day", basis: "per_day" },
+  dHs: { value: PARAMETERS.transmission.dHs, unit: "exposures/person/day", basis: "per_day" },
+  Ns: 3
+};
 export const DEFAULTS = {
   productId: DEFAULT_PRODUCT_ID,
   boosterAgeYears: 0 as const,

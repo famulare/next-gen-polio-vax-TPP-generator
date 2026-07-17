@@ -66,6 +66,8 @@ export function applyDose(state: ImmuneState, vaccine: VaccineV1): ImmuneState {
     const take = vaccineTakePerBin(vaccine.dose, vaccine.alpha, vaccine.beta, vaccine.gamma, vaccine.takeContext, vaccine.formulationMultiplier, group.everInfected);
     const takeWeights = group.mucosal.map((value, bin) => value * (take[bin] ?? 0));
     const noTakeWeights = group.mucosal.map((value, bin) => value * (1 - (take[bin] ?? 0)));
+    const takeSerumWeights = group.serum.map((value, bin) => value * (take[bin] ?? 0));
+    const noTakeSerumWeights = group.serum.map((value, bin) => value * (1 - (take[bin] ?? 0)));
     const takeProbability = takeWeights.reduce((sum, value) => sum + value, 0);
     const noTakeProbability = noTakeWeights.reduce((sum, value) => sum + value, 0);
     if (noTakeProbability > 1e-14) {
@@ -73,16 +75,17 @@ export function applyDose(state: ImmuneState, vaccine: VaccineV1): ImmuneState {
         mass: group.mass * noTakeProbability,
         everInfected: group.everInfected,
         mucosal: normalizeBins(noTakeWeights),
-        serum: [...group.serum]
+        serum: normalizeBins(noTakeSerumWeights)
       });
     }
     if (takeProbability > 1e-14) {
       const conditionedTake = normalizeBins(takeWeights);
+      const conditionedTakeSerum = normalizeBins(takeSerumWeights);
       groups.push({
         mass: group.mass * takeProbability,
         everInfected: true,
         mucosal: applyBoost(conditionedTake, vaccine.mu0, vaccine.sigma0, group.everInfected),
-        serum: applyBoost(group.serum, vaccine.mu0, vaccine.sigma0, group.everInfected)
+        serum: applyBoost(conditionedTakeSerum, vaccine.mu0, vaccine.sigma0, group.everInfected)
       });
     }
   }

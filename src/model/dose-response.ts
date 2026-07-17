@@ -4,8 +4,12 @@ import { quadratureAverage, sourceQuadratureValues } from "./bins";
 export function doseResponse(dose: number, n: number, alpha: number, beta: number, gamma: number): number {
   if (dose <= 0) return 0;
   if (!Number.isFinite(dose) || beta <= 0 || alpha < 0) throw new Error("Invalid dose-response parameters");
+  const ratio = dose / beta;
+  if (ratio <= PARAMETERS.numerics.sourceLowDoseLinearRatio) {
+    return clamp01(alpha * 2 ** (-gamma * Math.max(0, n)) * ratio);
+  }
   const exponent = -alpha / (2 ** (gamma * Math.max(0, n)));
-  return clamp01(1 - (1 + dose / beta) ** exponent);
+  return clamp01(1 - (1 + ratio) ** exponent);
 }
 
 export function susceptibilityPerBin(dose: number, alpha: number, beta: number, gamma: number, everInfected: boolean): number[] {

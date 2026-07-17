@@ -6,6 +6,16 @@ vaccine?** The generator is based on the model in [this paper](https://journals.
 
 Explore the related [data explorer](https://famulare.github.io/cessationStability/onlineVisualization/).
 
+## Prototype status
+
+This working artifact is an **unreleased scientific prototype**, not a
+decision-use TPP tool. Its threshold comparisons and exports are for
+implementation review only; they must not be interpreted as v1 sufficiency
+classifications, product targets, source-model parity, or calibrated uncertainty
+support. The documented Section 15.2 prevalence calibration passes, but
+source-derived Section 15.1 parity and a reviewed uncertainty ensemble remain
+required before any such conclusion.
+
 ## Run locally
 
 The app is a deterministic, self-contained HTML artifact. Node 24 LTS and npm
@@ -40,8 +50,9 @@ The locked [design contract](./DESIGN_CONTRACT.md) remains canonical. The v1
 uncertainty manifest is deliberately empty: no reviewed joint bootstrap or
 posterior draws were supplied by the locked source snapshot, so the UI exposes
 that limitation and does not relabel independent confidence endpoints as a
-probability interval. Source-model parity fixtures and a reviewed ensemble are
-release gates for claiming numerical parity and upper-95 decision support;
+probability interval. Source-model parity fixtures, faithful-modernization
+calibration, and a reviewed ensemble are release gates for claiming numerical
+parity or upper-95 decision support;
 the current implementation includes invariant/schema/frontier/artifact tests
 and records this residual gap in [IMPLEMENTATION_LOG.md](./IMPLEMENTATION_LOG.md).
 

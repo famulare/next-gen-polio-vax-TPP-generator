@@ -1,0 +1,86 @@
+{
+  "schemaVersion": "ReferenceFixtureV1",
+  "coverage": "partial: India R biological kernels, fixed-comparator transition/schedule semantics, and Cessation Matlab fixed-titer motif plus day-1-45 prevalence calibration fixtures",
+  "section15KernelParitySatisfied": false,
+  "section152CalibrationSatisfied": true,
+  "generatorCommand": "Rscript scripts/generate-reference-fixtures.R",
+  "sourceRepositories": [
+    {
+      "repository": "cessationStability",
+      "path": "/Users/famulare/git/famulare/cessationStability",
+      "commit": "3d779963e9febe8e6262964b185c8277234f41e0",
+      "branch": "master",
+      "trackedDirty": false,
+      "untrackedPaths": [],
+      "declaredSourceFiles": [
+        "/Users/famulare/git/famulare/cessationStability/analysis/transmission/primarySecondaryTertiaryDoseModel.m",
+        "/Users/famulare/git/famulare/cessationStability/analysis/helperFunctions/keyValuePairVararginHandler.m"
+      ]
+    },
+    {
+      "repository": "indiaPolio",
+      "path": "/Users/famulare/git/famulare/india-polio",
+      "commit": "1e3e832742e84a36fbc75d81b3a2d19cde8208e6",
+      "branch": "main",
+      "trackedDirty": false,
+      "untrackedPaths": [
+        "AGENTS.md"
+      ],
+      "declaredSourceFiles": [
+        "/Users/famulare/git/famulare/india-polio/model/R/mixture.R",
+        "/Users/famulare/git/famulare/india-polio/model/R/titer_bounds.R",
+        "/Users/famulare/git/famulare/india-polio/model/R/susceptibility.R",
+        "/Users/famulare/git/famulare/india-polio/model/R/shedding.R",
+        "/Users/famulare/git/famulare/india-polio/model/R/immunity.R",
+        "/Users/famulare/git/famulare/india-polio/model/R/vaccination.R",
+        "/Users/famulare/git/famulare/india-polio/model/docs/amended_immunity_model_contract.md"
+      ]
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "reference/fixtures/india-r-susceptibility-v1.json",
+      "schemaVersion": "SourceKernelFixtureV1",
+      "sha256": "a1a19c45223ece9ea55a5cea94c2d966c143b261a18bb7c73923d870e26ca45e"
+    },
+    {
+      "path": "reference/fixtures/india-r-vaccine-take-v1.json",
+      "schemaVersion": "SourceKernelFixtureV1",
+      "sha256": "28c1efbfb921f0a7aaea65a62f15edaf82b5247431fda575c10b9467ec9a2f4c"
+    },
+    {
+      "path": "reference/fixtures/india-r-comparators-v1.json",
+      "schemaVersion": "SourceKernelFixtureV1",
+      "sha256": "61d5796084c31434ba11c2904cd0dde988e92784d2d5258516bbc99158c46221"
+    },
+    {
+      "path": "reference/fixtures/india-r-shedding-v1.json",
+      "schemaVersion": "SourceKernelFixtureV1",
+      "sha256": "9fc0390baf1e0d580e18e8d2d01f32cab1173a9e61958509df253db0a9017504"
+    },
+    {
+      "path": "reference/fixtures/india-r-schedule-v1.json",
+      "schemaVersion": "SourceKernelFixtureV1",
+      "sha256": "ef1a3e87768f274e3478fc9ac63f454667f4d784329140e5e399c75d18d4a9c9"
+    },
+    {
+      "path": "reference/fixtures/cessation-matlab-motif-v1.json",
+      "schemaVersion": "SourceMotifFixtureV1",
+      "sha256": "138ff6ea00427de35bc004e06dbe49443a29a47076d4c38781d5c2c1ebd5ab99"
+    },
+    {
+      "path": "reference/fixtures/cessation-calibration-prevalence-v1.json",
+      "schemaVersion": "SourcePrevalenceCalibrationFixtureV1",
+      "sha256": "5378015d42850466c0d6fd384301fbf1bdcc58810d13ed8a7414de8c76a7872c"
+    }
+  ],
+  "remainingRequiredCoverage": [
+    "Broader India R direct-port grids and fixed-comparator transmission outcomes required for the full Section 15.1 gate"
+  ],
+  "calibrationArtifact": {
+    "path": "reference/fixtures/calibration-report-v1.json",
+    "schemaVersion": "DistributionNativePrevalenceCalibrationReportV1",
+    "sha256": "03551fbb9d3c5612df1120c6d785498e70b00e041391b35b818f7dd8cc68dcc8",
+    "calibrationGateSatisfied": true
+  }
+}

@@ -5,6 +5,7 @@ import { resolve } from "node:path";
 const root = resolve(new URL("..", import.meta.url).pathname);
 const dist = resolve(root, "dist");
 const temp = resolve(root, ".build");
+const buildIdentity = process.env.GITHUB_SHA ?? "local-working-tree";
 rmSync(dist, { recursive: true, force: true });
 rmSync(temp, { recursive: true, force: true });
 mkdirSync(dist, { recursive: true });
@@ -22,6 +23,7 @@ await build({
   sourcemap: false,
   legalComments: "none",
   absWorkingDir: root,
+  define: { __BUILD_IDENTITY__: JSON.stringify(buildIdentity) },
   logLevel: "error"
 });
 
@@ -41,4 +43,4 @@ const html = `<!doctype html>
 `;
 writeFileSync(resolve(dist, "index.html"), html);
 if (!existsSync(resolve(dist, "index.html"))) throw new Error("Build did not produce dist/index.html");
-console.log(`Wrote ${resolve(dist, "index.html")} (${Buffer.byteLength(html)} bytes)`);
+console.log(`Wrote ${resolve(dist, "index.html")} (${Buffer.byteLength(html)} bytes; build ${buildIdentity})`);

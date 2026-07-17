@@ -2,12 +2,16 @@
 
 **Status:** LOCKED FOR IMPLEMENTATION
 
-**Contract version:** 1.2
+**Contract version:** 1.4
 
 **Locked:** 2026-07-15
 
 **Process amendments:** 2026-07-15; supervised-agent/content-block fallback and
-primary false-positive judgment
+primary false-positive judgment. Scientific amendment 2026-07-16: retain the
+legacy Cessation age-shedding plateau/offset rather than the divergent
+India-source age-amplitude equation; jointly fit the India contact-distribution
+mean and `T_ih` against the household prevalence trajectory under the
+schedule-derived mean--variance constraint.
 
 **Primary audience:** vaccine developers, polio program scientists, modelers, and funders
 
@@ -421,9 +425,14 @@ WPV defaults:
 ### 7.7 Shedding intensity
 
 Conditional shedding concentration depends on age, time since infection, and
-pre-infection immunity. V1 ports the India bins-native kernel with:
+pre-infection immunity. V1 ports the India bins-native joint-expectation kernel
+with one deliberate, source-documented age-amplitude correction:
 
 - age peak parameters `A_max = 6.67`, `A_min = 4.29`, `tau = 9.92 months`;
+- age amplitude
+  `min(A_max, A_min + (A_max - A_min) * exp(-(ageMonths - 7) / tau))`,
+  preserving the original Cessation Matlab neonatal plateau through seven
+  months;
 - immunity suppression `c = 0.056`;
 - temporal parameters `mu = 1.64`, `sigma = 0.18`, `kappa = 0.32`;
 - assay floor `10^2.6 TCID50/g`.
@@ -432,6 +441,13 @@ The implementation must compute the joint expectation of shedding survival and
 intensity over immunity bins. It must not multiply independently averaged
 duration and intensity, because low-immunity breakthrough infections both shed
 longer and shed more.
+
+The pinned India source instead uses `exp(-ageMonths / tau)` with the same
+`A_max`, `A_min`, and `tau`. This is an upstream source discrepancy identified
+on 2026-07-16, not a browser translation error. The India shedding fixture is
+therefore a survival-parity and diagnostic artifact rather than a full
+joint-intensity browser-parity gate; the legacy amplitude has direct regression
+tests at 0, 5, 7, 18, and 48 months.
 
 ### 7.8 Infection-induced boosting during the chain
 
@@ -1156,7 +1172,10 @@ Required parity tests:
 5. one-, three-, and four-dose schedule composition;
 6. waning at all schedule/assessment intervals;
 7. WPV shedding survival;
-8. conditional shedding intensity and joint survival-intensity expectation;
+8. conditional shedding intensity and joint survival-intensity expectation,
+   except for the documented Section 7.7 India-source age-amplitude bug: that
+   artifact remains a diagnostic while the legacy Cessation amplitude has its
+   own exact regression tests;
 9. fixed-titer primary -> secondary -> tertiary incidence;
 10. `R_loc` at published low, moderate, and high anchors.
 
@@ -1166,23 +1185,63 @@ test name and contract amendment.
 
 ### 15.2 Faithful-modernization calibration gate
 
+The calibration endpoint is **prevalence of shedding over source output days
+1--45**, conditioned on infection of the index case. It is not incidence,
+scalar titer, `R_loc`, or a complete population simulation. Source day 1 is the
+infection instant and is required to be zero prevalence in both models.
+
 Release requires both levels:
 
-1. **Degenerate parity:** distributions concentrated in the source fixed-titer
-   bins reproduce primary, secondary, tertiary, and `R_loc` fixtures within
-   relative `1e-5`.
-2. **Distribution-native compatibility:** at every published low/moderate/high
-   and named calibration case, the modern central `R_loc` stays within
-   `0.1 log10` of its reference and does not cross `R_loc = 1` or reverse the
-   source low/moderate/high control conclusion.
+1. **Degenerate parity:** fixed-titer compatibility reproduces the source
+   daily primary, secondary, and tertiary prevalence fixtures within relative
+   `1e-5`.
+2. **Distribution-native compatibility:** the source-executed calibration
+   fixture evaluates these simplified, fixed-age cases without role-age
+   distributions or age-dependent contact behavior:
+   - Houston: naive 18-month index and naive 48-month household and
+     close-social contacts; no campaign-history fit;
+   - India: naive 12-month index and a high-immunity campaign-history
+     distribution for the 48-month household/close-social contacts. Its mean
+     log2 NAb and `T_ih` are jointly fitted to the secondary trajectory; the
+     source-equivalent mean 9 is an initial/reference value, not a fixed
+     calibration parameter;
+   - Matlab: the 6, 10, and 14-week Sabin-2 OPV proxy supplies the
+     mean--variance calibration family. Its five-month index mean is fitted to
+     the primary trajectory, while same-age contacts retain the legacy naïve
+     comparator state.
 
-The second tolerance is a release discriminator, not an assertion that the two
-models are identical. A failure blocks release and triggers calibration review.
-Changing the tolerance is a contract change. Refitting the reduced transmission
-layer requires a versioned artifact containing calibration data, objective,
-free/fixed parameters, optimizer settings, diagnostics, before/after fixtures,
-and explicit scientific approval. It may not be repaired by an undocumented
-multiplier.
+   The distribution family has a variance fixed by an ordinary-least-squares
+   line through full
+   distribution moments captured after the routine 6/10/14-week schedule at 5
+   months, then after 3-month waning plus a boost (8 months), 3-month waning
+   plus a boost (11 months), 6-month waning plus a boost (17 months), and
+   6-month waning plus a boost (23 months). The free Matlab index mean and
+   India contact mean use this constraint; Houston remains a point mass at zero
+   immunity and the variance--mean line must not be applied there.
+
+   The contact-calibration parameter is the primary-index-to-household fecal
+   dose `T_ih` (grams/exposure), fitted to the secondary trajectory for Matlab
+   within the declared setting-dose envelope. India instead jointly fits that
+   dose and the constrained campaign-history contact mean to the same
+   trajectory. Contact count remains fixed and is never a calibration
+   substitute. Houston retains its named source `T_ih` value. The India report
+   records a declared global coarse grid, local refinement grid, tie rule, and
+   near-optimal region so the two-parameter fit is auditable.
+
+   For every named target role, the calibration report computes the RMSE of
+   `log10(prevalence)` over source-positive days and requires it to be at most
+   `0.1 log10`. The target-role profile, support at zero days, fitted mean,
+   constrained variance, source and modern trajectories, and role-specific
+   diagnostics are versioned in the report. `R_loc` is reported only as
+   ancillary fixture context and is not a calibration discriminator.
+
+The `0.1 log10` profile tolerance is a release discriminator, not an assertion
+that the models are identical. A failure blocks release and triggers
+calibration review. Changing the tolerance is a contract change. Refitting the
+reduced transmission layer requires a versioned artifact containing calibration
+data, objective, free/fixed parameters, optimizer settings, diagnostics,
+before/after fixtures, and explicit scientific approval. It may not be
+repaired by an undocumented multiplier.
 
 ### 15.3 Scientific invariants
 
