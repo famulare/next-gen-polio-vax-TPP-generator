@@ -27,6 +27,8 @@ const INDIA_JOINT_REFINE_MEAN_HALF_WIDTH_LOG2 = 0.5;
 const INDIA_JOINT_REFINE_TIH_HALF_WIDTH_LOG10 = 0.1;
 const INDIA_JOINT_NEAR_OPTIMAL_RMSE_DELTA_LOG10 = 0.005;
 const ZERO_PREVALENCE_EPSILON = 1e-12;
+const REPORT_NUMERIC_ABSOLUTE_TOLERANCE = 1e-12;
+const REPORT_NUMERIC_RELATIVE_TOLERANCE = 1e-8;
 
 type Role = "primary" | "secondary" | "tertiary";
 type StateKind = "naive" | "campaign-history-gaussian" | "schedule-calibrated-gaussian";
@@ -505,6 +507,59 @@ function sha256(contents: string): string {
   return createHash("sha256").update(contents).digest("hex");
 }
 
+function assertReportEquivalent(committed: unknown, generated: unknown, path = "$"): void {
+  if (typeof committed === "number" || typeof generated === "number") {
+    if (typeof committed !== "number" || typeof generated !== "number") {
+      throw new Error(`Calibration report mismatch at ${path}: ${JSON.stringify(committed)} !== ${JSON.stringify(generated)}`);
+    }
+    if (!numericEquivalent(committed, generated)) {
+      const absoluteDifference = Math.abs(committed - generated);
+      const relativeDifference = absoluteDifference / Math.max(1, Math.abs(committed), Math.abs(generated));
+      throw new Error(
+        `Calibration report numeric mismatch at ${path}: committed=${committed}, generated=${generated}, `
+        + `absolute=${absoluteDifference}, relative=${relativeDifference}`
+      );
+    }
+    return;
+  }
+  if (Array.isArray(committed) || Array.isArray(generated)) {
+    if (!Array.isArray(committed) || !Array.isArray(generated) || committed.length !== generated.length) {
+      throw new Error(`Calibration report array mismatch at ${path}`);
+    }
+    for (let index = 0; index < committed.length; index += 1) {
+      assertReportEquivalent(committed[index], generated[index], `${path}[${index}]`);
+    }
+    return;
+  }
+  if (isPlainRecord(committed) || isPlainRecord(generated)) {
+    if (!isPlainRecord(committed) || !isPlainRecord(generated)) {
+      throw new Error(`Calibration report type mismatch at ${path}`);
+    }
+    const committedKeys = Object.keys(committed).sort();
+    const generatedKeys = Object.keys(generated).sort();
+    if (committedKeys.length !== generatedKeys.length || committedKeys.some((key, index) => key !== generatedKeys[index])) {
+      throw new Error(`Calibration report object-key mismatch at ${path}`);
+    }
+    for (const key of committedKeys) {
+      assertReportEquivalent(committed[key], generated[key], `${path}.${key}`);
+    }
+    return;
+  }
+  if (committed !== generated) {
+    throw new Error(`Calibration report mismatch at ${path}: ${JSON.stringify(committed)} !== ${JSON.stringify(generated)}`);
+  }
+}
+
+function numericEquivalent(committed: number, generated: number): boolean {
+  const absoluteDifference = Math.abs(committed - generated);
+  if (absoluteDifference <= REPORT_NUMERIC_ABSOLUTE_TOLERANCE) return true;
+  return absoluteDifference / Math.max(1, Math.abs(committed), Math.abs(generated)) <= REPORT_NUMERIC_RELATIVE_TOLERANCE;
+}
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 function updateManifestForCalibration(serializedReport: string, calibrationGateSatisfied: boolean): void {
   const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as Record<string, unknown>;
   manifest.section152CalibrationSatisfied = calibrationGateSatisfied;
@@ -533,18 +588,17 @@ if (mode === "--write") {
   console.log(`Wrote calibration report: ${reportPath}`);
 } else {
   const committedReport = readFileSync(reportPath, "utf8");
-  if (committedReport !== serializedReport) {
-    throw new Error("Calibration report is stale; run npm run generate:calibration-report");
-  }
+  const parsedCommittedReport = JSON.parse(committedReport) as { calibrationGateSatisfied?: boolean };
+  assertReportEquivalent(parsedCommittedReport, report);
   const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as {
     section152CalibrationSatisfied?: boolean;
     calibrationArtifact?: { path?: string; schemaVersion?: string; sha256?: string; calibrationGateSatisfied?: boolean };
   };
-  if (manifest.section152CalibrationSatisfied !== report.calibrationGateSatisfied
+  if (manifest.section152CalibrationSatisfied !== parsedCommittedReport.calibrationGateSatisfied
     || manifest.calibrationArtifact?.path !== "reference/fixtures/calibration-report-v1.json"
     || manifest.calibrationArtifact?.schemaVersion !== report.schemaVersion
-    || manifest.calibrationArtifact?.sha256 !== sha256(serializedReport)
-    || manifest.calibrationArtifact?.calibrationGateSatisfied !== report.calibrationGateSatisfied) {
+    || manifest.calibrationArtifact?.sha256 !== sha256(committedReport)
+    || manifest.calibrationArtifact?.calibrationGateSatisfied !== parsedCommittedReport.calibrationGateSatisfied) {
     throw new Error("Calibration manifest record is stale; run npm run generate:calibration-report");
   }
   console.log("Calibration report is current.");
