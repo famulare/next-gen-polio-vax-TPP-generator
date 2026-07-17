@@ -1,8 +1,8 @@
 #!/usr/bin/env Rscript
 
 # Exercise the fixture-generator entry point against throwaway source checkouts.
-# These tests establish fail-closed provenance behavior; they do not assert
-# numerical source parity because reviewed fixture extraction is still absent.
+# These tests establish fail-closed provenance behavior. Numerical source
+# comparisons are exercised by the committed TypeScript fixture tests.
 
 script_path <- function() {
   arguments <- commandArgs(trailingOnly = FALSE)

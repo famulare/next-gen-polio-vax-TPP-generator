@@ -72,9 +72,74 @@ interface SourceCalibrationCase {
 
 interface SourceFixture {
   schemaVersion: "SourcePrevalenceCalibrationFixtureV1";
-  source: { repository: string; commit: string; runtime: string };
+  coverage: string;
+  releaseGateSatisfied: boolean;
+  generatorCommand: string;
+  source: {
+    repository: string;
+    commit: string;
+    branch: string;
+    trackedDirty: boolean;
+    untrackedPaths: string[];
+    runtime: string;
+    sourceFilesRead: string[];
+  };
   dayConvention: { sourceOutputDays: number[]; browserElapsedDays: number[]; meaning: string };
   cases: SourceCalibrationCase[];
+}
+
+function validateSourceFixture(value: unknown): asserts value is SourceFixture {
+  if (!isPlainRecord(value)) throw new Error("Calibration source fixture must be an object");
+  exactObjectKeys(value, ["schemaVersion", "coverage", "releaseGateSatisfied", "generatorCommand", "source", "dayConvention", "cases"], "source fixture");
+  if (value.schemaVersion !== "SourcePrevalenceCalibrationFixtureV1") throw new Error("Unexpected calibration fixture schema");
+  requireNonemptyString(value.coverage, "source fixture coverage");
+  if (typeof value.releaseGateSatisfied !== "boolean") throw new Error("source fixture releaseGateSatisfied must be boolean");
+  requireNonemptyString(value.generatorCommand, "source fixture generatorCommand");
+  if (!isPlainRecord(value.source)) throw new Error("Calibration source record must be an object");
+  exactObjectKeys(value.source, ["repository", "commit", "branch", "trackedDirty", "untrackedPaths", "runtime", "sourceFilesRead"], "source fixture source");
+  for (const key of ["repository", "branch", "runtime"] as const) requireNonemptyString(value.source[key], `source fixture source.${key}`);
+  if (typeof value.source.commit !== "string" || !/^[0-9a-f]{40}$/.test(value.source.commit)) throw new Error("source fixture source.commit must be a full Git commit");
+  if (value.source.trackedDirty !== false) throw new Error("Calibration source fixture must come from a clean tracked worktree");
+  stringArray(value.source.untrackedPaths, "source fixture source.untrackedPaths");
+  stringArray(value.source.sourceFilesRead, "source fixture source.sourceFilesRead", true);
+  if (!isPlainRecord(value.dayConvention)) throw new Error("Calibration day convention must be an object");
+  exactObjectKeys(value.dayConvention, ["sourceOutputDays", "browserElapsedDays", "meaning"], "source fixture dayConvention");
+  requireNonemptyString(value.dayConvention.meaning, "source fixture dayConvention.meaning");
+  consecutiveIntegerArray(value.dayConvention.sourceOutputDays, 1, "source fixture dayConvention.sourceOutputDays");
+  consecutiveIntegerArray(value.dayConvention.browserElapsedDays, 0, "source fixture dayConvention.browserElapsedDays");
+  if (value.dayConvention.sourceOutputDays.length !== value.dayConvention.browserElapsedDays.length) throw new Error("Calibration day-convention arrays must have equal lengths");
+  if (!Array.isArray(value.cases) || value.cases.length === 0) throw new Error("Calibration source fixture must contain cases");
+  const caseIds = new Set<string>();
+  for (const [index, candidate] of value.cases.entries()) {
+    if (!isPlainRecord(candidate)) throw new Error(`Calibration case ${index} must be an object`);
+    exactObjectKeys(candidate, ["id", "label", "TihGramsPerExposure", "ThsGramsPerExposure", "dIhExposuresPerPersonDay", "dHsExposuresPerPersonDay", "Ns", "primaryLog2NAb", "secondaryLog2NAb", "tertiaryLog2NAb", "targetRoles", "horizonDays", "vaccineDoseTCID50", "perDoseEfficacy", "primaryAgeMonths", "secondaryAgeMonths", "tertiaryAgeMonths", "browserStateMapping", "output"], `source fixture case ${index}`);
+    requireNonemptyString(candidate.id, `Calibration case ${index}.id`);
+    if (caseIds.has(candidate.id)) throw new Error(`Calibration case id ${candidate.id} is duplicated`);
+    caseIds.add(candidate.id);
+    requireNonemptyString(candidate.label, `Calibration case ${index}.label`);
+    for (const key of ["TihGramsPerExposure", "ThsGramsPerExposure", "dIhExposuresPerPersonDay", "dHsExposuresPerPersonDay", "primaryLog2NAb", "secondaryLog2NAb", "tertiaryLog2NAb", "vaccineDoseTCID50", "primaryAgeMonths", "secondaryAgeMonths", "tertiaryAgeMonths"] as const) requireNonnegativeFinite(candidate[key], `Calibration case ${index}.${key}`);
+    requireInteger(candidate.Ns, 0, `Calibration case ${index}.Ns`);
+    requireInteger(candidate.horizonDays, 1, `Calibration case ${index}.horizonDays`);
+    requireRange(candidate.perDoseEfficacy, 0, 1, `Calibration case ${index}.perDoseEfficacy`);
+    if (candidate.horizonDays !== value.dayConvention.sourceOutputDays.length) throw new Error(`Calibration case ${index} horizon does not match the day convention`);
+    if (!Array.isArray(candidate.targetRoles) || candidate.targetRoles.length === 0 || new Set(candidate.targetRoles).size !== candidate.targetRoles.length || candidate.targetRoles.some((role) => !["primary", "secondary", "tertiary"].includes(role as string))) throw new Error(`Calibration case ${index} has invalid target roles`);
+    if (!isPlainRecord(candidate.browserStateMapping)) throw new Error(`Calibration case ${index} mapping must be an object`);
+    exactObjectKeys(candidate.browserStateMapping, ["indexState", "indexScheduleDoseDays", "indexAssessmentAgeDays", "indexMeanLog2NAb", "fitIndexMeanLog2NAb", "householdState", "socialState", "contactMeanLog2NAb", "fitTih", "fitContactMeanLog2NAb"], `source fixture case ${index} mapping`);
+    const mapping = candidate.browserStateMapping;
+    if (!["naive", "campaign-history-gaussian", "schedule-calibrated-gaussian"].includes(mapping.indexState as string)
+      || !["naive", "campaign-history-gaussian", "schedule-calibrated-gaussian"].includes(mapping.householdState as string)
+      || !["naive", "campaign-history-gaussian", "schedule-calibrated-gaussian"].includes(mapping.socialState as string)) throw new Error(`Calibration case ${index} has an invalid mapped immune state`);
+    finiteIntegerArray(mapping.indexScheduleDoseDays, `Calibration case ${index} mapping.indexScheduleDoseDays`);
+    for (const key of ["indexAssessmentAgeDays", "indexMeanLog2NAb", "contactMeanLog2NAb"] as const) requireNonnegativeFinite(mapping[key], `Calibration case ${index} mapping.${key}`);
+    for (const key of ["fitIndexMeanLog2NAb", "fitTih", "fitContactMeanLog2NAb"] as const) if (typeof mapping[key] !== "boolean") throw new Error(`Calibration case ${index} mapping.${key} must be boolean`);
+    if (!isPlainRecord(candidate.output)) throw new Error(`Calibration case ${index} output must be an object`);
+    exactObjectKeys(candidate.output, ["primaryIncidence", "secondaryIncidence", "tertiaryIncidence", "primaryPrevalence", "secondaryPrevalence", "tertiaryPrevalence", "conditionedPrimaryPrevalence", "conditionedSecondaryPrevalence", "conditionedTertiaryPrevalence", "primaryTotal", "secondaryTotal", "tertiaryTotal", "rLoc"], `source fixture case ${index} output`);
+    for (const key of ["primaryIncidence", "secondaryIncidence", "tertiaryIncidence", "primaryPrevalence", "secondaryPrevalence", "tertiaryPrevalence", "conditionedPrimaryPrevalence", "conditionedSecondaryPrevalence", "conditionedTertiaryPrevalence"] as const) {
+      const profile = candidate.output[key];
+      if (!Array.isArray(profile) || profile.length !== candidate.horizonDays || profile.some((item) => typeof item !== "number" || !Number.isFinite(item) || item < 0)) throw new Error(`Calibration case ${index}.${key} is invalid`);
+    }
+    for (const key of ["primaryTotal", "secondaryTotal", "tertiaryTotal", "rLoc"] as const) requireNonnegativeFinite(candidate.output[key], `Calibration case ${index} output.${key}`);
+  }
 }
 
 interface RoleDiagnostics {
@@ -559,6 +624,40 @@ function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+function exactObjectKeys(value: Record<string, unknown>, expectedKeys: readonly string[], label: string): void {
+  const actual = Object.keys(value).sort();
+  const expected = [...expectedKeys].sort();
+  if (actual.length !== expected.length || actual.some((key, index) => key !== expected[index])) throw new Error(`${label} contains unknown or missing fields`);
+}
+
+function requireNonemptyString(value: unknown, label: string): asserts value is string {
+  if (typeof value !== "string" || value.length === 0) throw new Error(`${label} must be a nonempty string`);
+}
+
+function requireNonnegativeFinite(value: unknown, label: string): asserts value is number {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) throw new Error(`${label} must be finite and nonnegative`);
+}
+
+function requireInteger(value: unknown, minimum: number, label: string): asserts value is number {
+  if (typeof value !== "number" || !Number.isInteger(value) || value < minimum) throw new Error(`${label} must be an integer >= ${minimum}`);
+}
+
+function requireRange(value: unknown, minimum: number, maximum: number, label: string): asserts value is number {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < minimum || value > maximum) throw new Error(`${label} must be in [${minimum}, ${maximum}]`);
+}
+
+function stringArray(value: unknown, label: string, requireNonempty = false): asserts value is string[] {
+  if (!Array.isArray(value) || (requireNonempty && value.length === 0) || value.some((item) => typeof item !== "string" || item.length === 0)) throw new Error(`${label} must be ${requireNonempty ? "a nonempty " : "a "}string array`);
+}
+
+function finiteIntegerArray(value: unknown, label: string): asserts value is number[] {
+  if (!Array.isArray(value) || value.some((item) => typeof item !== "number" || !Number.isInteger(item) || item < 0)) throw new Error(`${label} must be a nonnegative integer array`);
+}
+
+function consecutiveIntegerArray(value: unknown, first: number, label: string): asserts value is number[] {
+  if (!Array.isArray(value) || value.length === 0 || value.some((item, index) => item !== first + index)) throw new Error(`${label} must contain consecutive integers starting at ${first}`);
+}
+
 function updateManifestForCalibration(serializedReport: string, calibrationGateSatisfied: boolean): void {
   const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as Record<string, unknown>;
   manifest.section152CalibrationSatisfied = calibrationGateSatisfied;
@@ -578,13 +677,15 @@ function updateManifestForCalibration(serializedReport: string, calibrationGateS
 
 const mode = process.argv[2] ?? "--check";
 if (mode !== "--check" && mode !== "--write") throw new Error("Usage: generate-calibration-report.ts [--check|--write]");
-const fixture = JSON.parse(readFileSync(fixturePath, "utf8")) as SourceFixture;
+const fixture: unknown = JSON.parse(readFileSync(fixturePath, "utf8"));
+validateSourceFixture(fixture);
 const report = buildReport(fixture);
 const serializedReport = `${JSON.stringify(report, null, 2)}\n`;
 if (mode === "--write") {
   writeFileSync(reportPath, serializedReport);
   updateManifestForCalibration(serializedReport, report.calibrationGateSatisfied);
   console.log(`Wrote calibration report: ${reportPath}`);
+  if (!report.calibrationGateSatisfied) throw new Error("Calibration gate failed; the report was recorded but is not release-eligible");
 } else {
   const committedReport = readFileSync(reportPath, "utf8");
   const parsedCommittedReport = JSON.parse(committedReport) as { calibrationGateSatisfied?: boolean };
@@ -600,5 +701,6 @@ if (mode === "--write") {
     || manifest.calibrationArtifact?.calibrationGateSatisfied !== parsedCommittedReport.calibrationGateSatisfied) {
     throw new Error("Calibration manifest record is stale; run npm run generate:calibration-report");
   }
+  if (parsedCommittedReport.calibrationGateSatisfied !== true) throw new Error("Calibration gate is not satisfied");
   console.log("Calibration report is current.");
 }

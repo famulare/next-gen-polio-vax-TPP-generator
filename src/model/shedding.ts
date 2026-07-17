@@ -1,5 +1,8 @@
 import { normalCdf } from "./bins";
-import { PARAMETERS } from "./parameters";
+import { PARAMETERS, SCIENTIFIC_MANIFEST_ID } from "./parameters";
+
+const INTEGRATED_SHEDDING_CACHE_CAPACITY = 256;
+const integratedSheddingCache = new Map<string, number>();
 
 export interface SheddingTerms {
   survival: number;
@@ -61,8 +64,19 @@ export function sheddingTerms(daysSinceInfection: number, sourceBin: number, age
 }
 
 export function integratedShedding(sourceBin: number, ageMonths: number, horizonDays: number): number {
+  if (!Number.isInteger(sourceBin) || sourceBin < 0 || sourceBin >= PARAMETERS.immunity.bins) throw new Error("Shedding source bin is invalid");
+  if (!Number.isFinite(ageMonths) || ageMonths < 0 || !Number.isInteger(horizonDays) || horizonDays < 1) throw new Error("Integrated shedding inputs are invalid");
+  const key = `${SCIENTIFIC_MANIFEST_ID}:${sourceBin}:${ageMonths.toPrecision(15)}:${horizonDays}`;
+  const cached = integratedSheddingCache.get(key);
+  if (cached !== undefined) {
+    integratedSheddingCache.delete(key);
+    integratedSheddingCache.set(key, cached);
+    return cached;
+  }
   let total = 0;
   for (let day = 1; day <= horizonDays; day += 1) total += sheddingTerms(day, sourceBin, ageMonths).expectedInfectiousConcentration;
+  integratedSheddingCache.set(key, total);
+  while (integratedSheddingCache.size > INTEGRATED_SHEDDING_CACHE_CAPACITY) integratedSheddingCache.delete(integratedSheddingCache.keys().next().value!);
   return total;
 }
 

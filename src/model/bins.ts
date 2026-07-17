@@ -6,6 +6,7 @@ export const GH_NODES = PARAMETERS.quadrature.nodes;
 export const GH_WEIGHTS = PARAMETERS.quadrature.weights;
 const EPS = 1e-12;
 const boostMatrixCache = new Map<string, number[][]>();
+const BOOST_CACHE_CAPACITY = 128;
 const ROUND_OFF_NEGATIVE_TOLERANCE = 1e-14;
 
 export function normalizeBins(values: readonly number[]): Bins {
@@ -100,7 +101,11 @@ export function buildBoostMatrix(mu0: number, sigma0: number, sourceEverInfected
   if (!Number.isFinite(mu0) || !Number.isFinite(sigma0) || mu0 < 0 || sigma0 < 0) throw new Error("Boost parameters must be finite and nonnegative");
   const key = `${SCIENTIFIC_MANIFEST_ID}:${mu0.toPrecision(15)}:${sigma0.toPrecision(15)}:${sourceEverInfected ? 1 : 0}`;
   const cached = boostMatrixCache.get(key);
-  if (cached) return cached;
+  if (cached) {
+    boostMatrixCache.delete(key);
+    boostMatrixCache.set(key, cached);
+    return cached;
+  }
   const matrix = Array.from({ length: BIN_COUNT }, () => Array<number>(BIN_COUNT).fill(0));
   for (let source = 0; source < BIN_COUNT; source += 1) {
     const values = sourceQuadratureValues(source, sourceEverInfected, PARAMETERS.quadrature.susceptibilityWithinBinSd);
@@ -119,6 +124,7 @@ export function buildBoostMatrix(mu0: number, sigma0: number, sourceEverInfected
   }
   const frozen = Object.freeze(matrix.map((row) => Object.freeze(row))) as unknown as number[][];
   boostMatrixCache.set(key, frozen);
+  while (boostMatrixCache.size > BOOST_CACHE_CAPACITY) boostMatrixCache.delete(boostMatrixCache.keys().next().value!);
   return frozen;
 }
 

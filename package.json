@@ -6,15 +6,18 @@
   "engines": { "node": ">=24.0.0" },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test tests/model/model.test.ts",
+    "test": "node scripts/run-tests.mjs",
     "test:fixtures": "Rscript tests/scripts/reference-fixture-generator.R",
     "generate:calibration-report": "node --import tsx scripts/generate-calibration-report.ts --write",
     "check:calibration": "node --import tsx scripts/generate-calibration-report.ts --check",
     "check:performance": "node --import tsx scripts/check-performance.ts",
+    "check:cache-memory": "node --expose-gc --import tsx scripts/check-cache-memory.ts",
     "check:reference-fixtures": "node scripts/check-reference-fixtures.mjs",
     "build": "node scripts/build.mjs",
+    "record:artifact-hash": "node scripts/check-artifact.mjs --write-hash",
     "check:artifact": "node scripts/check-artifact.mjs && node scripts/browser-smoke.mjs",
-    "verify": "npm run typecheck && npm test && npm run test:fixtures && npm run check:reference-fixtures && npm run check:calibration && npm run check:performance && npm run build && npm run check:artifact"
+    "check:release-negative": "node scripts/check-release-negative.mjs",
+    "verify": "npm run typecheck && npm test && npm run test:fixtures && npm run check:reference-fixtures && npm run check:calibration && npm run check:performance && npm run check:cache-memory && npm run build && npm run check:artifact && npm run check:release-negative"
   },
   "dependencies": {
     "d3-array": "^3.2.4",

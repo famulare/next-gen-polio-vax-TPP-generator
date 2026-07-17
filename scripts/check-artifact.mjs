@@ -1,10 +1,11 @@
 import { createHash } from "node:crypto";
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const root = resolve(new URL("..", import.meta.url).pathname);
 const dist = resolve(root, "dist");
 const artifact = resolve(dist, "index.html");
+const expectedHashPath = resolve(root, "reference/artifact-sha256.txt");
 if (!existsSync(artifact)) throw new Error("Missing dist/index.html");
 const entries = readdirSync(dist).filter((entry) => !entry.startsWith("."));
 if (entries.length !== 1 || entries[0] !== "index.html") throw new Error(`dist must contain exactly index.html; found ${entries.join(", ")}`);
@@ -16,5 +17,9 @@ for (const pattern of [/<script\s+[^>]*src=/i, /<link\s+[^>]*href=/i, /<img\s+[^
 if (!html.includes("id=\"app\"")) throw new Error("Artifact does not contain the application mount point");
 if (!html.includes("Rloc") && !html.includes("R_loc")) throw new Error("Artifact does not contain the model UI");
 const hash = createHash("sha256").update(html).digest("hex");
+if (process.argv.includes("--write-hash")) writeFileSync(expectedHashPath, `${hash}\n`);
+if (!existsSync(expectedHashPath)) throw new Error("Missing recorded artifact SHA-256");
+const expectedHash = readFileSync(expectedHashPath, "utf8").trim();
+if (hash !== expectedHash) throw new Error(`Artifact SHA-256 mismatch: expected ${expectedHash}, received ${hash}`);
 console.log(`Artifact OK: ${artifact}`);
 console.log(`SHA-256: ${hash}`);

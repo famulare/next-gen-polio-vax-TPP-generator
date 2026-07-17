@@ -1,11 +1,12 @@
 import { build } from "esbuild";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { deterministicBuildIdentity } from "./build-identity.mjs";
 
 const root = resolve(new URL("..", import.meta.url).pathname);
 const dist = resolve(root, "dist");
 const temp = resolve(root, ".build");
-const buildIdentity = process.env.GITHUB_SHA ?? "local-working-tree";
+const buildIdentity = deterministicBuildIdentity(root);
 rmSync(dist, { recursive: true, force: true });
 rmSync(temp, { recursive: true, force: true });
 mkdirSync(dist, { recursive: true });

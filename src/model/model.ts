@@ -1,12 +1,15 @@
 import rawProvenance from "../data/provenance.json";
 import { buildFrontier } from "./frontier";
-import { anchorById, DEFAULTS, ENVELOPE, FRONTIER_GRID, GLOBAL_SETTING, PARAMETERS, PRODUCT_LABELS, SETTING_ANCHORS, SETTING_MANIFEST_VERSION, UNCERTAINTY_ENSEMBLE, vaccineDefaults } from "./parameters";
+import { anchorById, DEFAULTS, ENVELOPE, FRONTIER_GRID, GLOBAL_SETTING, PARAMETERS, PRODUCT_LABELS, SCIENTIFIC_MANIFEST_ID, SETTING_ANCHORS, SETTING_MANIFEST_VERSION, UNCERTAINTY_ENSEMBLE, vaccineDefaults } from "./parameters";
 import { computePointMetrics } from "./metrics";
 import { buildScheduleState } from "./schedule";
-import { canonicalHash, validateScenario } from "./serialization";
+import { canonicalHash, validateModelOutputs, validateScenario } from "./serialization";
 import { rLocForSetting } from "./transmission";
 import { ROUTINE_DAYS } from "./types";
 import type { EnvelopeV1, ModelOutputsV1, ScenarioV1, SettingV1 } from "./types";
+
+const SETTING_SURFACE_CACHE_CAPACITY = 4;
+const settingSurfaceValueCache = new Map<string, Float64Array>();
 
 export function defaultScenario(): ScenarioV1 {
   const product = vaccineDefaults(DEFAULTS.productId);
@@ -68,7 +71,7 @@ export function evaluateScenario(scenario: ScenarioV1): ModelOutputsV1 {
     "The Matlab marker is a hybrid: daily exposure mass is converted to mass per exposure using each link's contact frequency; the social-contact structure is inherited rather than fitted by the Matlab study.",
     "A parameter-uncertainty interval and upper-95 rule are out of scope for this iteration. This point output does not quantify threshold-crossing probability or support probability-weighted expected-loss or risk-sensitive decisions. Any future low/base/high evaluation must be labeled sensitivity, not probability."
   ];
-  return {
+  const outputs: ModelOutputsV1 = {
     schemaVersion: "ModelOutputsV1",
     scenario: canonicalScenario,
     metrics,
@@ -79,6 +82,8 @@ export function evaluateScenario(scenario: ScenarioV1): ModelOutputsV1 {
     modelIdentity: canonicalHash({ scenario: canonicalScenario, parameters: PARAMETERS, settings: SETTING_ANCHORS, uncertainty: UNCERTAINTY_ENSEMBLE, frontierGrid: FRONTIER_GRID }),
     provenance: structuredClone(rawProvenance)
   };
+  validateModelOutputs(outputs);
+  return outputs;
 }
 
 export function buildSettingSurface(scenario: ScenarioV1, state: ReturnType<typeof buildScheduleState>) {
@@ -89,6 +94,19 @@ export function buildSettingSurface(scenario: ScenarioV1, state: ReturnType<type
   const thsMax = scenario.envelope.ThsMax;
   const exposureCount = FRONTIER_GRID.settingExposure.count;
   const contactStep = FRONTIER_GRID.settingContacts.step;
+  const cacheKey = canonicalHash({
+    scientificManifest: SCIENTIFIC_MANIFEST_ID,
+    gridVersion: FRONTIER_GRID.version,
+    scenario,
+    state
+  });
+  let rLocPerSocialContact = settingSurfaceValueCache.get(cacheKey);
+  if (rLocPerSocialContact) {
+    settingSurfaceValueCache.delete(cacheKey);
+    settingSurfaceValueCache.set(cacheKey, rLocPerSocialContact);
+  } else {
+    rLocPerSocialContact = new Float64Array(exposureCount);
+  }
   for (let i = 0; i < exposureCount; i += 1) {
     const fraction = i / (exposureCount - 1);
     const Tih = tihMin * (tihMax / tihMin) ** fraction;
@@ -101,16 +119,30 @@ export function buildSettingSurface(scenario: ScenarioV1, state: ReturnType<type
       dHs: { value: scenario.envelope.dHsMax, unit: "exposures/person/day", basis: "per_day" },
       Ns: 1
     };
-    const rLocPerSocialContact = rLocForSetting(state, unitSetting, scenario.indexReferenceExposure, scenario.horizonDays);
+    if (!settingSurfaceValueCache.has(cacheKey)) {
+      rLocPerSocialContact[i] = rLocForSetting(state, unitSetting, scenario.indexReferenceExposure, scenario.horizonDays);
+    }
     for (let Ns = scenario.envelope.NsMin; Ns <= scenario.envelope.NsMax; Ns += contactStep) {
       const setting: SettingV1 = {
         ...unitSetting,
         Ns
       };
-      surface.push({ Tih, Ths, dIh: setting.dIh.value, dHs: setting.dHs.value, Ns, rLoc: rLocPerSocialContact * Ns });
+      surface.push({ Tih, Ths, dIh: setting.dIh.value, dHs: setting.dHs.value, Ns, rLoc: rLocPerSocialContact[i]! * Ns });
     }
   }
+  if (!settingSurfaceValueCache.has(cacheKey)) {
+    settingSurfaceValueCache.set(cacheKey, rLocPerSocialContact);
+    while (settingSurfaceValueCache.size > SETTING_SURFACE_CACHE_CAPACITY) settingSurfaceValueCache.delete(settingSurfaceValueCache.keys().next().value!);
+  }
   return surface;
+}
+
+export function clearSettingSurfaceCache(): void {
+  settingSurfaceValueCache.clear();
+}
+
+export function settingSurfaceCacheStats(): { entries: number; capacity: number } {
+  return { entries: settingSurfaceValueCache.size, capacity: SETTING_SURFACE_CACHE_CAPACITY };
 }
 
 export { rawProvenance, PRODUCT_LABELS };

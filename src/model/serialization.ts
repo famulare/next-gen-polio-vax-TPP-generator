@@ -1,6 +1,6 @@
 import { FRONTIER_GRID, GLOBAL_SETTING, PARAMETERS, SETTING_ANCHORS, SETTING_MANIFEST_VERSION, UNCERTAINTY_ENSEMBLE, vaccineDefaults } from "./parameters";
 import { ROUTINE_DAYS } from "./types";
-import type { ScenarioV1, SettingV1, UnitValueV1, VaccineV1 } from "./types";
+import type { DesignGridPoint, ModelOutputsV1, ScenarioV1, SettingV1, UnitValueV1, VaccineV1 } from "./types";
 import { canonicalHash, canonicalJson } from "./canonical";
 
 export { canonicalHash, canonicalJson };
@@ -37,6 +37,67 @@ export function validateScenario(value: unknown): asserts value is ScenarioV1 {
   for (const [key, expected] of [["parameterManifestVersion", PARAMETERS.manifestVersion], ["settingManifestVersion", SETTING_MANIFEST_VERSION], ["frontierGridVersion", FRONTIER_GRID.version], ["uncertaintyEnsembleVersion", UNCERTAINTY_ENSEMBLE.version]] as const) {
     if (value[key] !== expected) throw new Error(`${key} does not match the bundled manifest`);
   }
+}
+
+export function validateModelOutputs(value: unknown): asserts value is ModelOutputsV1 {
+  if (!isRecord(value)) throw new Error("ModelOutputsV1 must be a JSON object");
+  exactKeys(value, ["schemaVersion", "scenario", "metrics", "settingSurface", "frontier", "uncertainty", "assumptions", "modelIdentity", "provenance"], "ModelOutputsV1");
+  if (value.schemaVersion !== "ModelOutputsV1") throw new Error("Unsupported model-output schema");
+  validateScenario(value.scenario);
+
+  const metrics = requireRecord(value.metrics, "PointMetrics");
+  exactKeys(metrics, ["qAcq", "qShed", "qIndex", "rLocSelectedSetting", "rLocEnvelopeMax", "rLocAnchors", "naiveRLocEnvelopeMax", "effectiveFirstDoseTake", "assessmentAgeDays", "assessmentLagDays", "indexReferenceExposure"], "PointMetrics");
+  for (const key of ["qAcq", "qShed", "qIndex", "effectiveFirstDoseTake"] as const) finiteRange(metrics[key], 0, 1, `PointMetrics.${key}`);
+  for (const key of ["rLocEnvelopeMax", "naiveRLocEnvelopeMax", "assessmentAgeDays", "assessmentLagDays", "indexReferenceExposure"] as const) finiteRange(metrics[key], 0, Number.MAX_VALUE, `PointMetrics.${key}`);
+  if (metrics.rLocSelectedSetting !== null) finiteRange(metrics.rLocSelectedSetting, 0, Number.MAX_VALUE, "PointMetrics.rLocSelectedSetting");
+  const anchors = requireRecord(metrics.rLocAnchors, "rLocAnchors"); exactKeys(anchors, ["low", "houston", "matlab", "up-bihar"], "rLocAnchors");
+  for (const key of ["low", "houston", "matlab", "up-bihar"] as const) finiteRange(anchors[key], 0, Number.MAX_VALUE, `rLocAnchors.${key}`);
+
+  if (!Array.isArray(value.settingSurface)) throw new Error("settingSurface must be an array");
+  for (const [index, candidate] of value.settingSurface.entries()) {
+    const point = requireRecord(candidate, `settingSurface[${index}]`); exactKeys(point, ["Tih", "Ths", "dIh", "dHs", "Ns", "rLoc"], `settingSurface[${index}]`);
+    for (const key of ["Tih", "Ths", "dIh", "dHs", "rLoc"] as const) finiteRange(point[key], 0, Number.MAX_VALUE, `settingSurface[${index}].${key}`);
+    integerRange(point.Ns, 0, 1000, `settingSurface[${index}].Ns`);
+  }
+
+  const frontier = requireRecord(value.frontier, "FrontierResult");
+  exactKeys(frontier, ["familyProductId", "takeValues", "mu0Values", "points", "pareto", "selectedDesign", "nearestGridPoint", "comparators"], "FrontierResult");
+  if (frontier.familyProductId !== "hypothetical") throw new Error("Frontier family must be hypothetical");
+  finiteArray(frontier.takeValues, "FrontierResult.takeValues"); finiteArray(frontier.mu0Values, "FrontierResult.mu0Values");
+  if (frontier.takeValues.length !== FRONTIER_GRID.takeContext.count || frontier.mu0Values.length !== FRONTIER_GRID.mu0New.count) throw new Error("Frontier axes have the wrong size");
+  validateDesignPointArray(frontier.points, "FrontierResult.points"); validateDesignPointArray(frontier.pareto, "FrontierResult.pareto");
+  if (frontier.points.length !== FRONTIER_GRID.takeContext.count * FRONTIER_GRID.mu0New.count) throw new Error("Frontier point grid has the wrong size");
+  if (frontier.selectedDesign !== null) validateDesignPoint(frontier.selectedDesign, "FrontierResult.selectedDesign");
+  if (frontier.nearestGridPoint !== null) validateDesignPoint(frontier.nearestGridPoint, "FrontierResult.nearestGridPoint");
+  if (!Array.isArray(frontier.comparators)) throw new Error("FrontierResult.comparators must be an array");
+  for (const [index, candidate] of frontier.comparators.entries()) {
+    const point = requireRecord(candidate, `comparators[${index}]`);
+    exactKeys(point, ["productId", "label", "takeContext", "mu0", "qAcq", "qShed", "rLocEnvelopeMax", "passes", "selected"], `comparators[${index}]`);
+    if (point.productId !== "sabin2" && point.productId !== "ipv") throw new Error("Comparator product is invalid");
+    if (typeof point.label !== "string" || typeof point.passes !== "boolean" || typeof point.selected !== "boolean") throw new Error("Comparator metadata is invalid");
+    for (const key of ["qAcq", "qShed"] as const) finiteRange(point[key], 0, 1, `comparators[${index}].${key}`);
+    finiteRange(point.rLocEnvelopeMax, 0, Number.MAX_VALUE, `comparators[${index}].rLocEnvelopeMax`);
+    for (const key of ["takeContext", "mu0"] as const) if (point[key] !== null) finiteNumber(point[key], `comparators[${index}].${key}`);
+  }
+  if (frontier.comparators.length !== 2) throw new Error("Frontier must contain both fixed comparators");
+
+  const uncertainty = requireRecord(value.uncertainty, "uncertainty"); exactKeys(uncertainty, ["available", "label", "reason", "rLocMax"], "uncertainty");
+  if (uncertainty.available !== false || uncertainty.rLocMax !== null || typeof uncertainty.label !== "string" || typeof uncertainty.reason !== "string") throw new Error("Uncertainty output must fail closed as unavailable");
+  if (!Array.isArray(value.assumptions) || value.assumptions.some((item) => typeof item !== "string")) throw new Error("assumptions must be a string array");
+  if (typeof value.modelIdentity !== "string" || !/^sha256-[0-9a-f]{64}$/.test(value.modelIdentity)) throw new Error("modelIdentity must be a SHA-256 content identity");
+  validateProvenance(value.provenance);
+}
+
+function validateProvenance(value: unknown): void {
+  const provenance = requireRecord(value, "ProvenanceV1");
+  exactKeys(provenance, ["schemaVersion", "designContract", "generatedAt", "sourceFiles", "sourceCommits", "transforms"], "ProvenanceV1");
+  if (provenance.schemaVersion !== "ProvenanceV1" || provenance.designContract !== PARAMETERS.designContractVersion) throw new Error("Provenance does not match the bundled contract");
+  if (typeof provenance.generatedAt !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(provenance.generatedAt)) throw new Error("Provenance generatedAt must be an ISO date");
+  nonemptyStringArray(provenance.sourceFiles, "ProvenanceV1.sourceFiles");
+  nonemptyStringArray(provenance.transforms, "ProvenanceV1.transforms");
+  const commits = requireRecord(provenance.sourceCommits, "ProvenanceV1.sourceCommits");
+  exactKeys(commits, ["cessationStability", "indiaPolio"], "ProvenanceV1.sourceCommits");
+  for (const key of ["cessationStability", "indiaPolio"] as const) if (typeof commits[key] !== "string" || !/^[0-9a-f]{40}$/.test(commits[key])) throw new Error(`ProvenanceV1.sourceCommits.${key} must be a full Git commit`);
 }
 
 function validateVaccine(value: unknown): asserts value is VaccineV1 {
@@ -115,6 +176,38 @@ function exactKeys(value: Record<string, unknown>, allowed: readonly string[], l
   const actual = Object.keys(value).sort();
   const expected = [...allowed].sort();
   if (actual.length !== expected.length || actual.some((key, index) => key !== expected[index])) throw new Error(`${label} contains unknown or missing fields`);
+}
+
+function requireRecord(value: unknown, label: string): Record<string, any> {
+  if (!isRecord(value)) throw new Error(`${label} must be an object`);
+  return value;
+}
+
+function finiteNumber(value: unknown, label: string): asserts value is number {
+  if (typeof value !== "number" || !Number.isFinite(value)) throw new Error(`${label} must be finite`);
+}
+
+function finiteArray(value: unknown, label: string): void {
+  if (!Array.isArray(value)) throw new Error(`${label} must be an array`);
+  value.forEach((item, index) => finiteNumber(item, `${label}[${index}]`));
+}
+
+function nonemptyStringArray(value: unknown, label: string): void {
+  if (!Array.isArray(value) || value.length === 0 || value.some((item) => typeof item !== "string" || item.length === 0)) throw new Error(`${label} must be a nonempty string array`);
+}
+
+function validateDesignPointArray(value: unknown, label: string): void {
+  if (!Array.isArray(value)) throw new Error(`${label} must be an array`);
+  value.forEach((item, index) => validateDesignPoint(item, `${label}[${index}]`));
+}
+
+function validateDesignPoint(value: unknown, label: string): asserts value is DesignGridPoint {
+  const point = requireRecord(value, label); exactKeys(point, ["takeContext", "mu0", "qAcq", "qShed", "rLocEnvelopeMax", "passes"], label);
+  finiteRange(point.takeContext, ...PARAMETERS.validationBounds.hypothetical.takeContext, `${label}.takeContext`);
+  finiteRange(point.mu0, ...PARAMETERS.validationBounds.hypothetical.mu0, `${label}.mu0`);
+  for (const key of ["qAcq", "qShed"] as const) finiteRange(point[key], 0, 1, `${label}.${key}`);
+  finiteRange(point.rLocEnvelopeMax, 0, Number.MAX_VALUE, `${label}.rLocEnvelopeMax`);
+  if (typeof point.passes !== "boolean") throw new Error(`${label}.passes must be boolean`);
 }
 
 function isRecord(value: unknown): value is Record<string, any> {

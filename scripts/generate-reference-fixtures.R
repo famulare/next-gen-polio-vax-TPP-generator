@@ -658,7 +658,7 @@ india_apply_live_schedule_dose <- function(
   groups,
   params,
   dose = 199526.2314968879,
-  take_context = 0.8,
+  take_context = 1,
   formulation_multiplier = 1
 ) {
   split <- list()

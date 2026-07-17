@@ -27,6 +27,7 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: npm run verify
+      - run: git diff --exit-code -- dist/index.html
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

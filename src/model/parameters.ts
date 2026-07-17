@@ -47,7 +47,7 @@ function canonicalExposure(
 
 export const SETTING_MANIFEST_VERSION = rawAnchors.version;
 
-export const SETTING_ANCHORS = (rawAnchors.anchors as Array<Record<string, unknown>>).map((record) => {
+export const SETTING_ANCHORS = deepFreeze((rawAnchors.anchors as Array<Record<string, unknown>>).map((record) => {
   const dIh = record.dIh as SettingAnchorRecord["dIh"];
   const dHs = record.dHs as SettingAnchorRecord["dHs"];
   return {
@@ -62,9 +62,9 @@ export const SETTING_ANCHORS = (rawAnchors.anchors as Array<Record<string, unkno
     interval: record.interval as SettingAnchorRecord["interval"],
     tooltip: record.tooltip as string | undefined
   };
-}) as SettingAnchorRecord[];
+}) as SettingAnchorRecord[]);
 
-export const ENVELOPE = {
+export const ENVELOPE = deepFreeze({
   linkedExposure: true,
   TihMin: rawAnchors.envelope.TMin / MICROGRAMS_PER_GRAM,
   TihMax: rawAnchors.envelope.TMax / MICROGRAMS_PER_GRAM,
@@ -76,7 +76,7 @@ export const ENVELOPE = {
   dIhMax: rawAnchors.envelope.dIhMax,
   dHsMin: rawAnchors.envelope.dHsMin,
   dHsMax: rawAnchors.envelope.dHsMax
-} as const;
+} as const);
 
 export const SCIENTIFIC_MANIFEST_ID = canonicalHash({
   parameters: PARAMETERS,

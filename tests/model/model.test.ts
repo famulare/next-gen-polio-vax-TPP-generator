@@ -6,7 +6,7 @@ import { buildFrontier, gridPointRLocMatchesDirect, passesThreshold } from "../.
 import { defaultScenario, evaluateScenario, scenarioWithProduct, scenarioWithSetting } from "../../src/model/model";
 import { FRONTIER_GRID, PARAMETERS, SETTING_ANCHORS, vaccineDefaults } from "../../src/model/parameters";
 import { envelopeCorner } from "../../src/model/metrics";
-import { canonicalJson, decodeScenario, encodeScenario, validateScenario } from "../../src/model/serialization";
+import { canonicalHash, canonicalJson, decodeScenario, encodeScenario, validateModelOutputs, validateScenario } from "../../src/model/serialization";
 import { applyDose, buildScheduleState, buildStateAtAssessment, initialImmuneState, moveState, scheduleDays } from "../../src/model/schedule";
 import { peakSheddingAgeAmplitude, sheddingTerms } from "../../src/model/shedding";
 import { doseResponse, susceptibilityPerBin, vaccineTakePerBin, wpvSusceptibilityPerBin } from "../../src/model/dose-response";
@@ -14,6 +14,8 @@ import { clearTransmissionCaches, conditionIndexBreakthrough, createRLocEvaluato
 import { waneMucosal, waningDeltaMonths } from "../../src/model/waning";
 import { evaluateMatlabFixedTiterMotif } from "../../src/model/matlab-compat";
 import { sha256Hex } from "../../src/model/canonical";
+import { deriveCalibrationVarianceConstraint, evaluatePrevalenceMotif, gaussianCalibrationStateForMean, immunityMoments } from "../../src/model/calibration";
+import { validateFrontierGridManifest, validateParameterManifest, validateSettingManifest, validateUncertaintyManifest } from "../../src/model/manifest-validation";
 import type { ProductId, ScenarioV1, ScheduleV1, SettingV1, VaccineV1 } from "../../src/model/types";
 
 const sourceKernelFixture = JSON.parse(
@@ -621,7 +623,7 @@ test("India R schedule fixture matches low/default/high product grids, every sel
   }
 });
 
-test("partial Cessation Matlab fixture matches fixed-titer primary-secondary-tertiary incidence, prevalence, and named-anchor Rloc", () => {
+test("Cessation Matlab source fixture matches fixed-titer primary-secondary-tertiary incidence, prevalence, and named-anchor Rloc", () => {
   const inputs = cessationMotifFixture.inputs;
   assert.equal(cessationMotifFixture.schemaVersion, "SourceMotifFixtureV1");
   assert.equal(cessationMotifFixture.releaseGateSatisfied, false);
@@ -1071,4 +1073,60 @@ test("transmission caches remain explicitly bounded across distinct valid settin
   assert.ok(stats.linkKernels <= stats.capacity);
   assert.ok(stats.sheddingProfiles <= stats.capacity);
   assert.ok(stats.perExposureProfiles <= stats.capacity);
+});
+
+test("all committed scientific manifests and generated outputs have strict runtime schemas", () => {
+  const parameters = JSON.parse(readFileSync(new URL("../../src/data/parameters.json", import.meta.url), "utf8"));
+  const frontierGrid = JSON.parse(readFileSync(new URL("../../src/data/frontier-grid.json", import.meta.url), "utf8"));
+  const settings = JSON.parse(readFileSync(new URL("../../src/data/setting-anchors.json", import.meta.url), "utf8"));
+  const uncertainty = JSON.parse(readFileSync(new URL("../../src/data/uncertainty-ensemble.json", import.meta.url), "utf8"));
+  validateParameterManifest(parameters);
+  validateFrontierGridManifest(frontierGrid);
+  validateSettingManifest(settings);
+  validateUncertaintyManifest(uncertainty);
+  assert.throws(() => validateParameterManifest({ ...parameters, unknown: true }), /unknown or missing/);
+  assert.throws(() => validateParameterManifest({ ...parameters, wpv1: { ...parameters.wpv1, alpha: Number.NaN } }), /finite/);
+  assert.throws(() => validateFrontierGridManifest({ ...frontierGrid, takeContext: { ...frontierGrid.takeContext, count: 1 } }), /integer/);
+  assert.throws(() => validateSettingManifest({ ...settings, anchors: settings.anchors.slice(1) }), /four anchors/);
+  assert.throws(() => validateUncertaintyManifest({ ...uncertainty, draws: [1] }), /must be empty/);
+
+  const outputs = evaluateScenario(defaultScenario());
+  validateModelOutputs(outputs);
+  assert.throws(() => validateModelOutputs({ ...outputs, unknown: true }), /unknown or missing/);
+  assert.throws(() => validateModelOutputs({ ...outputs, metrics: { ...outputs.metrics, qAcq: Number.NaN } }), /finite/);
+  assert.throws(() => validateModelOutputs({ ...outputs, settingSurface: [{ ...outputs.settingSurface[0], rLoc: -1 }] }), /in \[0/);
+  assert.throws(() => validateModelOutputs({ ...outputs, provenance: undefined }), /must be an object/);
+  assert.throws(() => validateModelOutputs({ ...outputs, modelIdentity: "fnv1a-deadbeef" }), /SHA-256/);
+});
+
+test("scientific content changes invalidate content identities", () => {
+  const scenario = defaultScenario();
+  const base = canonicalHash({ scenario, parameters: PARAMETERS });
+  const changedParameterContent = canonicalHash({ scenario, parameters: { ...structuredClone(PARAMETERS), wpv1: { ...PARAMETERS.wpv1, alpha: PARAMETERS.wpv1.alpha + 1e-12 } } });
+  const changedScenarioContent = canonicalHash({ scenario: { ...scenario, indexReferenceExposure: scenario.indexReferenceExposure + 1e-12 }, parameters: PARAMETERS });
+  assert.notEqual(changedParameterContent, base);
+  assert.notEqual(changedScenarioContent, base);
+});
+
+test("calibration states and prevalence paths fail closed outside their identifiable domain", () => {
+  const constraint = deriveCalibrationVarianceConstraint(vaccineDefaults("sabin2"));
+  assert.ok(constraint.maximumMeanLog2NAb > Math.max(...constraint.captures.map((capture) => capture.meanLog2NAb)));
+  assert.throws(() => gaussianCalibrationStateForMean(-1, constraint), /outside/);
+  assert.throws(() => gaussianCalibrationStateForMean(constraint.maximumMeanLog2NAb + 1e-6, constraint), /outside/);
+  const invalidMass = initialImmuneState();
+  invalidMass.groups[0]!.mass = 0.5;
+  assert.throws(() => immunityMoments(invalidMass), /unit mass/);
+  const scenario = defaultScenario();
+  const state = initialImmuneState();
+  assert.throws(() => evaluatePrevalenceMotif({
+    indexState: state,
+    householdState: state,
+    socialState: state,
+    setting: SETTING_ANCHORS[0]!,
+    indexReferenceExposure: scenario.indexReferenceExposure,
+    indexAgeMonths: 12,
+    householdAgeMonths: 48,
+    socialAgeMonths: 48,
+    horizonDays: 0
+  }), /positive integer/);
 });

@@ -1,8 +1,10 @@
 import { chromium } from "playwright";
+import { deterministicBuildIdentity } from "./build-identity.mjs";
 import { readFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { resolve } from "node:path";
 
+const root = resolve(new URL("..", import.meta.url).pathname);
 const artifact = resolve(new URL("../dist/index.html", import.meta.url).pathname);
 const pagesPath = "/next-gen-polio-vax-TPP-generator/";
 const artifactHtml = readFileSync(artifact, "utf8");
@@ -44,7 +46,7 @@ if (!(await page.locator("#setting-figure").count())) throw new Error("Setting f
 if (!(await page.locator("#compute").isVisible())) throw new Error("Compute control is not visible");
 if (await page.locator("[data-export]").first().isDisabled()) throw new Error("Exports were not enabled for the evaluated scenario");
 if (!(await page.locator("#export-status").textContent())?.includes("Exports are ready")) throw new Error("Export status does not identify the evaluated scenario as exportable");
-const expectedBuildIdentity = process.env.GITHUB_SHA ?? "local-working-tree";
+const expectedBuildIdentity = deterministicBuildIdentity(root);
 const footerText = await page.locator("footer").textContent();
 if (!footerText?.includes(`build ${expectedBuildIdentity}`)) throw new Error("Footer does not identify the build");
 if (!footerText.includes(`design contract ${designContractVersion}`)) throw new Error("Footer does not identify the design-contract version");
