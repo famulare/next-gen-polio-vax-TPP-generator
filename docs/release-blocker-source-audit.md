@@ -1,7 +1,7 @@
 # Source audit supporting the 2026-07-17 contract amendment
 
 **Date:** 2026-07-17
-**Status:** superseded as a release-blocker record by Design Contract 1.5. No
+**Status:** superseded as a release-blocker record by Design Contract 1.6. No
 source product-schedule `R_loc` fixture exists; the approved direct-port grids
 and Section 15.2 prevalence calibration are the best available hybrid
 equivalence check. Parameter-uncertainty intervals and the upper-95 rule are
@@ -23,7 +23,7 @@ success rule.
 - Section 7.4 fixes the Sabin-2/IPV catalog semantics. The amended Section
   15.1 requires the direct-port kernel grid and Section 15.2 calibration; it
   does not permit relabeling a scalar Cessation titer result as product parity.
-- Contract 1.5 places parameter-uncertainty intervals and upper-95 success out
+- Contract 1.6 places parameter-uncertainty intervals and upper-95 success out
   of scope. Any future joint ensemble must satisfy the former Section 12.2
   safeguards rather than constructing a posterior from independent CI endpoints.
 
@@ -41,26 +41,17 @@ Cessation model requires a scalarization rule that Section 7 and the
 distribution-native model explicitly reject. Reimplementing the joined hybrid
 in R/Matlab would create a new reference model, not execute an existing source
 product-transmission model. The existing Cessation fixed-titer anchors and
-`sourceRLocContextOnly` calibration values remain context only. Contract 1.5
+`sourceRLocContextOnly` calibration values remain context only. Contract 1.6
 instead accepts the direct-port grid plus the Section 15.2 prevalence
 calibration as the hybrid-equivalence evidence for this iteration.
 
-### What a future original-source comparison would require
+### Non-requirement
 
-One of the following must be supplied and approved before a fixture can claim
-fixed-comparator transmission parity:
-
-1. a pinned source executable and input/output specification that accepts the
-   catalog schedule and returns the same distribution-native close-contact
-   `R_loc` endpoint; or
-2. a contract amendment approving an independently versioned hybrid reference
-   harness, including its distribution representation, source-kernel calls,
-   contact motif, unit conversions, catalog schedule cases, and tolerances.
-
-The resulting fixture must identify the product and schedule, retain the
-distributional state (not a mean titer), execute without browser-model code,
-and be marked as a new hybrid reference rather than as an original Cessation
-or India product outcome.
+No original-source product-schedule transmission fixture will be requested as
+a parity criterion. Such a source executable does not exist. A separately
+implemented hybrid reference model would be a new scientific project, not an
+original-source comparison, and is not required to establish the approved
+bounded prototype evidence base.
 
 ## Uncertainty-ensemble audit
 

@@ -58,5 +58,5 @@ fixture is never an application-release decision. The Cessation fixed-titer
 `R_loc` anchors and Section 15.2 `sourceRLocContextOnly` values remain
 context/calibration records, not fixed Sabin/IPV product-schedule transmission
 parity. The [source audit](../../docs/release-blocker-source-audit.md) records
-why an original-source product-schedule transmission fixture cannot be added
-without a future new-reference-harness amendment.
+why an original-source product-schedule transmission fixture does not exist and
+is not a parity requirement for this prototype.

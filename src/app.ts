@@ -11,7 +11,7 @@ declare const __BUILD_IDENTITY__: string;
 
 const APP_VERSION = "0.2.0-prototype";
 const AUTO_UPDATE_DELAY_MS = 180;
-const PROTOTYPE_STATUS = "Scientific prototype: point-rule close-contact results require intended-use review";
+const PROTOTYPE_STATUS = "Scientific prototype: point-rule close-contact results are conditional-plausibility evidence under the v1 sufficiency axiom";
 const BUILD_IDENTITY = __BUILD_IDENTITY__;
 
 export function mountApp(root: HTMLElement): void {
@@ -145,7 +145,7 @@ export function mountApp(root: HTMLElement): void {
     const resultStatus = document.querySelector<HTMLElement>("#result-status")!;
     resultStatus.className = `result-status prototype ${belowThreshold ? "below-threshold" : "at-or-above-threshold"}`;
     resultStatus.dataset.modelIdentity = result.modelIdentity;
-    resultStatus.innerHTML = `<strong>PROTOTYPE POINT-RULE COMPARISON: ${belowThreshold ? "R<sub>loc</sub> is below 1" : "R<sub>loc</sub> is not below 1"}</strong><span>Direct maximum R<sub>loc</sub> = ${format(metrics.rLocEnvelopeMax)} across the ${formatMicrograms(result.scenario.envelope.TMin)}–${formatMicrograms(result.scenario.envelope.TMax)} microgram/exposure and ${result.scenario.envelope.NsMin}–${result.scenario.envelope.NsMax} contact ${envelopeName}. This is a close-contact point-rule result, not a complete population R<sub>e</sub>, product claim, or decision-use classification. Ties within ${PARAMETERS.success.tieTolerance} of 1 are not below threshold.</span>`;
+    resultStatus.innerHTML = `<strong>PROTOTYPE POINT-RULE COMPARISON: ${belowThreshold ? "R<sub>loc</sub> is below 1" : "R<sub>loc</sub> is not below 1"}</strong><span>Direct maximum R<sub>loc</sub> = ${format(metrics.rLocEnvelopeMax)} across the ${formatMicrograms(result.scenario.envelope.TMin)}–${formatMicrograms(result.scenario.envelope.TMax)} microgram/exposure and ${result.scenario.envelope.NsMin}–${result.scenario.envelope.NsMax} contact ${envelopeName}. Under the v1 sufficiency axiom, this is conditional-plausibility evidence for population-level herd immunity; it is not a calculated complete population R<sub>e</sub> or product-performance claim. Ties within ${PARAMETERS.success.tieTolerance} of 1 are not below threshold.</span>`;
     const selectedRLoc = metrics.rLocSelectedSetting ?? metrics.rLocEnvelopeMax;
     document.querySelector<HTMLElement>("#selected-setting-result")!.textContent = `${result.scenario.setting.id === "global" ? "Prototype envelope maximum" : "Prototype selected-setting probe"} · ${settingLabel(result.scenario.setting.id)} · Rloc ${format(selectedRLoc)}`;
     document.querySelector<HTMLElement>("#summary-cards")!.innerHTML = summaryCards(result);
@@ -172,7 +172,7 @@ function shell(): string {
       <h1>What vaccine performance is enough?</h1>
       <p class="lede">Explore acquisition blocking, breakthrough infectiousness, schedule, and close-contact setting assumptions. The authoritative modeled result is the direct R<sub>loc</sub> envelope criterion—not a scalar shedding target and not a complete population R<sub>e</sub>.</p>
     </header>
-    <aside class="prototype-banner" role="note"><strong>Scientific prototype — point rule only</strong><span>Kernel parity and the named prevalence calibration support this close-contact calculation. Every number and threshold comparison remains for implementation review, not a complete-population result, product claim, or decision-use classification.</span></aside>
+    <aside class="prototype-banner" role="note"><strong>Scientific prototype — point rule only</strong><span>Kernel parity and the named prevalence calibration support this conditional-plausibility close-contact calculation. Under the v1 sufficiency axiom, it informs population-level herd-immunity reasoning; it is not a calculated complete-population result or product-performance claim.</span></aside>
     <section class="control-panel" aria-labelledby="controls-heading">
       <div class="section-heading"><div><p class="eyebrow">Scenario</p><h2 id="controls-heading">Product, schedule, and setting</h2></div><button id="reset" class="secondary">Reset versioned defaults</button></div>
       <div class="controls-grid">

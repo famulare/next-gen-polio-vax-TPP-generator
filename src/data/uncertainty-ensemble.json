@@ -1,10 +1,10 @@
 {
   "schemaVersion": "UncertaintyEnsembleV1",
-  "version": "uncertainty-ensemble-1.1.0",
+  "version": "uncertainty-ensemble-1.2.0",
   "status": "out_of_scope",
   "groups": [],
   "draws": [],
   "weights": [],
   "quantileAlgorithm": null,
-  "provenance": "Parameter-uncertainty intervals and the upper-95 rule are out of scope for this iteration. The locked Cessation bootstrap arrays and India grouped-Sobol sweep are not used as runtime probability draws. Future sensitivity analyses must not be presented as posterior probability."
+  "provenance": "Parameter-uncertainty intervals and the upper-95 rule are out of scope for this iteration. The locked Cessation bootstrap arrays and India grouped-Sobol sweep are not used as runtime probability draws. This point output does not quantify threshold-crossing probability or support probability-weighted expected-loss or risk-sensitive decisions. Future sensitivity analyses must not be presented as posterior probability."
 }

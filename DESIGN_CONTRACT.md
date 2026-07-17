@@ -2,7 +2,7 @@
 
 **Status:** LOCKED FOR IMPLEMENTATION
 
-**Contract version:** 1.5
+**Contract version:** 1.6
 
 **Locked:** 2026-07-15
 
@@ -16,7 +16,11 @@ Section 15.1 accepts the direct-port kernel grids plus the Section 15.2
 prevalence calibration as the best available hybrid equivalence evidence; no
 source product-schedule `R_loc` fixture is to be fabricated from the scalar
 Cessation motif. This iteration implements only the point success rule;
-parameter-uncertainty intervals and the upper-95 rule are deferred.
+parameter-uncertainty intervals and the upper-95 rule are deferred. Scientific
+amendment 2026-07-17 (clarification): an original-source product-schedule
+`R_loc` comparator does not exist and is not a present or future parity
+requirement; the approved hybrid-equivalence evidence is sufficient for this
+bounded prototype.
 
 **Primary audience:** vaccine developers, polio program scientists, modelers, and funders
 
@@ -80,6 +84,13 @@ This is a deliberately high bar and a decision rule for the tool. It is not a
 result inferred from the source paper. The source paper defines `R_loc` over an
 index-person -> household-member -> close-social-contact motif and notes that it
 is not a complete population reproduction number.
+
+The tool is therefore a **conditional-plausibility screen for population-level
+herd immunity**: its v1 premise is that the modeled close-contact motif is the
+relevant high-strength connection and that the remaining network connections
+are mostly weaker. This is a declared sufficiency axiom, not a calculated
+network theorem or a direct estimate of complete-population `R_e`; aggregation,
+clustering, or unmodeled pathways may change a population result.
 
 The application must therefore label the outcome precisely:
 
@@ -821,11 +832,13 @@ ensemble for this hybrid endpoint.
 
 Future work may evaluate named low/base/high values only as **sensitivity**.
 It may not call them a confidence, credible, posterior, or central-95 range.
-A future probabilistic ensemble requires a contract amendment and must preserve
-joint rows, predeclare failure and physiological-validity filters, record source
-file/commit/transforms/counts/weights/quantile algorithm, and never construct a
-posterior from independently drawn marginal confidence intervals. No runtime
-random sampling is allowed.
+Consequently, current point outputs do not quantify the probability of clearing
+the threshold and cannot alone support probability-weighted expected-loss or
+risk-sensitive decisions. A future probabilistic ensemble requires a contract
+amendment and must preserve joint rows, predeclare failure and
+physiological-validity filters, record source file/commit/transforms/counts/
+weights/quantile algorithm, and never construct a posterior from independently
+drawn marginal confidence intervals. No runtime random sampling is allowed.
 
 ---
 
@@ -1166,14 +1179,14 @@ motif anchors, and the distribution-native prevalence calibration in Section
 15.2, this satisfies the Section 15.1 hybrid parity requirement for this
 iteration.
 
-The pinned sources do not contain a catalog Sabin-2/IPV schedule input and the
-same distribution-native close-contact `R_loc` output. Cessation fixed-titer
-`R_loc` values therefore remain scalar-motif context and must not be relabeled
-as source product-schedule parity. Creating an additional joined R/Matlab
-harness would be a new reference model and requires a future contract
-amendment. Visual agreement with a published setting surface is a useful
-qualitative review, not an acceptance discriminator; extracting values from
-plot colours is not required.
+The pinned sources do not contain—and will not supply—a catalog Sabin-2/IPV
+schedule input with the same distribution-native close-contact `R_loc` output.
+Cessation fixed-titer `R_loc` values therefore remain scalar-motif context and
+must not be relabeled as source product-schedule parity. A joined R/Matlab
+harness would be a new reference model, not an original-source comparator, and
+is not a parity or release requirement for this prototype. Visual agreement
+with a published setting surface is a useful qualitative review, not an
+acceptance discriminator; extracting values from plot colours is not required.
 
 ### 15.2 Faithful-modernization calibration gate
 

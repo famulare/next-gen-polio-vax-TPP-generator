@@ -101,10 +101,33 @@ does not replace source provenance, git history, or verification output.
   `f6867dc76654370cbaab2a000349b381a81ec43c399e064ff85b17346be3fdf9`.
   The GitHub Pages workflow is verified after the commit is pushed.
 - **Residual uncertainty:** this remains a close-contact, point-rule prototype
-  result. It does not determine complete-population `R_e`, clinical product
-  performance, or an unconditional public-health guarantee. A future original
-  source product-schedule `R_loc` comparator or probabilistic ensemble needs a
-  separate contract amendment and the evidence specified in the source audit.
+  result. Under the v1 sufficiency axiom it is conditional-plausibility
+  evidence for population-level herd immunity, not a calculated
+  complete-population `R_e` or clinical product-performance claim. An original
+  source product-schedule `R_loc` comparator is permanently not a requirement;
+  a probabilistic ensemble remains a separately scoped decision-theory
+  limitation.
+
+### 2026-07-17 -- original-source `R_loc` non-requirement clarification
+
+- **Decision:** Mike confirmed that an original-source product-schedule
+  close-contact `R_loc` executable does not exist and will not exist. Contract
+  1.6 removes it as a present or future parity requirement rather than
+  describing it as a deferred gap.
+- **Scope:** no equations, fixtures, calibration targets, source commits, or
+  parameter values changed. The direct-port grids and Section 15.2 prevalence
+  calibration remain the approved hybrid-equivalence evidence. The prototype
+  language now describes the v1 conditional-plausibility premise for
+  population-level herd-immunity reasoning.
+- **Residual limitation:** the absent probability ensemble remains explicitly
+  out of scope. Point results do not quantify the probability of crossing the
+  threshold and cannot by themselves support probability-weighted expected-loss
+  or risk-sensitive decisions.
+- **Verification:** `npm run typecheck`; `npm test` (24/24);
+  `check:reference-fixtures`; `check:calibration`; `check:performance`
+  (selected `2.1 ms`, surface `18.2 ms`, frontier `896.3 ms`); build; and
+  Chromium artifact/path-prefix smoke all pass. Pages deployment is confirmed
+  after the clarification commit is pushed.
 
 ### 2026-07-17 -- fixed-comparator transmission and uncertainty-source audit
 

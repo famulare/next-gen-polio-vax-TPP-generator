@@ -8,11 +8,12 @@ Explore the related [data explorer](https://famulare.github.io/cessationStabilit
 
 ## Prototype status
 
-This working artifact is a **scientific prototype**, not a complete-population
-model or a decision-use product claim. Its point-rule threshold comparisons and
-exports describe the v1 close-contact sufficiency calculation only; they do not
-establish a complete population `R_e`, clinical performance, or an unconditional
-guarantee. Section 15.1 direct-port grids and the Section 15.2 prevalence
+This working artifact is a **scientific prototype** and conditional-plausibility
+tool for population-level herd immunity. Under the v1 close-contact sufficiency
+axiom, it treats the modeled motif as high strength and the remaining network
+connections as mostly weaker. Its point-rule threshold comparisons do not
+calculate a complete population `R_e` or establish clinical product
+performance. Section 15.1 direct-port grids and the Section 15.2 prevalence
 calibration are the approved hybrid-equivalence evidence for this iteration.
 
 ## Run locally
@@ -52,7 +53,9 @@ found Cessation bootstrap arrays whose fit/evaluation path invokes a prohibited
 independent CI sampler, and an India grouped-Sobol sweep rather than posterior
 draws; neither is relabeled as a probability interval. A future sensitivity
 analysis must stay labeled as sensitivity unless its own contract amendment
-supplies an admissible joint ensemble. The record of that scope decision is in
+supplies an admissible joint ensemble. Current point outputs therefore do not
+quantify threshold-crossing probability or support probability-weighted
+expected-loss or risk-sensitive decisions. The record of that scope decision is in
 [docs/release-blocker-source-audit.md](./docs/release-blocker-source-audit.md).
 
 ## Pages

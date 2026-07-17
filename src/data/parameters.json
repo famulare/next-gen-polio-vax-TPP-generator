@@ -1,7 +1,7 @@
 {
   "schemaVersion": "ParameterManifestV1",
-  "manifestVersion": "parameters-1.0.4",
-  "designContractVersion": "1.5",
+  "manifestVersion": "parameters-1.0.5",
+  "designContractVersion": "1.6",
   "sourceSnapshot": {
     "cessationStability": { "commit": "3d779963e9febe8e6262964b185c8277234f41e0", "trackedDirty": false },
     "indiaPolio": { "commit": "1e3e832742e84a36fbc75d81b3a2d19cde8208e6", "trackedDirty": false }

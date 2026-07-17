@@ -61,11 +61,11 @@ export function evaluateScenario(scenario: ScenarioV1): ModelOutputsV1 {
   const frontier = buildFrontier(scenario);
   const settingSurface = buildSettingSurface(scenario, state);
   const assumptions = [
-    "The point-rule close-contact criterion is R_loc below 1 across the declared envelope; it is not a complete population R_e. Current threshold comparisons remain prototype output pending intended-use review.",
+    "The point-rule close-contact criterion is a conditional-plausibility screen for population-level herd immunity under the v1 sufficiency axiom: the modeled close-contact motif is treated as high strength and remaining connections as mostly weaker. It is not a calculated complete-population R_e.",
     "All scheduled doses are received. take is biological productive live-vaccine infection, not receipt or coverage.",
     "Transmission, susceptibility, and shedding use mucosal immunity only; IPV has no mucosal effect in a live-virus-naive cohort.",
     "The Matlab marker is a hybrid: daily exposure mass is converted to mass per exposure using each link's contact frequency; the social-contact structure is inherited rather than fitted by the Matlab study.",
-    "A parameter-uncertainty interval and upper-95 rule are out of scope for this iteration. Any future low/base/high evaluation must be labeled sensitivity, not probability."
+    "A parameter-uncertainty interval and upper-95 rule are out of scope for this iteration. This point output does not quantify threshold-crossing probability or support probability-weighted expected-loss or risk-sensitive decisions. Any future low/base/high evaluation must be labeled sensitivity, not probability."
   ];
   return {
     schemaVersion: "ModelOutputsV1",
