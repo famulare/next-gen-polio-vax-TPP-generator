@@ -21,16 +21,36 @@ export function buildFrontier(scenario: ScenarioV1): FrontierResult {
       points.push({ takeContext, mu0, qAcq: metrics.qAcq, qShed: metrics.qShed, rLocEnvelopeMax, passes: passesThreshold(rLocEnvelopeMax) });
     }
   }
+  const selectedDesign = scenario.vaccine.id === "hypothetical"
+    ? evaluateDesignPoint(scenario, scenario.vaccine, familySchedule)
+    : null;
   return {
     familyProductId: "hypothetical",
     takeValues,
     mu0Values,
     points,
     pareto: paretoBoundary(points),
-    selectedDesign: scenario.vaccine.id === "hypothetical"
-      ? nearestPoint(points, scenario.vaccine.takeContext, scenario.vaccine.mu0)
-      : null,
+    selectedDesign,
+    nearestGridPoint: selectedDesign ? nearestPoint(points, selectedDesign.takeContext, selectedDesign.mu0) : null,
     comparators: fixedComparatorPoints(scenario, evaluator)
+  };
+}
+
+function evaluateDesignPoint(
+  scenario: ScenarioV1,
+  vaccine: VaccineV1,
+  schedule: ScenarioV1["schedule"],
+): DesignGridPoint {
+  const state = buildScheduleState(vaccine, schedule);
+  const metrics = computeProductRatios({ ...scenario, vaccine, schedule, comparatorId: "hypothetical" }, state);
+  const rLocEnvelopeMax = rLocForSetting(state, envelopeCorner(scenario), scenario.indexReferenceExposure, scenario.horizonDays);
+  return {
+    takeContext: vaccine.takeContext,
+    mu0: vaccine.mu0,
+    qAcq: metrics.qAcq,
+    qShed: metrics.qShed,
+    rLocEnvelopeMax,
+    passes: passesThreshold(rLocEnvelopeMax)
   };
 }
 

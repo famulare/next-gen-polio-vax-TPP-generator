@@ -1,10 +1,10 @@
 #!/usr/bin/env Rscript
 
-# This generator currently writes explicitly partial R-kernel fixtures.
+# This generator writes the approved source-diagnostic and direct-port fixtures.
 # It permits explicit source-checkout paths for controlled testing, but every
 # checkout must still exactly match the provenance lock before any source file
 # may be used. The fixture manifest records the incomplete coverage so the
-# generated artifact cannot be mistaken for a completed parity suite.
+# generated artifact cannot be mistaken for an application release decision.
 
 script_path <- function() {
   arguments <- commandArgs(trailingOnly = FALSE)
@@ -283,9 +283,9 @@ write_india_vaccine_take_fixture <- function(india_record, output_path) {
     beta = 8,
     gamma = 0.4624,
     doseTCID50 = 199526.2314968879,
-    takeContext = 0.8,
+    takeContext = 1,
     formulationMultiplier = 1,
-    mu0 = 4,
+    mu0 = 6,
     sigma0 = 2.4,
     log2NMax = 15L,
     lowDoseLinearRatio = 0.01,
@@ -611,7 +611,7 @@ write_india_comparator_fixture <- function(india_record, output_path) {
 # no-take mass, boost only take mass, then merge by infection history.  This is
 # deliberately a kernel fixture, not an invocation of India Polio's broader
 # population/vaccination scheduler.
-india_schedule_params <- function(mu0 = 4, sigma0 = 2.4, alpha = 0.444, beta = 8) {
+india_schedule_params <- function(mu0 = 6, sigma0 = 2.4, alpha = 0.444, beta = 8) {
   list(
     susceptibility = list(
       alpha = alpha,
@@ -742,9 +742,9 @@ write_india_schedule_fixture <- function(india_record, output_path) {
     beta = 8,
     gamma = 0.4624,
     doseTCID50 = 199526.2314968879,
-    takeContext = 0.8,
+    takeContext = 1,
     formulationMultiplier = 1,
-    mu0 = 4,
+    mu0 = 6,
     sigma0 = 2.4,
     log2NMax = 15L,
     waningLambda = 0.87,
@@ -908,8 +908,8 @@ write_india_shedding_fixture <- function(india_record, output_path) {
   inputs <- list(
     log2NMax = 15L,
     sheddingWithinBinSd = 0.4,
-    b1 = 3.7612001156935624,
-    b2 = 0.1519663281441243,
+    b1 = 3.76,
+    b2 = 0.1519,
     b3 = 0.52,
     cImmunity = 0.056,
     ageAMax = 6.67,
@@ -918,7 +918,7 @@ write_india_shedding_fixture <- function(india_record, output_path) {
     temporalMu = 1.64,
     temporalSigma = 0.18,
     temporalKappa = 0.32,
-    titerFloor = 398.1071705534973,
+    titerFloor = 398.1,
     survivalEps = 1e-12
   )
   params <- list(

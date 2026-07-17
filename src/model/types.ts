@@ -46,8 +46,10 @@ export interface SettingV1 {
 
 export interface EnvelopeV1 {
   linkedExposure: boolean;
-  TMin: number;
-  TMax: number;
+  TihMin: number;
+  TihMax: number;
+  ThsMin: number;
+  ThsMax: number;
   NsMin: number;
   NsMax: number;
   dIhMin: number;
@@ -77,6 +79,10 @@ export interface ParameterManifestV1 {
   schemaVersion: "ParameterManifestV1";
   manifestVersion: string;
   designContractVersion: string;
+  sourceSnapshot: {
+    cessationStability: { commit: string; trackedDirty: false };
+    indiaPolio: { commit: string; trackedDirty: false };
+  };
   quadrature: {
     nodes: number[];
     weights: number[];
@@ -85,8 +91,14 @@ export interface ParameterManifestV1 {
     bin0WanedCenter: number;
     bin0WanedSd: number;
   };
-  numerics: {
-    sourceLowDoseLinearRatio: number;
+  validationBounds: {
+    hypothetical: {
+      alpha: [number, number];
+      beta: [number, number];
+      dose: [number, number];
+      takeContext: [number, number];
+      mu0: [number, number];
+    };
   };
   immunity: { bins: number; maxLog2: number; waningLambda: number };
   wpv1: {
@@ -105,7 +117,7 @@ export interface ParameterManifestV1 {
     titerFloor: number;
   };
   transmission: { horizonDays: number; indexReferenceExposure: string; dIh: number; dHs: number };
-  success: { calibrationLog10Tolerance: number };
+  success: { calibrationLog10Tolerance: number; horizonExtensionRelativeTolerance: number };
 }
 
 export interface ImmuneGroup {
@@ -183,6 +195,7 @@ export interface FrontierResult {
   points: DesignGridPoint[];
   pareto: DesignGridPoint[];
   selectedDesign: DesignGridPoint | null;
+  nearestGridPoint: DesignGridPoint | null;
   comparators: ComparatorPoint[];
 }
 

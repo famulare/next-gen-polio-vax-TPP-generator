@@ -46,7 +46,7 @@
     {
       "path": "reference/fixtures/india-r-vaccine-take-v1.json",
       "schemaVersion": "SourceKernelFixtureV1",
-      "sha256": "0bd62224b9440334888256e7cb007883b4c0258814aeadff09cc7873eca486c0"
+      "sha256": "abd4f3965537df535e40b900935c509b05f93a6cbf39c7ccd79cd2628fc72eee"
     },
     {
       "path": "reference/fixtures/india-r-comparators-v1.json",
@@ -56,12 +56,12 @@
     {
       "path": "reference/fixtures/india-r-shedding-v1.json",
       "schemaVersion": "SourceKernelFixtureV1",
-      "sha256": "d7d8aa76d678337ea080b5573c4734e8cb3d2c76d43dbc9e3c6057e54fbb1a73"
+      "sha256": "bdd9f1068f2ff5b506757d6497c179b7cb13044a2bd2cb2b4916887dcfa9de01"
     },
     {
       "path": "reference/fixtures/india-r-schedule-v1.json",
       "schemaVersion": "SourceKernelFixtureV1",
-      "sha256": "d828e39e4c1a85305a4a721f232fc0c503151696e9435b0497f401b65468d2e9"
+      "sha256": "1d26dfa307658805c23047282c683a3d21c9ba8b85e51318a0ee9189184d9c52"
     },
     {
       "path": "reference/fixtures/cessation-matlab-motif-v1.json",
@@ -105,7 +105,7 @@
   "calibrationArtifact": {
     "path": "reference/fixtures/calibration-report-v1.json",
     "schemaVersion": "DistributionNativePrevalenceCalibrationReportV1",
-    "sha256": "1f3c85b2f12f3fb36d6454ea07cd51d573fc4ca923eb7027079172ac64b88c41",
+    "sha256": "ecb8bee430d3189317950a950b12e94ba3bc67139fd9e5636d7d556ced29871f",
     "calibrationGateSatisfied": true
   }
 }

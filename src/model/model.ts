@@ -55,11 +55,12 @@ export function scenarioWithProduct(scenario: ScenarioV1, productId: ScenarioV1[
 }
 
 export function evaluateScenario(scenario: ScenarioV1): ModelOutputsV1 {
-  validateScenario(scenario);
-  const state = buildScheduleState(scenario.vaccine, scenario.schedule);
-  const metrics = computePointMetrics(scenario, state);
-  const frontier = buildFrontier(scenario);
-  const settingSurface = buildSettingSurface(scenario, state);
+  const canonicalScenario = structuredClone(scenario);
+  validateScenario(canonicalScenario);
+  const state = buildScheduleState(canonicalScenario.vaccine, canonicalScenario.schedule);
+  const metrics = computePointMetrics(canonicalScenario, state);
+  const frontier = buildFrontier(canonicalScenario);
+  const settingSurface = buildSettingSurface(canonicalScenario, state);
   const assumptions = [
     "The point-rule close-contact criterion is a conditional-plausibility screen for population-level herd immunity under the v1 sufficiency axiom: the modeled close-contact motif is treated as high strength and remaining connections as mostly weaker. It is not a calculated complete-population R_e.",
     "All scheduled doses are received. take is biological productive live-vaccine infection, not receipt or coverage.",
@@ -69,29 +70,33 @@ export function evaluateScenario(scenario: ScenarioV1): ModelOutputsV1 {
   ];
   return {
     schemaVersion: "ModelOutputsV1",
-    scenario,
+    scenario: canonicalScenario,
     metrics,
     settingSurface,
     frontier,
     uncertainty: { available: false, label: "parameter-uncertainty interval is out of scope for this iteration", reason: UNCERTAINTY_ENSEMBLE.provenance, rLocMax: null },
     assumptions,
-    modelIdentity: canonicalHash({ scenario, parameters: PARAMETERS, settings: SETTING_ANCHORS, uncertainty: UNCERTAINTY_ENSEMBLE, frontierGrid: FRONTIER_GRID }),
-    provenance: rawProvenance
+    modelIdentity: canonicalHash({ scenario: canonicalScenario, parameters: PARAMETERS, settings: SETTING_ANCHORS, uncertainty: UNCERTAINTY_ENSEMBLE, frontierGrid: FRONTIER_GRID }),
+    provenance: structuredClone(rawProvenance)
   };
 }
 
 export function buildSettingSurface(scenario: ScenarioV1, state: ReturnType<typeof buildScheduleState>) {
   const surface = [];
-  const min = scenario.envelope.TMin;
-  const max = scenario.envelope.TMax;
+  const tihMin = scenario.envelope.TihMin;
+  const tihMax = scenario.envelope.TihMax;
+  const thsMin = scenario.envelope.ThsMin;
+  const thsMax = scenario.envelope.ThsMax;
   const exposureCount = FRONTIER_GRID.settingExposure.count;
   const contactStep = FRONTIER_GRID.settingContacts.step;
   for (let i = 0; i < exposureCount; i += 1) {
-    const T = min * (max / min) ** (i / (exposureCount - 1));
+    const fraction = i / (exposureCount - 1);
+    const Tih = tihMin * (tihMax / tihMin) ** fraction;
+    const Ths = thsMin * (thsMax / thsMin) ** fraction;
     const unitSetting: SettingV1 = {
       id: "custom",
-      Tih: { value: T, unit: "grams/exposure", basis: "per_exposure" },
-      Ths: { value: T, unit: "grams/exposure", basis: "per_exposure" },
+      Tih: { value: Tih, unit: "grams/exposure", basis: "per_exposure" },
+      Ths: { value: Ths, unit: "grams/exposure", basis: "per_exposure" },
       dIh: { value: scenario.envelope.dIhMax, unit: "exposures/person/day", basis: "per_day" },
       dHs: { value: scenario.envelope.dHsMax, unit: "exposures/person/day", basis: "per_day" },
       Ns: 1
@@ -102,7 +107,7 @@ export function buildSettingSurface(scenario: ScenarioV1, state: ReturnType<type
         ...unitSetting,
         Ns
       };
-      surface.push({ Tih: T, Ths: setting.Ths.value, dIh: setting.dIh.value, dHs: setting.dHs.value, Ns, rLoc: rLocPerSocialContact * Ns });
+      surface.push({ Tih, Ths, dIh: setting.dIh.value, dHs: setting.dHs.value, Ns, rLoc: rLocPerSocialContact * Ns });
     }
   }
   return surface;

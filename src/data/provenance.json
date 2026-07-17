@@ -1,6 +1,6 @@
 {
   "schemaVersion": "ProvenanceV1",
-  "designContract": "1.6",
+  "designContract": "1.7",
   "generatedAt": "2026-07-15",
   "sourceFiles": [
     "/Users/famulare/git/famulare/india-polio/model/R/mixture.R",
@@ -19,6 +19,9 @@
   },
   "transforms": [
     "Browser uses 365.25/12 days per month for waning.",
+    "Production uses the exact beta-Poisson equation; the India dose/beta <= 0.01 linear branch is retained only as a source diagnostic.",
+    "Production uses exact Cessation shedding-duration constants, including b2 = ln(1.164); rounded India schema constants remain source diagnostics.",
+    "Each motif link receives an independent 120-day post-infection horizon; 120 days passes the doubled-horizon relative-tail discriminator at every acceptance anchor.",
     "The reduced transmission layer is distribution-native and retains contact frequency outside the dose-response kernel.",
     "Parameter-uncertainty intervals and the upper-95 rule are out of scope for this point-rule iteration."
   ]

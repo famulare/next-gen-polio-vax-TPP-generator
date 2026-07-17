@@ -21,6 +21,39 @@ does not replace source provenance, git history, or verification output.
 
 ## Planning-stage review record
 
+### 2026-07-17 -- backend review remediation checkpoint
+
+- **Objective:** resolve the confirmed backend contract mismatches and preserve
+  a coherent checkpoint before completing release/schema hardening.
+- **Executor/model version:** Codex direct implementation; no delegation.
+- **Contract sections and source files supplied:** Sections 4, 7.1--7.3, 7.6,
+  9.4, 10.3, 11.4, 14.3--14.5, 15.1--15.3, 15.6, and 16; the pinned India and
+  Cessation sources and all backend/model files named in
+  `BACKEND_REVIEW_PARTIAL.md`.
+- **Allowed files or worktree:** this repository; pinned source repositories
+  read-only.
+- **Required output and discriminator:** exact contracted dose response and
+  shedding constants; approved `take=1, mu0=6` default; exact off-grid selected
+  design; independent per-infection horizon passing the doubled-horizon gate;
+  bounded content-keyed caches; fail-closed bins; owned model outputs; linked
+  and unlinked envelopes; regenerated fixtures/calibration; focused tests.
+- **Content-block classification and rationale:** not applicable; defensive
+  scientific-software review and direct implementation.
+- **Reframe/retry status:** not applicable.
+- **Result disposition:** accepted as an intermediate checkpoint; release and
+  remaining schema/pipeline review continue in the same task.
+- **Primary review:** followed the locked contract where India source behavior
+  conflicts: the source low-dose branch and rounded shedding constants remain
+  explicit diagnostic fixtures. A 100-day independent-link horizon failed the
+  low-anchor tail criterion (`1.83e-4`); 120 days passes for hypothetical,
+  Sabin-2, and IPV at every named anchor. Cross-path explicit link composition
+  agrees with direct `R_loc` within `1e-12`.
+- **Verification run:** TypeScript typecheck; 33/33 model tests; reference
+  fixture check; regenerated and checked Section 15.2 calibration report.
+- **Residual uncertainty:** full runtime output-schema validation, memory
+  process discriminator, deterministic artifact/hash/CI negative gates, and
+  the final review disposition remain to be completed.
+
 ### 2026-07-15 -- independent software-plan review
 
 - **Objective:** adversarially review the design contract for implementation

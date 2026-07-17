@@ -1,20 +1,9 @@
 import { FRONTIER_GRID, GLOBAL_SETTING, PARAMETERS, SETTING_ANCHORS, SETTING_MANIFEST_VERSION, UNCERTAINTY_ENSEMBLE, vaccineDefaults } from "./parameters";
 import { ROUTINE_DAYS } from "./types";
 import type { ScenarioV1, SettingV1, UnitValueV1, VaccineV1 } from "./types";
+import { canonicalHash, canonicalJson } from "./canonical";
 
-export function canonicalJson(value: unknown): string {
-  return JSON.stringify(canonicalValue(value));
-}
-
-export function canonicalHash(value: unknown): string {
-  const text = canonicalJson(value);
-  let hash = 2166136261;
-  for (let index = 0; index < text.length; index += 1) {
-    hash ^= text.charCodeAt(index);
-    hash = Math.imul(hash, 16777619);
-  }
-  return `fnv1a-${(hash >>> 0).toString(16).padStart(8, "0")}`;
-}
+export { canonicalHash, canonicalJson };
 
 export function encodeScenario(scenario: ScenarioV1): string {
   return base64UrlEncode(canonicalJson(scenario));
@@ -60,11 +49,11 @@ function validateVaccine(value: unknown): asserts value is VaccineV1 {
     if (!sameRecord(value, catalog)) throw new Error(`${value.id} is a fixed v1 comparator and cannot be parameterized`);
     return;
   }
-  finiteRange(value.alpha, 0.001, 5, "alpha");
-  finiteRange(value.beta, 0.001, 1e6, "beta");
-  finitePositive(value.dose, "dose");
-  finiteRange(value.takeContext, 0, 1, "takeContext");
-  finiteRange(value.mu0, 0, 15, "mu0");
+  finiteRange(value.alpha, ...PARAMETERS.validationBounds.hypothetical.alpha, "alpha");
+  finiteRange(value.beta, ...PARAMETERS.validationBounds.hypothetical.beta, "beta");
+  finiteRange(value.dose, ...PARAMETERS.validationBounds.hypothetical.dose, "dose");
+  finiteRange(value.takeContext, ...PARAMETERS.validationBounds.hypothetical.takeContext, "takeContext");
+  finiteRange(value.mu0, ...PARAMETERS.validationBounds.hypothetical.mu0, "mu0");
   if (value.formulationMultiplier !== catalog.formulationMultiplier) throw new Error("formulationMultiplier is fixed at 1 in v1");
   if (value.sigma0 !== catalog.sigma0) throw new Error("sigma0 is fixed at 2.4 in v1");
   if (value.gamma !== catalog.gamma) throw new Error("gamma is fixed at 0.4624 in v1");
@@ -98,10 +87,15 @@ function validateSetting(value: unknown): asserts value is SettingV1 {
 
 function validateEnvelope(value: unknown): void {
   if (!isRecord(value)) throw new Error("Envelope must be an object");
-  exactKeys(value, ["linkedExposure", "TMin", "TMax", "NsMin", "NsMax", "dIhMin", "dIhMax", "dHsMin", "dHsMax"], "EnvelopeV1");
-  if (value.linkedExposure !== true) throw new Error("Unlinked envelope bounds are not representable by ScenarioV1; keep linkedExposure true");
-  finitePositive(value.TMin, "TMin");
-  finiteRange(value.TMax, value.TMin, 1, "TMax");
+  exactKeys(value, ["linkedExposure", "TihMin", "TihMax", "ThsMin", "ThsMax", "NsMin", "NsMax", "dIhMin", "dIhMax", "dHsMin", "dHsMax"], "EnvelopeV1");
+  if (typeof value.linkedExposure !== "boolean") throw new Error("linkedExposure must be boolean");
+  finitePositive(value.TihMin, "TihMin");
+  finiteRange(value.TihMax, value.TihMin, 1, "TihMax");
+  finitePositive(value.ThsMin, "ThsMin");
+  finiteRange(value.ThsMax, value.ThsMin, 1, "ThsMax");
+  if (value.linkedExposure && (value.TihMin !== value.ThsMin || value.TihMax !== value.ThsMax)) {
+    throw new Error("Linked exposure requires identical Tih and Ths bounds");
+  }
   integerRange(value.NsMin, 0, 1000, "NsMin");
   integerRange(value.NsMax, value.NsMin, 1000, "NsMax");
   finiteRange(value.dIhMin, 0, 1000, "dIhMin");
@@ -149,16 +143,6 @@ function finiteRange(value: unknown, min: number, max: number, label: string): v
 
 function integerRange(value: unknown, min: number, max: number, label: string): void {
   if (typeof value !== "number" || !Number.isInteger(value) || value < min || value > max) throw new Error(`${label} must be an integer in [${min}, ${max}]`);
-}
-
-function canonicalValue(value: unknown): unknown {
-  if (typeof value === "number") {
-    if (!Number.isFinite(value)) throw new Error("Canonical JSON does not allow nonfinite numbers");
-    return value;
-  }
-  if (Array.isArray(value)) return value.map(canonicalValue);
-  if (isRecord(value)) return Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonicalValue(value[key])]));
-  return value;
 }
 
 function base64UrlEncode(value: string): string {

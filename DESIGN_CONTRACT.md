@@ -2,7 +2,7 @@
 
 **Status:** LOCKED FOR IMPLEMENTATION
 
-**Contract version:** 1.6
+**Contract version:** 1.7
 
 **Locked:** 2026-07-15
 
@@ -20,7 +20,15 @@ parameter-uncertainty intervals and the upper-95 rule are deferred. Scientific
 amendment 2026-07-17 (clarification): an original-source product-schedule
 `R_loc` comparator does not exist and is not a present or future parity
 requirement; the approved hybrid-equivalence evidence is sufficient for this
-bounded prototype.
+bounded prototype. Scientific amendment 2026-07-17 (backend review): the
+hypothetical default is `take_context=1`, `mu0_new=6`, and
+`sigma0_new=2.4`; production uses the exact Section 7.1 dose-response equation
+and exact Cessation `b2=ln(1.164)`, while the India low-dose branch and rounded
+shedding constants remain source diagnostics rather than production
+substitutions. Each motif link receives an independent post-infection horizon;
+the default is increased from 100 to 120 days because 100 days failed the
+Section 9.4 tail discriminator at the low anchor. Broad hypothetical-product
+hard bounds are versioned in `parameters.json`.
 
 **Primary audience:** vaccine developers, polio program scientists, modelers, and funders
 
@@ -384,7 +392,8 @@ post_sd    = sigma0 * scale(x)
 
 The post-boost Gaussian is projected to the 16 bins using the India model's
 transition-matrix construction. V1 varies `mu0_new` and holds
-`sigma0_new = 2.4` log2 units, the Sabin default. Recommended fixed comparators:
+`sigma0_new = 2.4` log2 units, the Sabin default. The versioned hypothetical
+default is `mu0_new = 6.0` log2 units. Recommended fixed comparators:
 
 | Immunizing event | `mu0` | `sigma0` |
 |---|---:|---:|
@@ -613,8 +622,9 @@ Equivalently, matching the source Matlab model:
 R_loc = N_s * sum(tertiary incidence) / sum(primary incidence)
 ```
 
-The horizon defaults to 100 days after each infection, matching the source
-implementation. A horizon-extension test must show that omitted tail incidence
+The horizon defaults to 120 days after each infection. This preserves the
+per-infection semantics while extending the source's 100-day global array far
+enough to satisfy the numerical criterion. A horizon-extension test must show that omitted tail incidence
 changes `R_loc` by less than `1e-4` relatively at all acceptance-test anchors.
 
 ### 9.5 Faithful modernization rule
@@ -1178,6 +1188,12 @@ grid. Together with the fixed catalog schedule fixtures, the scalar Cessation
 motif anchors, and the distribution-native prevalence calibration in Section
 15.2, this satisfies the Section 15.1 hybrid parity requirement for this
 iteration.
+
+**2026-07-17 exact-kernel clarification.** India-source cases at
+`dose/beta <= 0.01` and India schema-rounded shedding constants are retained as
+diagnostic fixtures. They intentionally discriminate the exact Section 7.1
+equation and exact Cessation duration constants used in production; they are
+not production-parity requirements.
 
 The pinned sources do not contain—and will not supply—a catalog Sabin-2/IPV
 schedule input with the same distribution-native close-contact `R_loc` output.

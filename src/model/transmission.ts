@@ -1,6 +1,6 @@
 import { sourceQuadratureValues } from "./bins";
 import { doseResponse, wpvSusceptibilityPerBin } from "./dose-response";
-import { PARAMETERS } from "./parameters";
+import { PARAMETERS, SCIENTIFIC_MANIFEST_ID } from "./parameters";
 import { initialImmuneState } from "./schedule";
 import { sheddingTerms } from "./shedding";
 import type { ImmuneGroup, ImmuneState, IncidenceCohort, SettingV1, SourceCohort } from "./types";
@@ -24,11 +24,47 @@ interface SheddingProfile {
 
 export type RLocEvaluator = (state: ImmuneState, socialContacts?: number) => number;
 
+class BoundedCache<T> {
+  readonly #values = new Map<string, T>();
+  constructor(readonly capacity: number) {}
+  get size(): number { return this.#values.size; }
+  get(key: string): T | undefined {
+    const value = this.#values.get(key);
+    if (value !== undefined) {
+      this.#values.delete(key);
+      this.#values.set(key, value);
+    }
+    return value;
+  }
+  set(key: string, value: T): void {
+    this.#values.delete(key);
+    this.#values.set(key, value);
+    while (this.#values.size > this.capacity) this.#values.delete(this.#values.keys().next().value!);
+  }
+  clear(): void { this.#values.clear(); }
+}
+
 const BIN_COUNT = PARAMETERS.immunity.bins;
 const HISTORY_COUNT = 2;
-const linkKernelCache = new Map<string, LinkKernel>();
-const sheddingProfileCache = new Map<string, SheddingProfile>();
-const perExposureProfileCache = new Map<string, Float64Array>();
+const TRANSMISSION_CACHE_CAPACITY = 12;
+const linkKernelCache = new BoundedCache<LinkKernel>(TRANSMISSION_CACHE_CAPACITY);
+const sheddingProfileCache = new BoundedCache<SheddingProfile>(TRANSMISSION_CACHE_CAPACITY);
+const perExposureProfileCache = new BoundedCache<Float64Array>(TRANSMISSION_CACHE_CAPACITY);
+
+export function clearTransmissionCaches(): void {
+  linkKernelCache.clear();
+  sheddingProfileCache.clear();
+  perExposureProfileCache.clear();
+}
+
+export function transmissionCacheStats(): { capacity: number; linkKernels: number; sheddingProfiles: number; perExposureProfiles: number } {
+  return {
+    capacity: TRANSMISSION_CACHE_CAPACITY,
+    linkKernels: linkKernelCache.size,
+    sheddingProfiles: sheddingProfileCache.size,
+    perExposureProfiles: perExposureProfileCache.size
+  };
+}
 
 export function conditionIndexBreakthrough(state: ImmuneState, referenceExposure: number): BreakthroughResult {
   const cohorts: SourceCohort[] = [];
@@ -93,24 +129,22 @@ export function rLocForSetting(state: ImmuneState, setting: SettingV1, reference
   const indexMass = sourceMassByBin(index.cohorts);
   const indexHousehold = linkKernel(setting.Tih.value, setting.dIh.value, ageMonths, horizonDays);
   const householdSocial = linkKernel(setting.Ths.value, setting.dHs.value, ageMonths, horizonDays);
-  const socialProbabilityBySourceAndRemaining = new Float64Array(BIN_COUNT * (horizonDays + 1));
+  const socialProbabilityBySource = new Float64Array(BIN_COUNT);
 
   for (let sourceBin = 0; sourceBin < BIN_COUNT; sourceBin += 1) {
-    for (let remaining = 1; remaining <= horizonDays; remaining += 1) {
-      let probability = 0;
-      for (let history = 0; history < HISTORY_COUNT; history += 1) {
-        for (let recipientBin = 0; recipientBin < BIN_COUNT; recipientBin += 1) {
-          probability += recipientMass[history * BIN_COUNT + recipientBin]!
-            * householdSocial.cumulative[kernelIndex(history, sourceBin, recipientBin, remaining, horizonDays)]!;
-        }
+    let probability = 0;
+    for (let history = 0; history < HISTORY_COUNT; history += 1) {
+      for (let recipientBin = 0; recipientBin < BIN_COUNT; recipientBin += 1) {
+        probability += recipientMass[history * BIN_COUNT + recipientBin]!
+          * householdSocial.cumulative[kernelIndex(history, sourceBin, recipientBin, horizonDays, horizonDays)]!;
       }
-      socialProbabilityBySourceAndRemaining[sourceBin * (horizonDays + 1) + remaining] = probability;
     }
+    socialProbabilityBySource[sourceBin] = probability;
   }
 
   let socialProbability = 0;
   for (let householdBin = 0; householdBin < BIN_COUNT; householdBin += 1) {
-    for (let infectionDay = 1; infectionDay < horizonDays; infectionDay += 1) {
+    for (let infectionDay = 1; infectionDay <= horizonDays; infectionDay += 1) {
       let householdIncidence = 0;
       for (let sourceBin = 0; sourceBin < BIN_COUNT; sourceBin += 1) {
         const sourceMass = indexMass[sourceBin]!;
@@ -120,8 +154,7 @@ export function rLocForSetting(state: ImmuneState, setting: SettingV1, reference
             * indexHousehold.daily[kernelIndex(history, sourceBin, householdBin, infectionDay, horizonDays)]!;
         }
       }
-      socialProbability += householdIncidence
-        * socialProbabilityBySourceAndRemaining[householdBin * (horizonDays + 1) + horizonDays - infectionDay]!;
+      socialProbability += householdIncidence * socialProbabilityBySource[householdBin]!;
     }
   }
   return setting.Ns * socialProbability;
@@ -180,7 +213,7 @@ export function repeatedExposureProbability(perExposure: number, D: number): num
 }
 
 function linkKernel(T: number, D: number, ageMonths: number, horizonDays: number): LinkKernel {
-  const key = `${PARAMETERS.manifestVersion}:${T.toPrecision(15)}:${D.toPrecision(15)}:${ageMonths.toPrecision(15)}:${horizonDays}`;
+  const key = `${SCIENTIFIC_MANIFEST_ID}:${T.toPrecision(15)}:${D.toPrecision(15)}:${ageMonths.toPrecision(15)}:${horizonDays}`;
   const cached = linkKernelCache.get(key);
   if (cached) return cached;
   const size = HISTORY_COUNT * BIN_COUNT * BIN_COUNT * (horizonDays + 1);
@@ -213,7 +246,7 @@ function linkKernel(T: number, D: number, ageMonths: number, horizonDays: number
 }
 
 function sheddingProfile(ageMonths: number, horizonDays: number): SheddingProfile {
-  const key = `${PARAMETERS.manifestVersion}:${ageMonths.toPrecision(15)}:${horizonDays}`;
+  const key = `${SCIENTIFIC_MANIFEST_ID}:${ageMonths.toPrecision(15)}:${horizonDays}`;
   const cached = sheddingProfileCache.get(key);
   if (cached) return cached;
   const survival = new Float64Array(BIN_COUNT * (horizonDays + 1));
@@ -232,7 +265,7 @@ function sheddingProfile(ageMonths: number, horizonDays: number): SheddingProfil
 }
 
 function infectionProbabilityProfile(T: number, ageMonths: number, horizonDays: number, shedding: SheddingProfile): Float64Array {
-  const key = `${PARAMETERS.manifestVersion}:${T.toPrecision(15)}:${ageMonths.toPrecision(15)}:${horizonDays}`;
+  const key = `${SCIENTIFIC_MANIFEST_ID}:${T.toPrecision(15)}:${ageMonths.toPrecision(15)}:${horizonDays}`;
   const cached = perExposureProfileCache.get(key);
   if (cached) return cached;
   const probabilities = new Float64Array(HISTORY_COUNT * BIN_COUNT * BIN_COUNT * (horizonDays + 1));
@@ -266,9 +299,9 @@ function buildMotifTensor(first: LinkKernel, second: LinkKernel): Float64Array {
         for (let socialHistory = 0; socialHistory < HISTORY_COUNT; socialHistory += 1) {
           for (let socialBin = 0; socialBin < BIN_COUNT; socialBin += 1) {
             let probability = 0;
-            for (let infectionDay = 1; infectionDay < horizonDays; infectionDay += 1) {
+            for (let infectionDay = 1; infectionDay <= horizonDays; infectionDay += 1) {
               probability += first.daily[kernelIndex(householdHistory, indexBin, householdBin, infectionDay, horizonDays)]!
-                * second.cumulative[kernelIndex(socialHistory, householdBin, socialBin, horizonDays - infectionDay, horizonDays)]!;
+                * second.cumulative[kernelIndex(socialHistory, householdBin, socialBin, horizonDays, horizonDays)]!;
             }
             tensor[motifIndex(indexBin, householdHistory, householdBin, socialHistory, socialBin)] = probability;
           }

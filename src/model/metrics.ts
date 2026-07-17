@@ -55,8 +55,8 @@ export function envelopeCorner(scenario: ScenarioV1): SettingV1 {
   const envelope = scenario.envelope;
   return {
     id: "global",
-    Tih: { value: envelope.TMax, unit: "grams/exposure", basis: "per_exposure" },
-    Ths: { value: envelope.TMax, unit: "grams/exposure", basis: "per_exposure" },
+    Tih: { value: envelope.TihMax, unit: "grams/exposure", basis: "per_exposure" },
+    Ths: { value: envelope.ThsMax, unit: "grams/exposure", basis: "per_exposure" },
     dIh: { value: envelope.dIhMax, unit: "exposures/person/day", basis: "per_day" },
     dHs: { value: envelope.dHsMax, unit: "exposures/person/day", basis: "per_day" },
     Ns: envelope.NsMax

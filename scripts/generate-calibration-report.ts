@@ -256,8 +256,8 @@ function fitTih(
   contactMeanLog2NAb = sourceCase.browserStateMapping.contactMeanLog2NAb
 ): { tihGramsPerExposure: number; evaluated: EvaluatedCase } {
   let best: { tihGramsPerExposure: number; evaluated: EvaluatedCase } | undefined;
-  const log10Minimum = Math.log10(ENVELOPE.TMin);
-  const log10Maximum = Math.log10(ENVELOPE.TMax);
+  const log10Minimum = Math.log10(ENVELOPE.TihMin);
+  const log10Maximum = Math.log10(ENVELOPE.TihMax);
   const steps = Math.ceil((log10Maximum - log10Minimum) / FIT_LOG10_TIH_STEP);
   const candidates = new Set<number>([sourceCase.TihGramsPerExposure]);
   for (let index = 0; index <= steps; index += 1) candidates.add(10 ** Math.min(log10Minimum + index * FIT_LOG10_TIH_STEP, log10Maximum));
@@ -319,7 +319,7 @@ function fitIndiaContactMeanAndTih(
     throw new Error("Joint contact fit requires a campaign-history distribution for household and social contacts");
   }
   const coarseMeans = inclusiveGrid(0, constraint.maximumMeanLog2NAb, INDIA_JOINT_COARSE_MEAN_STEP_LOG2, [mapping.contactMeanLog2NAb]);
-  const coarseTihs = log10DoseGrid(ENVELOPE.TMin, ENVELOPE.TMax, INDIA_JOINT_COARSE_TIH_STEP_LOG10, [sourceCase.TihGramsPerExposure]);
+  const coarseTihs = log10DoseGrid(ENVELOPE.TihMin, ENVELOPE.TihMax, INDIA_JOINT_COARSE_TIH_STEP_LOG10, [sourceCase.TihGramsPerExposure]);
   const coarseProfile: JointContactTihFit["diagnostics"]["coarseGrid"]["profileByContactMean"] = [];
   let coarseBest: JointCandidate | undefined;
   for (const contactMeanLog2NAb of coarseMeans) {
@@ -341,8 +341,8 @@ function fitIndiaContactMeanAndTih(
 
   const refinedMeanMinimum = Math.max(0, coarseBest.contactMeanLog2NAb - INDIA_JOINT_REFINE_MEAN_HALF_WIDTH_LOG2);
   const refinedMeanMaximum = Math.min(constraint.maximumMeanLog2NAb, coarseBest.contactMeanLog2NAb + INDIA_JOINT_REFINE_MEAN_HALF_WIDTH_LOG2);
-  const refinedLog10TihMinimum = Math.max(Math.log10(ENVELOPE.TMin), Math.log10(coarseBest.tihGramsPerExposure) - INDIA_JOINT_REFINE_TIH_HALF_WIDTH_LOG10);
-  const refinedLog10TihMaximum = Math.min(Math.log10(ENVELOPE.TMax), Math.log10(coarseBest.tihGramsPerExposure) + INDIA_JOINT_REFINE_TIH_HALF_WIDTH_LOG10);
+  const refinedLog10TihMinimum = Math.max(Math.log10(ENVELOPE.TihMin), Math.log10(coarseBest.tihGramsPerExposure) - INDIA_JOINT_REFINE_TIH_HALF_WIDTH_LOG10);
+  const refinedLog10TihMaximum = Math.min(Math.log10(ENVELOPE.TihMax), Math.log10(coarseBest.tihGramsPerExposure) + INDIA_JOINT_REFINE_TIH_HALF_WIDTH_LOG10);
   const refinedMeans = inclusiveGrid(refinedMeanMinimum, refinedMeanMaximum, INDIA_JOINT_REFINE_MEAN_STEP_LOG2, [coarseBest.contactMeanLog2NAb]);
   const refinedTihs = log10DoseGrid(10 ** refinedLog10TihMinimum, 10 ** refinedLog10TihMaximum, INDIA_JOINT_REFINE_TIH_STEP_LOG10, [coarseBest.tihGramsPerExposure]);
   const refinedCandidates: JointCandidate[] = [];
@@ -481,8 +481,8 @@ function buildReport(fixture: SourceFixture) {
       tih: {
         fittedAgainst: "secondary prevalence",
         gridStepLog10: FIT_LOG10_TIH_STEP,
-        minimumGramsPerExposure: ENVELOPE.TMin,
-        maximumGramsPerExposure: ENVELOPE.TMax
+        minimumGramsPerExposure: ENVELOPE.TihMin,
+        maximumGramsPerExposure: ENVELOPE.TihMax
       },
       tieBreak: "lowest candidate value for one-parameter fits"
     },

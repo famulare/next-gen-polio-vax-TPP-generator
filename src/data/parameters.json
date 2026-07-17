@@ -1,7 +1,7 @@
 {
   "schemaVersion": "ParameterManifestV1",
-  "manifestVersion": "parameters-1.0.5",
-  "designContractVersion": "1.6",
+  "manifestVersion": "parameters-1.1.0",
+  "designContractVersion": "1.7",
   "sourceSnapshot": {
     "cessationStability": { "commit": "3d779963e9febe8e6262964b185c8277234f41e0", "trackedDirty": false },
     "indiaPolio": { "commit": "1e3e832742e84a36fbc75d81b3a2d19cde8208e6", "trackedDirty": false }
@@ -14,22 +14,28 @@
     "bin0WanedCenter": 0.25,
     "bin0WanedSd": 0.14433756729740643
   },
-  "numerics": {
-    "sourceLowDoseLinearRatio": 0.01
+  "validationBounds": {
+    "hypothetical": {
+      "alpha": [0.001, 5],
+      "beta": [0.001, 1000000],
+      "dose": [1, 1000000000],
+      "takeContext": [0, 1],
+      "mu0": [0, 15]
+    }
   },
   "immunity": { "bins": 16, "maxLog2": 15, "waningLambda": 0.87 },
   "wpv1": {
     "alpha": 0.444,
     "beta": 2.31,
     "gamma": 0.4624,
-    "sheddingDuration": { "b1": 3.7612001156935624, "b2": 0.1519663281441243, "b3": 0.52 },
+    "sheddingDuration": { "b1": 3.7612001156935624, "b2": 0.15186234930924603, "b3": 0.52 },
     "boost": { "mu0": 7.2, "sigma0": 2.9 }
   },
   "vaccineDefaults": {
     "gamma": 0.4624,
     "formulationMultiplier": 1,
     "sabin2": { "alpha": 0.444, "beta": 8, "dose": 199526.2314968879, "takeContext": 1, "mu0": 6, "sigma0": 2.4 },
-    "hypothetical": { "alpha": 0.444, "beta": 8, "dose": 199526.2314968879, "takeContext": 0.8, "mu0": 4, "sigma0": 2.4 },
+    "hypothetical": { "alpha": 0.444, "beta": 8, "dose": 199526.2314968879, "takeContext": 1, "mu0": 6, "sigma0": 2.4 },
     "ipv": { "alpha": 0.444, "beta": 8, "dose": 0, "takeContext": 1, "mu0": 6, "sigma0": 2.4 }
   },
   "boosts": {
@@ -42,6 +48,6 @@
     "temporal": { "mu": 1.64, "sigma": 0.18, "kappa": 0.32 },
     "titerFloor": 398.1071705534973
   },
-  "transmission": { "horizonDays": 100, "indexReferenceExposure": "one_WPV1_HID50", "dIh": 1, "dHs": 8.9685 },
-  "success": { "calibrationLog10Tolerance": 0.1 }
+  "transmission": { "horizonDays": 120, "indexReferenceExposure": "one_WPV1_HID50", "dIh": 1, "dHs": 8.9685 },
+  "success": { "calibrationLog10Tolerance": 0.1, "horizonExtensionRelativeTolerance": 0.0001 }
 }

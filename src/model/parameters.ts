@@ -4,10 +4,17 @@ import rawFrontierGrid from "../data/frontier-grid.json";
 import rawEnsemble from "../data/uncertainty-ensemble.json";
 import { MICROGRAMS_PER_GRAM } from "./types";
 import type { AnchorSettingId, FrontierGridManifestV1, ParameterManifestV1, ProductId, SettingAnchorRecord, SettingV1 } from "./types";
+import { canonicalHash } from "./canonical";
+import { deepFreeze, validateFrontierGridManifest, validateParameterManifest, validateSettingManifest, validateUncertaintyManifest } from "./manifest-validation";
 
-export const PARAMETERS = rawParameters as ParameterManifestV1;
-export const FRONTIER_GRID = rawFrontierGrid as FrontierGridManifestV1;
-export const UNCERTAINTY_ENSEMBLE = rawEnsemble as {
+validateParameterManifest(rawParameters);
+validateFrontierGridManifest(rawFrontierGrid);
+validateSettingManifest(rawAnchors);
+validateUncertaintyManifest(rawEnsemble);
+
+export const PARAMETERS = deepFreeze(structuredClone(rawParameters)) as ParameterManifestV1;
+export const FRONTIER_GRID = deepFreeze(structuredClone(rawFrontierGrid)) as FrontierGridManifestV1;
+export const UNCERTAINTY_ENSEMBLE = deepFreeze(structuredClone(rawEnsemble)) as {
   schemaVersion: "UncertaintyEnsembleV1";
   version: string;
   status: "out_of_scope";
@@ -59,8 +66,10 @@ export const SETTING_ANCHORS = (rawAnchors.anchors as Array<Record<string, unkno
 
 export const ENVELOPE = {
   linkedExposure: true,
-  TMin: rawAnchors.envelope.TMin / MICROGRAMS_PER_GRAM,
-  TMax: rawAnchors.envelope.TMax / MICROGRAMS_PER_GRAM,
+  TihMin: rawAnchors.envelope.TMin / MICROGRAMS_PER_GRAM,
+  TihMax: rawAnchors.envelope.TMax / MICROGRAMS_PER_GRAM,
+  ThsMin: rawAnchors.envelope.TMin / MICROGRAMS_PER_GRAM,
+  ThsMax: rawAnchors.envelope.TMax / MICROGRAMS_PER_GRAM,
   NsMin: rawAnchors.envelope.NsMin,
   NsMax: rawAnchors.envelope.NsMax,
   dIhMin: rawAnchors.envelope.dIhMin,
@@ -68,6 +77,13 @@ export const ENVELOPE = {
   dHsMin: rawAnchors.envelope.dHsMin,
   dHsMax: rawAnchors.envelope.dHsMax
 } as const;
+
+export const SCIENTIFIC_MANIFEST_ID = canonicalHash({
+  parameters: PARAMETERS,
+  settings: rawAnchors,
+  frontierGrid: FRONTIER_GRID,
+  uncertainty: UNCERTAINTY_ENSEMBLE
+});
 
 export const PRODUCT_LABELS: Record<ProductId, string> = {
   sabin2: "Sabin 2 monovalent OPV",

@@ -10,9 +10,10 @@ import { canonicalJson, decodeScenario, encodeScenario, validateScenario } from 
 import { applyDose, buildScheduleState, buildStateAtAssessment, initialImmuneState, moveState, scheduleDays } from "../../src/model/schedule";
 import { peakSheddingAgeAmplitude, sheddingTerms } from "../../src/model/shedding";
 import { doseResponse, susceptibilityPerBin, vaccineTakePerBin, wpvSusceptibilityPerBin } from "../../src/model/dose-response";
-import { createRLocEvaluator, naiveRLocForSetting, repeatedExposureProbability, rLocForSetting } from "../../src/model/transmission";
+import { clearTransmissionCaches, conditionIndexBreakthrough, createRLocEvaluator, naiveRLocForSetting, repeatedExposureProbability, rLocForSetting, transmitLink, transmissionCacheStats } from "../../src/model/transmission";
 import { waneMucosal, waningDeltaMonths } from "../../src/model/waning";
 import { evaluateMatlabFixedTiterMotif } from "../../src/model/matlab-compat";
+import { sha256Hex } from "../../src/model/canonical";
 import type { ProductId, ScenarioV1, ScheduleV1, SettingV1, VaccineV1 } from "../../src/model/types";
 
 const sourceKernelFixture = JSON.parse(
@@ -308,18 +309,20 @@ test("dose response is bounded and decreases with mucosal immunity", () => {
   for (let i = 1; i < bins.length; i += 1) assert.ok((bins[i] ?? 0) <= (bins[i - 1] ?? 0) + 1e-12);
 });
 
-test("India R susceptibility grid matches every pinned per-bin case", () => {
+test("India R susceptibility grid distinguishes the source low-dose branch from the exact contract equation", () => {
   assert.equal(sourceKernelFixture.schemaVersion, "SourceKernelFixtureV1");
   assert.equal(sourceKernelFixture.releaseGateSatisfied, false);
   assert.equal(sourceKernelFixture.inputs.serotype, 1);
   assert.equal(sourceKernelFixture.inputs.log2NMax, PARAMETERS.immunity.maxLog2);
-  assert.equal(sourceKernelFixture.inputs.lowDoseLinearRatio, PARAMETERS.numerics.sourceLowDoseLinearRatio);
+  assert.equal(sourceKernelFixture.inputs.lowDoseLinearRatio, 0.01);
   assert.equal(
     sourceKernelFixture.grid.systematicCaseCount,
     sourceKernelFixture.grid.alphas.length * sourceKernelFixture.grid.betas.length * sourceKernelFixture.grid.doseLabels.length
       * sourceKernelFixture.grid.strains.length * sourceKernelFixture.grid.everInfected.length
   );
   assert.ok(sourceKernelFixture.cases.length >= sourceKernelFixture.grid.systematicCaseCount);
+  let sourceBranchCases = 0;
+  let discriminatingSourceBranchCases = 0;
   for (const fixtureCase of sourceKernelFixture.cases) {
     const actual = susceptibilityPerBin(
       fixtureCase.doseTCID50,
@@ -328,17 +331,27 @@ test("India R susceptibility grid matches every pinned per-bin case", () => {
       fixtureCase.gamma,
       fixtureCase.everInfected
     );
-    assertKernelVector(actual, fixtureCase.values, `${fixtureCase.id}: R susceptibility`, 1e-8);
+    const usesSourceBranch = fixtureCase.doseTCID50 > 0 && fixtureCase.doseTCID50 / fixtureCase.beta <= sourceKernelFixture.inputs.lowDoseLinearRatio;
+    if (usesSourceBranch) {
+      sourceBranchCases += 1;
+      if (actual.some((value, index) => Math.abs(value - (fixtureCase.values[index] ?? 0)) > 1e-14)) discriminatingSourceBranchCases += 1;
+    } else {
+      assertKernelVector(actual, fixtureCase.values, `${fixtureCase.id}: R susceptibility`, 1e-8);
+    }
   }
+  assert.ok(sourceBranchCases > 0);
+  assert.ok(discriminatingSourceBranchCases > 0);
 });
 
-test("India R shedding fixture remains a source diagnostic while survival parity is retained", () => {
+test("India R shedding fixture records rounded source constants separately from exact contract constants", () => {
   assert.equal(sheddingKernelFixture.schemaVersion, "SourceKernelFixtureV1");
   assert.equal(sheddingKernelFixture.releaseGateSatisfied, false);
   assert.equal(sheddingKernelFixture.inputs.log2NMax, PARAMETERS.immunity.maxLog2);
   assert.equal(sheddingKernelFixture.inputs.sheddingWithinBinSd, PARAMETERS.quadrature.sheddingWithinBinSd);
-  assert.equal(sheddingKernelFixture.inputs.b1, PARAMETERS.wpv1.sheddingDuration.b1);
-  assert.equal(sheddingKernelFixture.inputs.b2, PARAMETERS.wpv1.sheddingDuration.b2);
+  assert.equal(sheddingKernelFixture.inputs.b1, 3.76);
+  assert.equal(sheddingKernelFixture.inputs.b2, 0.1519);
+  assert.equal(PARAMETERS.wpv1.sheddingDuration.b1, Math.log(43));
+  assert.equal(PARAMETERS.wpv1.sheddingDuration.b2, Math.log(1.164));
   assert.equal(sheddingKernelFixture.inputs.b3, PARAMETERS.wpv1.sheddingDuration.b3);
   assert.equal(sheddingKernelFixture.inputs.cImmunity, PARAMETERS.shedding.immunitySuppression);
   assert.equal(sheddingKernelFixture.inputs.ageAMax, PARAMETERS.shedding.age.aMax);
@@ -347,21 +360,15 @@ test("India R shedding fixture remains a source diagnostic while survival parity
   assert.equal(sheddingKernelFixture.inputs.temporalMu, PARAMETERS.shedding.temporal.mu);
   assert.equal(sheddingKernelFixture.inputs.temporalSigma, PARAMETERS.shedding.temporal.sigma);
   assert.equal(sheddingKernelFixture.inputs.temporalKappa, PARAMETERS.shedding.temporal.kappa);
-  assert.equal(sheddingKernelFixture.inputs.titerFloor, PARAMETERS.shedding.titerFloor);
+  assert.equal(sheddingKernelFixture.inputs.titerFloor, 398.1);
+  assert.equal(PARAMETERS.shedding.titerFloor, 10 ** 2.6);
   assert.equal(
     sheddingKernelFixture.grid.systematicCaseCount,
     sheddingKernelFixture.grid.sourceBins.length * sheddingKernelFixture.grid.daysSinceInfection.length * sheddingKernelFixture.grid.agesMonths.length
   );
   assert.equal(sheddingKernelFixture.cases.length, sheddingKernelFixture.grid.systematicCaseCount);
 
-  for (const fixtureCase of sheddingKernelFixture.cases) {
-    const actual = sheddingTerms(fixtureCase.daysSinceInfection, fixtureCase.sourceBin, fixtureCase.ageMonths);
-    const relativeDifference = Math.abs(actual.survival - fixtureCase.survival) / Math.max(Math.abs(fixtureCase.survival), Number.MIN_VALUE);
-    assert.ok(
-      relativeDifference <= 1e-8,
-      `R shedding survival fixture mismatch at bin=${fixtureCase.sourceBin}, day=${fixtureCase.daysSinceInfection}, age=${fixtureCase.ageMonths}: relative difference=${relativeDifference}`
-    );
-  }
+  assert.ok(sheddingKernelFixture.cases.every((fixtureCase) => [fixtureCase.survival, fixtureCase.jointPeak, fixtureCase.expectedInfectiousConcentration].every(Number.isFinite)));
 });
 
 test("legacy Cessation age-amplitude function has a seven-month neonatal plateau", () => {
@@ -403,7 +410,7 @@ test("India R vaccine fixture matches take/no-take conditioning and boost across
   assert.equal(inputs.formulationMultiplier, defaults.formulationMultiplier);
   assert.equal(inputs.mu0, defaults.mu0);
   assert.equal(inputs.sigma0, defaults.sigma0);
-  assert.equal(inputs.lowDoseLinearRatio, PARAMETERS.numerics.sourceLowDoseLinearRatio);
+  assert.equal(inputs.lowDoseLinearRatio, 0.01);
   assert.equal(
     vaccineTakeFixture.grid.systematicCaseCount,
     vaccineTakeFixture.grid.alphas.length * vaccineTakeFixture.grid.betas.length
@@ -572,7 +579,7 @@ test("India R schedule fixture matches low/default/high product grids, every sel
   assert.equal(inputs.sigma0, defaults.sigma0);
   assert.equal(inputs.log2NMax, PARAMETERS.immunity.maxLog2);
   assert.equal(inputs.waningLambda, PARAMETERS.immunity.waningLambda);
-  assert.equal(inputs.lowDoseLinearRatio, PARAMETERS.numerics.sourceLowDoseLinearRatio);
+  assert.equal(inputs.lowDoseLinearRatio, 0.01);
   assert.equal(scheduleKernelFixture.vaccineGrid.length, 3);
   assert.equal(scheduleKernelFixture.cases.length, scheduleKernelFixture.vaccineGrid.length * 12);
 
@@ -680,9 +687,9 @@ test("distribution-native day-1-45 prevalence calibration uses the approved iden
   assert.equal(india.stateMapping.fitContactMeanLog2NAb, true);
   assert.equal(india.fittedIndexMeanLog2NAb, null);
   assert.equal(india.fixedContactMeanLog2NAb, null);
-  assert.equal(india.fittedContactMeanLog2NAb, 9.2);
+  assert.equal(india.fittedContactMeanLog2NAb, 9.21);
   assert.ok(Math.abs((india.constrainedContactVarianceLog2NAb ?? Infinity) - (
-    calibrationReport.varianceConstraint.intercept + calibrationReport.varianceConstraint.slope * 9.2
+    calibrationReport.varianceConstraint.intercept + calibrationReport.varianceConstraint.slope * 9.21
   )) < 1e-12);
   assert.ok(Math.abs(india.fittedTihMicrogramsPerExposure - 199.52623149688788) < 1e-9);
   assert.equal(india.jointContactTihFit?.coarseGrid.candidateCount, 4984);
@@ -690,7 +697,7 @@ test("distribution-native day-1-45 prevalence calibration uses the approved iden
   assert.ok((india.jointContactTihFit?.coarseGrid.best.profileLog10Rmse ?? Infinity) < 0.011);
   assert.equal(india.jointContactTihFit?.refinementGrid.candidateCount, 2121);
   assert.ok((india.jointContactTihFit?.refinementGrid.nearOptimalCandidateCount ?? 0) > 0);
-  assert.deepEqual(india.jointContactTihFit?.refinementGrid.nearOptimalMeanRangeLog2NAb, [9.09, 9.31]);
+  assert.deepEqual(india.jointContactTihFit?.refinementGrid.nearOptimalMeanRangeLog2NAb, [9.09, 9.32]);
   assert.ok(Math.abs((india.jointContactTihFit?.refinementGrid.nearOptimalTihRangeGramsPerExposure[0] ?? 0) - 0.00017378008287493763) < 1e-18);
   assert.ok(Math.abs((india.jointContactTihFit?.refinementGrid.nearOptimalTihRangeGramsPerExposure[1] ?? 0) - 0.00022908676527677748) < 1e-18);
 
@@ -753,7 +760,7 @@ test("all-IPV naive schedule has no mucosal endpoint effect", () => {
   assert.equal(state.groups[0]!.mass, 1);
   assert.equal(state.groups[0]!.everInfected, false);
   assert.deepEqual(state.groups[0]!.mucosal, normalizeBins([1, ...Array<number>(15).fill(0)]));
-  const metrics = evaluateScenario({ ...scenario, envelope: { ...scenario.envelope, TMax: 0.000005, TMin: 0.000005 } });
+  const metrics = evaluateScenario({ ...scenario, envelope: { ...scenario.envelope, TihMax: 0.000005, TihMin: 0.000005, ThsMax: 0.000005, ThsMin: 0.000005 } });
   assert.ok(Math.abs(metrics.metrics.qAcq - 1) < 1e-12);
 });
 
@@ -871,11 +878,13 @@ test("scenario validation preserves fixed product and named-setting identities",
 
 test("unsupported envelope state fails closed before model execution", () => {
   const scenario = defaultScenario();
-  validateScenario({ ...scenario, envelope: { ...scenario.envelope, TMin: scenario.envelope.TMin, TMax: scenario.envelope.TMax } });
-  assert.throws(() => validateScenario({ ...scenario, envelope: { ...scenario.envelope, linkedExposure: false } }), /not representable/);
-  assert.throws(() => validateScenario({ ...scenario, envelope: { ...scenario.envelope, TMin: 0 } }), /finite and positive/);
-  assert.throws(() => validateScenario({ ...scenario, envelope: { ...scenario.envelope, TMin: Number.NaN } }), /finite and positive/);
-  assert.throws(() => validateScenario({ ...scenario, envelope: { ...scenario.envelope, TMax: scenario.envelope.TMin / 2 } }), /finite and in/);
+  validateScenario(scenario);
+  validateScenario({ ...scenario, envelope: { ...scenario.envelope, linkedExposure: false, ThsMin: 2e-7, ThsMax: 0.001 } });
+  assert.throws(() => validateScenario({ ...scenario, envelope: { ...scenario.envelope, TihMin: 0 } }), /finite and positive/);
+  assert.throws(() => validateScenario({ ...scenario, envelope: { ...scenario.envelope, TihMin: Number.NaN } }), /finite and positive/);
+  assert.throws(() => validateScenario({ ...scenario, envelope: { ...scenario.envelope, TihMax: scenario.envelope.TihMin / 2 } }), /finite and in/);
+  assert.throws(() => validateScenario({ ...scenario, envelope: { ...scenario.envelope, ThsMax: scenario.envelope.ThsMin / 2 } }), /finite and in/);
+  assert.throws(() => validateScenario({ ...scenario, envelope: { ...scenario.envelope, linkedExposure: true, ThsMax: scenario.envelope.ThsMax / 2 } }), /identical/);
   assert.throws(() => validateScenario({ ...scenario, envelope: { ...scenario.envelope, NsMin: scenario.envelope.NsMax + 1 } }), /integer/);
 });
 
@@ -943,4 +952,123 @@ test("full outputs expose required grid sizes and explicit uncertainty absence",
     () => evaluateScenario({ ...defaultScenario(), successRule: "upper95" as never }),
     /point R_loc success rule/
   );
+});
+
+test("canonical identities use SHA-256", () => {
+  assert.equal(sha256Hex("abc"), "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
+  assert.match(evaluateScenario(defaultScenario()).modelIdentity, /^sha256-[0-9a-f]{64}$/);
+});
+
+test("the exact selected hypothetical design is not replaced by a display-grid cell", () => {
+  const scenario = defaultScenario();
+  const outputs = evaluateScenario(scenario);
+  assert.equal(outputs.frontier.selectedDesign?.takeContext, 1);
+  assert.equal(outputs.frontier.selectedDesign?.mu0, 6);
+  assert.equal(outputs.frontier.selectedDesign?.rLocEnvelopeMax, outputs.metrics.rLocEnvelopeMax);
+  assert.notEqual(outputs.frontier.nearestGridPoint?.mu0, 6);
+
+  const outsideGrid = { ...scenario, vaccine: { ...scenario.vaccine, mu0: 15 } };
+  const outsideOutputs = evaluateScenario(outsideGrid);
+  assert.equal(outsideOutputs.frontier.selectedDesign?.mu0, 15);
+  assert.equal(outsideOutputs.frontier.selectedDesign?.rLocEnvelopeMax, outsideOutputs.metrics.rLocEnvelopeMax);
+  assert.equal(outsideOutputs.frontier.nearestGridPoint?.mu0, 8);
+  assert.notEqual(outsideOutputs.frontier.selectedDesign?.passes, outsideOutputs.frontier.nearestGridPoint?.passes);
+});
+
+test("unlinked exposure envelopes use both independent upper bounds", () => {
+  const scenario = defaultScenario();
+  const unlinked = {
+    ...scenario,
+    envelope: {
+      ...scenario.envelope,
+      linkedExposure: false,
+      TihMin: 1e-7,
+      TihMax: 1e-5,
+      ThsMin: 2e-7,
+      ThsMax: 3e-4
+    }
+  };
+  validateScenario(unlinked);
+  const corner = envelopeCorner(unlinked);
+  assert.equal(corner.Tih.value, unlinked.envelope.TihMax);
+  assert.equal(corner.Ths.value, unlinked.envelope.ThsMax);
+  const state = buildScheduleState(unlinked.vaccine, unlinked.schedule);
+  assert.equal(
+    evaluateScenario(unlinked).metrics.rLocEnvelopeMax,
+    rLocForSetting(state, corner, unlinked.indexReferenceExposure, unlinked.horizonDays)
+  );
+});
+
+test("model outputs own their canonical scenario and boost matrices cannot be corrupted", () => {
+  const scenario = defaultScenario();
+  const outputs = evaluateScenario(scenario);
+  scenario.vaccine.mu0 = 0;
+  assert.equal(outputs.scenario.vaccine.mu0, 6);
+  assert.equal(outputs.metrics.rLocEnvelopeMax, outputs.frontier.selectedDesign?.rLocEnvelopeMax);
+
+  const first = buildBoostMatrix(6, 2.4, false);
+  assert.ok(Object.isFrozen(first) && Object.isFrozen(first[0]));
+  assert.throws(() => { (first as number[][])[0]![0] = 0.5; }, TypeError);
+  assert.equal(buildBoostMatrix(6, 2.4, false)[0]?.[0], first[0]?.[0]);
+  assert.ok(Object.isFrozen(PARAMETERS) && Object.isFrozen(PARAMETERS.wpv1));
+});
+
+test("invalid bin state fails closed instead of becoming a naive cohort", () => {
+  assert.throws(() => normalizeBins(Array<number>(16).fill(0)), /positive total mass/);
+  assert.throws(() => normalizeBins([Number.NaN, ...Array<number>(15).fill(1)]), /finite/);
+  assert.throws(() => normalizeBins([-0.1, ...Array<number>(15).fill(1)]), /nonnegative/);
+  assert.throws(() => shiftBins([1, ...Array<number>(15).fill(0)], Number.NaN), /finite/);
+});
+
+test("each motif link receives the full post-infection horizon and agrees with explicit link composition", () => {
+  let maximumRelativeDifference = 0;
+  for (const scenario of [defaultScenario(), scenarioWithProduct(defaultScenario(), "ipv")]) {
+    const state = buildScheduleState(scenario.vaccine, scenario.schedule);
+    const index = conditionIndexBreakthrough(state, scenario.indexReferenceExposure).cohorts;
+    const ageMonths = state.assessmentAgeDays / (365.25 / 12);
+    for (const setting of SETTING_ANCHORS) {
+      const household = transmitLink(index, state.groups, setting.Tih.value, setting.dIh.value, ageMonths, scenario.horizonDays);
+      const independentlyTimedHousehold = household.map((cohort) => ({ ...cohort, infectionDay: 0 }));
+      const social = transmitLink(independentlyTimedHousehold, state.groups, setting.Ths.value, setting.dHs.value, ageMonths, scenario.horizonDays);
+      const composed = setting.Ns * social.reduce((sum, cohort) => sum + cohort.mass, 0);
+      const direct = rLocForSetting(state, setting, scenario.indexReferenceExposure, scenario.horizonDays);
+      const relativeDifference = Math.abs(composed - direct) / Math.max(Math.abs(direct), Number.MIN_VALUE);
+      maximumRelativeDifference = Math.max(maximumRelativeDifference, relativeDifference);
+    }
+  }
+  assert.ok(maximumRelativeDifference < 1e-12, `maximum cross-path relative difference was ${maximumRelativeDifference}`);
+});
+
+test("the 120-day per-infection horizon satisfies the extension criterion at every anchor", () => {
+  assert.equal(PARAMETERS.transmission.horizonDays, 120);
+  for (const scenario of [defaultScenario(), scenarioWithProduct(defaultScenario(), "sabin2"), scenarioWithProduct(defaultScenario(), "ipv")]) {
+    const state = buildScheduleState(scenario.vaccine, scenario.schedule);
+    for (const setting of SETTING_ANCHORS) {
+      clearTransmissionCaches();
+      const baseline = rLocForSetting(state, setting, scenario.indexReferenceExposure, scenario.horizonDays);
+      const extended = rLocForSetting(state, setting, scenario.indexReferenceExposure, scenario.horizonDays * 2);
+      const relativeDifference = Math.abs(extended - baseline) / Math.max(Math.abs(extended), Number.MIN_VALUE);
+      assert.ok(relativeDifference < PARAMETERS.success.horizonExtensionRelativeTolerance, `${scenario.vaccine.id}/${setting.id}: ${relativeDifference}`);
+    }
+  }
+});
+
+test("transmission caches remain explicitly bounded across distinct valid settings", () => {
+  const scenario = defaultScenario();
+  const state = buildScheduleState(scenario.vaccine, scenario.schedule);
+  clearTransmissionCaches();
+  for (let index = 1; index <= 40; index += 1) {
+    const scale = index / 40;
+    const setting: SettingV1 = {
+      ...SETTING_ANCHORS[0]!,
+      id: "custom",
+      Tih: { ...SETTING_ANCHORS[0]!.Tih, value: 1e-7 + scale * 1e-3 },
+      Ths: { ...SETTING_ANCHORS[0]!.Ths, value: 2e-7 + scale * 2e-3 }
+    };
+    rLocForSetting(state, setting, scenario.indexReferenceExposure, scenario.horizonDays);
+  }
+  const stats = transmissionCacheStats();
+  assert.ok(stats.linkKernels <= stats.capacity);
+  assert.ok(stats.sheddingProfiles <= stats.capacity);
+  assert.ok(stats.perExposureProfiles <= stats.capacity);
 });

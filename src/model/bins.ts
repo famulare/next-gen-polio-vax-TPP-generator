@@ -1,19 +1,26 @@
 import { BIN_COUNT } from "./types";
-import { PARAMETERS } from "./parameters";
+import { PARAMETERS, SCIENTIFIC_MANIFEST_ID } from "./parameters";
 import type { Bins } from "./types";
 
 export const GH_NODES = PARAMETERS.quadrature.nodes;
 export const GH_WEIGHTS = PARAMETERS.quadrature.weights;
 const EPS = 1e-12;
 const boostMatrixCache = new Map<string, number[][]>();
+const ROUND_OFF_NEGATIVE_TOLERANCE = 1e-14;
 
 export function normalizeBins(values: readonly number[]): Bins {
   if (values.length !== BIN_COUNT) throw new Error(`Expected ${BIN_COUNT} immunity bins`);
-  const clipped = values.map((value) => (Number.isFinite(value) && value > 0 ? value : 0));
+  const clipped = values.map((value, index) => {
+    if (!Number.isFinite(value)) throw new Error(`Bin ${index} mass must be finite`);
+    if (value < -ROUND_OFF_NEGATIVE_TOLERANCE) throw new Error(`Bin ${index} mass must be nonnegative`);
+    return value < 0 ? 0 : value;
+  });
   const total = clipped.reduce((sum, value) => sum + value, 0);
-  if (total <= EPS) return [1, ...Array<number>(BIN_COUNT - 1).fill(0)];
+  if (total <= EPS) throw new Error("Bin distribution must have positive total mass");
   const result = clipped.map((value) => value / total);
-  result[BIN_COUNT - 1]! += 1 - result.reduce((sum, value) => sum + value, 0);
+  let largest = 0;
+  for (let index = 1; index < result.length; index += 1) if (result[index]! > result[largest]!) largest = index;
+  result[largest]! += 1 - result.reduce((sum, value) => sum + value, 0);
   return result;
 }
 
@@ -39,7 +46,8 @@ export function projectGaussian(mu: number, sd: number): Bins {
 
 export function shiftBins(probs: readonly number[], delta: number): Bins {
   const normalized = normalizeBins(probs);
-  if (!Number.isFinite(delta) || delta === 0) return normalized;
+  if (!Number.isFinite(delta)) throw new Error("Bin shift must be finite");
+  if (delta === 0) return normalized;
   const result = Array<number>(BIN_COUNT).fill(0);
   normalized.forEach((mass, source) => {
     if (mass <= 0) return;
@@ -67,12 +75,14 @@ export function weightedMix(distributions: Array<{ mass: number; bins: readonly 
   const result = Array<number>(BIN_COUNT).fill(0);
   let total = 0;
   for (const distribution of distributions) {
-    if (distribution.mass <= 0) continue;
+    if (!Number.isFinite(distribution.mass) || distribution.mass < 0) throw new Error("Mixture mass must be finite and nonnegative");
+    if (distribution.mass === 0) continue;
     const bins = normalizeBins(distribution.bins);
     for (let i = 0; i < BIN_COUNT; i += 1) result[i]! += distribution.mass * (bins[i] ?? 0);
     total += distribution.mass;
   }
-  return total > 0 ? normalizeBins(result.map((value) => value / total)) : normalizeBins(result);
+  if (total <= 0) throw new Error("Mixture must have positive total mass");
+  return normalizeBins(result.map((value) => value / total));
 }
 
 export function sourceQuadratureValues(bin: number, everInfected: boolean, sd: number): number[] {
@@ -86,8 +96,9 @@ export function quadratureAverage(values: readonly number[]): number {
   return values.reduce((sum, value, index) => sum + value * (GH_WEIGHTS[index] ?? 0), 0);
 }
 
-export function buildBoostMatrix(mu0: number, sigma0: number, sourceEverInfected: boolean): number[][] {
-  const key = `${mu0.toPrecision(15)}:${sigma0.toPrecision(15)}:${sourceEverInfected ? 1 : 0}`;
+export function buildBoostMatrix(mu0: number, sigma0: number, sourceEverInfected: boolean): readonly (readonly number[])[] {
+  if (!Number.isFinite(mu0) || !Number.isFinite(sigma0) || mu0 < 0 || sigma0 < 0) throw new Error("Boost parameters must be finite and nonnegative");
+  const key = `${SCIENTIFIC_MANIFEST_ID}:${mu0.toPrecision(15)}:${sigma0.toPrecision(15)}:${sourceEverInfected ? 1 : 0}`;
   const cached = boostMatrixCache.get(key);
   if (cached) return cached;
   const matrix = Array.from({ length: BIN_COUNT }, () => Array<number>(BIN_COUNT).fill(0));
@@ -106,8 +117,9 @@ export function buildBoostMatrix(mu0: number, sigma0: number, sourceEverInfected
     const normalized = normalizeBins(column);
     for (let target = 0; target < BIN_COUNT; target += 1) matrix[target]![source] = normalized[target] ?? 0;
   }
-  boostMatrixCache.set(key, matrix);
-  return matrix;
+  const frozen = Object.freeze(matrix.map((row) => Object.freeze(row))) as unknown as number[][];
+  boostMatrixCache.set(key, frozen);
+  return frozen;
 }
 
 export function applyBoost(probs: readonly number[], mu0: number, sigma0: number, everInfected: boolean): Bins {
