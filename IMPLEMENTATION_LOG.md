@@ -129,6 +129,35 @@ does not replace source provenance, git history, or verification output.
   Chromium artifact/path-prefix smoke all pass. Pages deployment is confirmed
   after the clarification commit is pushed.
 
+### 2026-07-17 -- maintainability consolidation after parity hardening
+
+- **Objective:** remove behavior-neutral duplicate constants and schedule state
+  transitions without weakening source parity, calibration, or prototype
+  limitations.
+- **Contract basis:** Sections 5, 8.3, 11.4--11.5, 14.3--14.4, and 15.3.
+- **Changes:** one routine-dose constant now drives the scenario and strict
+  serializer; one day/year and day/month conversion drives schedule, waning,
+  metrics, transmission, and calibration; one grams/micrograms constant drives
+  manifest conversion and the UI boundary; one explicit dose-to-assessment
+  transition drives both production schedules and calibration schedules; the
+  frontier manifest is the sole owner of its threshold/tie convention; named
+  setting options derive from the setting manifest.
+- **Deliberately retained separation:** the fixed-titer Matlab compatibility
+  implementation remains an independent calibration comparator, and direct
+  factorized versus precomputed-tensor `R_loc` paths remain distinct for
+  point/surface performance versus repeated-grid performance. A focused test
+  now requires their agreement.
+- **Scientific impact:** none intended. All numerical parameter values,
+  source fixtures, calibration inputs, success threshold, and uncertainty
+  posture are unchanged.
+- **Reviewer:** Codex (primary integrator)
+- **Verification:** `npm run verify` passes: typecheck; 25 model tests;
+  reference-fixture preflight and coverage; calibration report; performance
+  (selected `2.0 ms`, surface `15.1 ms`, frontier `853.4 ms`); self-contained
+  build; artifact integrity; and Chromium local-file/path-prefix smoke. The
+  rebuilt artifact SHA-256 is
+  `566954ee17799cdde12b34dd2548b0a2c3e0a842c2e2c547bd4d1ef93fd1e939`.
+
 ### 2026-07-17 -- fixed-comparator transmission and uncertainty-source audit
 
 - **Objective:** determine whether the next Section 15.1 increment can be a

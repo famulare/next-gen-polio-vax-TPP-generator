@@ -1,11 +1,11 @@
 import { GH_WEIGHTS, projectGaussian, sourceQuadratureValues } from "./bins";
 import { PARAMETERS } from "./parameters";
-import { applyDose, initialImmuneState, moveState } from "./schedule";
+import { buildStateAtAssessment } from "./schedule";
 import { sheddingTerms } from "./shedding";
 import { conditionIndexBreakthrough, transmitLink } from "./transmission";
 import type { ImmuneState, SettingV1, SourceCohort, VaccineV1 } from "./types";
+import { DAYS_PER_MONTH } from "./waning";
 
-const DAYS_PER_MONTH = 365.25 / 12;
 const CALIBRATION_CAPTURE_MONTHS = [5, 8, 11, 17, 23] as const;
 const CALIBRATION_DOSE_MONTHS = [42 / DAYS_PER_MONTH, 70 / DAYS_PER_MONTH, 98 / DAYS_PER_MONTH, 8, 11, 17, 23] as const;
 
@@ -47,20 +47,7 @@ export interface PrevalenceMotifOutput {
  * ScheduleV1 controls.
  */
 export function buildCalibrationScheduleState(vaccine: VaccineV1, doseDays: readonly number[], assessmentAgeDays: number): ImmuneState {
-  if (!Number.isFinite(assessmentAgeDays) || assessmentAgeDays < 0) throw new Error("Calibration assessment age must be finite and nonnegative");
-  let state = initialImmuneState();
-  let currentDay = 0;
-  for (const doseDay of doseDays) {
-    if (!Number.isFinite(doseDay) || doseDay < currentDay || doseDay > assessmentAgeDays) {
-      throw new Error("Calibration dose days must be sorted, finite, and no later than assessment");
-    }
-    state = moveState(state, doseDay - currentDay);
-    state = applyDose(state, vaccine);
-    state = { ...state, events: [...state.events, doseDay], lastDoseDay: doseDay };
-    currentDay = doseDay;
-  }
-  state = moveState(state, assessmentAgeDays - currentDay);
-  return { ...state, assessmentAgeDays };
+  return buildStateAtAssessment(vaccine, doseDays, assessmentAgeDays);
 }
 
 export function immunityMoments(state: ImmuneState): ImmunityMoments {

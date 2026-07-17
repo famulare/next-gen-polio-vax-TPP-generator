@@ -1,4 +1,5 @@
 import { FRONTIER_GRID, GLOBAL_SETTING, PARAMETERS, SETTING_ANCHORS, SETTING_MANIFEST_VERSION, UNCERTAINTY_ENSEMBLE, vaccineDefaults } from "./parameters";
+import { ROUTINE_DAYS } from "./types";
 import type { ScenarioV1, SettingV1, UnitValueV1, VaccineV1 } from "./types";
 
 export function canonicalJson(value: unknown): string {
@@ -72,7 +73,7 @@ function validateVaccine(value: unknown): asserts value is VaccineV1 {
 function validateSchedule(value: unknown): void {
   if (!isRecord(value)) throw new Error("Schedule must be an object");
   exactKeys(value, ["routineDays", "boosterAgeYears", "assessmentLagDays", "productId"], "ScheduleV1");
-  if (!Array.isArray(value.routineDays) || value.routineDays.length !== 3 || value.routineDays.some((day, index) => day !== [42, 70, 98][index])) throw new Error("Routine schedule must be 42, 70, 98 days");
+  if (!Array.isArray(value.routineDays) || value.routineDays.length !== ROUTINE_DAYS.length || value.routineDays.some((day, index) => day !== ROUTINE_DAYS[index])) throw new Error(`Routine schedule must be ${ROUTINE_DAYS.join(", ")} days`);
   if (![0, 1, 2, 3, 4].includes(value.boosterAgeYears as number)) throw new Error("Invalid booster age");
   if (value.assessmentLagDays !== 28 && value.assessmentLagDays !== 90) throw new Error("Assessment lag must be 28 or 90 days");
   if (!isProductId(value.productId)) throw new Error("Invalid schedule product");

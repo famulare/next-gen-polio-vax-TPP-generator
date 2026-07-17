@@ -2,7 +2,8 @@ import rawParameters from "../data/parameters.json";
 import rawAnchors from "../data/setting-anchors.json";
 import rawFrontierGrid from "../data/frontier-grid.json";
 import rawEnsemble from "../data/uncertainty-ensemble.json";
-import type { FrontierGridManifestV1, ParameterManifestV1, ProductId, SettingAnchorRecord, SettingV1 } from "./types";
+import { MICROGRAMS_PER_GRAM } from "./types";
+import type { AnchorSettingId, FrontierGridManifestV1, ParameterManifestV1, ProductId, SettingAnchorRecord, SettingV1 } from "./types";
 
 export const PARAMETERS = rawParameters as ParameterManifestV1;
 export const FRONTIER_GRID = rawFrontierGrid as FrontierGridManifestV1;
@@ -18,7 +19,7 @@ export const UNCERTAINTY_ENSEMBLE = rawEnsemble as {
 };
 
 function toGrams(value: number, unit: string): number {
-  if (unit === "micrograms/exposure" || unit === "micrograms/day") return value / 1_000_000;
+  if (unit === "micrograms/exposure" || unit === "micrograms/day") return value / MICROGRAMS_PER_GRAM;
   if (unit === "grams/exposure" || unit === "grams/day") return value;
   throw new Error(`Unsupported setting unit: ${unit}`);
 }
@@ -58,8 +59,8 @@ export const SETTING_ANCHORS = (rawAnchors.anchors as Array<Record<string, unkno
 
 export const ENVELOPE = {
   linkedExposure: true,
-  TMin: rawAnchors.envelope.TMin / 1_000_000,
-  TMax: rawAnchors.envelope.TMax / 1_000_000,
+  TMin: rawAnchors.envelope.TMin / MICROGRAMS_PER_GRAM,
+  TMax: rawAnchors.envelope.TMax / MICROGRAMS_PER_GRAM,
   NsMin: rawAnchors.envelope.NsMin,
   NsMax: rawAnchors.envelope.NsMax,
   dIhMin: rawAnchors.envelope.dIhMin,
@@ -77,8 +78,8 @@ export const PRODUCT_LABELS: Record<ProductId, string> = {
 export const DEFAULT_PRODUCT_ID: ProductId = "hypothetical";
 export const GLOBAL_SETTING: SettingV1 = {
   id: "global",
-  Tih: { value: 5 / 1_000_000, unit: "grams/exposure", basis: "per_exposure" },
-  Ths: { value: 5 / 1_000_000, unit: "grams/exposure", basis: "per_exposure" },
+  Tih: { value: 5 / MICROGRAMS_PER_GRAM, unit: "grams/exposure", basis: "per_exposure" },
+  Ths: { value: 5 / MICROGRAMS_PER_GRAM, unit: "grams/exposure", basis: "per_exposure" },
   dIh: { value: PARAMETERS.transmission.dIh, unit: "exposures/person/day", basis: "per_day" },
   dHs: { value: PARAMETERS.transmission.dHs, unit: "exposures/person/day", basis: "per_day" },
   Ns: 3
@@ -110,7 +111,7 @@ export function vaccineDefaults(id: ProductId) {
   };
 }
 
-export function anchorById(id: Exclude<SettingAnchorRecord["id"], "global" | "custom">): SettingAnchorRecord {
+export function anchorById(id: AnchorSettingId): SettingAnchorRecord {
   const anchor = SETTING_ANCHORS.find((candidate) => candidate.id === id);
   if (!anchor) throw new Error(`Unknown setting anchor: ${id}`);
   return anchor;

@@ -5,6 +5,7 @@ import { passesThreshold } from "./model/frontier";
 import { defaultScenario, evaluateScenario, scenarioWithProduct, scenarioWithSetting } from "./model/model";
 import { ENVELOPE, FRONTIER_GRID, PARAMETERS, PRODUCT_LABELS, SETTING_ANCHORS, SETTING_MANIFEST_VERSION } from "./model/parameters";
 import { canonicalJson, decodeScenario, encodeScenario } from "./model/serialization";
+import { MICROGRAMS_PER_GRAM } from "./model/types";
 import type { DesignGridPoint, ModelOutputsV1, ScenarioV1, SettingId } from "./model/types";
 
 declare const __BUILD_IDENTITY__: string;
@@ -145,7 +146,7 @@ export function mountApp(root: HTMLElement): void {
     const resultStatus = document.querySelector<HTMLElement>("#result-status")!;
     resultStatus.className = `result-status prototype ${belowThreshold ? "below-threshold" : "at-or-above-threshold"}`;
     resultStatus.dataset.modelIdentity = result.modelIdentity;
-    resultStatus.innerHTML = `<strong>PROTOTYPE POINT-RULE COMPARISON: ${belowThreshold ? "R<sub>loc</sub> is below 1" : "R<sub>loc</sub> is not below 1"}</strong><span>Direct maximum R<sub>loc</sub> = ${format(metrics.rLocEnvelopeMax)} across the ${formatMicrograms(result.scenario.envelope.TMin)}–${formatMicrograms(result.scenario.envelope.TMax)} microgram/exposure and ${result.scenario.envelope.NsMin}–${result.scenario.envelope.NsMax} contact ${envelopeName}. Under the v1 sufficiency axiom, this is conditional-plausibility evidence for population-level herd immunity; it is not a calculated complete population R<sub>e</sub> or product-performance claim. Ties within ${PARAMETERS.success.tieTolerance} of 1 are not below threshold.</span>`;
+    resultStatus.innerHTML = `<strong>PROTOTYPE POINT-RULE COMPARISON: ${belowThreshold ? "R<sub>loc</sub> is below 1" : "R<sub>loc</sub> is not below 1"}</strong><span>Direct maximum R<sub>loc</sub> = ${format(metrics.rLocEnvelopeMax)} across the ${formatMicrograms(result.scenario.envelope.TMin)}–${formatMicrograms(result.scenario.envelope.TMax)} microgram/exposure and ${result.scenario.envelope.NsMin}–${result.scenario.envelope.NsMax} contact ${envelopeName}. Under the v1 sufficiency axiom, this is conditional-plausibility evidence for population-level herd immunity; it is not a calculated complete population R<sub>e</sub> or product-performance claim. Ties within ${FRONTIER_GRID.contour.tieTolerance} of 1 are not below threshold.</span>`;
     const selectedRLoc = metrics.rLocSelectedSetting ?? metrics.rLocEnvelopeMax;
     document.querySelector<HTMLElement>("#selected-setting-result")!.textContent = `${result.scenario.setting.id === "global" ? "Prototype envelope maximum" : "Prototype selected-setting probe"} · ${settingLabel(result.scenario.setting.id)} · Rloc ${format(selectedRLoc)}`;
     document.querySelector<HTMLElement>("#summary-cards")!.innerHTML = summaryCards(result);
@@ -153,7 +154,7 @@ export function mountApp(root: HTMLElement): void {
     document.querySelector<HTMLElement>("#effect-map")!.innerHTML = effectMap(result);
     document.querySelector<HTMLElement>("#product-map")!.innerHTML = productMap(result);
     document.querySelector<HTMLElement>("#setting-map")!.innerHTML = settingMap(result);
-    document.querySelector<HTMLElement>("#schedule-summary")!.textContent = `RI days 42, 70, 98${result.scenario.schedule.boosterAgeYears ? `; booster at ${result.scenario.schedule.boosterAgeYears} year${result.scenario.schedule.boosterAgeYears === 1 ? "" : "s"}` : "; no booster"}. Assessment: ${result.metrics.assessmentLagDays} days after last dose (age ${formatDays(result.metrics.assessmentAgeDays)}).`;
+    document.querySelector<HTMLElement>("#schedule-summary")!.textContent = `RI days ${result.scenario.schedule.routineDays.join(", ")}${result.scenario.schedule.boosterAgeYears ? `; booster at ${result.scenario.schedule.boosterAgeYears} year${result.scenario.schedule.boosterAgeYears === 1 ? "" : "s"}` : "; no booster"}. Assessment: ${result.metrics.assessmentLagDays} days after last dose (age ${formatDays(result.metrics.assessmentAgeDays)}).`;
     setExportAvailability(true);
     document.querySelector<HTMLElement>("#export-status")!.textContent = "Exports are ready for this evaluated prototype scenario.";
   }
@@ -165,7 +166,11 @@ export function mountApp(root: HTMLElement): void {
 
 function shell(): string {
   const productOptions = Object.entries(PRODUCT_LABELS).map(([id, label]) => `<option value="${id}">${label}</option>`).join("");
-  const settingOptions = [["global", "Any setting: v1 global envelope"], ["low", "Low transmission"], ["houston", "Houston/Louisiana moderate"], ["matlab", "Matlab household exposure (hybrid)"], ["up-bihar", "UP/Bihar high"], ["custom", "Custom setting"]].map(([id, label]) => `<option value="${id}">${label}</option>`).join("");
+  const settingOptions = [
+    ["global", "Any setting: v1 global envelope"],
+    ...SETTING_ANCHORS.map((anchor) => [anchor.id, `${anchor.label}${anchor.kind === "hybrid" ? " (hybrid)" : ""}`]),
+    ["custom", "Custom setting"]
+  ].map(([id, label]) => `<option value="${id}">${label}</option>`).join("");
   return `<main class="app-shell">
     <header class="hero">
       <p class="eyebrow">WPV1 close-contact model · design contract ${PARAMETERS.designContractVersion}</p>
@@ -234,13 +239,13 @@ function syncControls(scenario: ScenarioV1): void {
   setValue("alpha", scenario.vaccine.alpha);
   setValue("beta", scenario.vaccine.beta);
   setValue("dose-log", Math.log10(Math.max(scenario.vaccine.dose, 1)));
-  setValue("custom-tih", scenario.setting.Tih.value * 1e6);
-  setValue("custom-ths", scenario.setting.Ths.value * 1e6);
+  setValue("custom-tih", microgramsFromGrams(scenario.setting.Tih.value));
+  setValue("custom-ths", microgramsFromGrams(scenario.setting.Ths.value));
   setValue("custom-dih", scenario.setting.dIh.value);
   setValue("custom-dhs", scenario.setting.dHs.value);
   setValue("custom-ns", scenario.setting.Ns);
-  setValue("envelope-t-min", scenario.envelope.TMin * 1e6);
-  setValue("envelope-t-max", scenario.envelope.TMax * 1e6);
+  setValue("envelope-t-min", microgramsFromGrams(scenario.envelope.TMin));
+  setValue("envelope-t-max", microgramsFromGrams(scenario.envelope.TMax));
   setValue("envelope-ns-min", scenario.envelope.NsMin);
   setValue("envelope-ns-max", scenario.envelope.NsMax);
   setValue("envelope-dih-max", scenario.envelope.dIhMax);
@@ -258,7 +263,7 @@ function readControls(previous: ScenarioV1): ScenarioV1 {
   let scenario = product === previous.vaccine.id ? structuredClone(previous) : scenarioWithProduct(previous, product);
   const settingId = document.querySelector<HTMLSelectElement>("#setting")!.value as SettingId;
   scenario = settingId === "custom"
-    ? { ...scenario, setting: { id: "custom", Tih: unitExposure(numberValue("custom-tih") / 1e6), Ths: unitExposure(numberValue("custom-ths") / 1e6), dIh: unitFrequency(numberValue("custom-dih")), dHs: unitFrequency(numberValue("custom-dhs")), Ns: numberValue("custom-ns") } }
+    ? { ...scenario, setting: { id: "custom", Tih: unitExposure(gramsFromMicrograms(numberValue("custom-tih"))), Ths: unitExposure(gramsFromMicrograms(numberValue("custom-ths"))), dIh: unitFrequency(numberValue("custom-dih")), dHs: unitFrequency(numberValue("custom-dhs")), Ns: numberValue("custom-ns") } }
     : scenarioWithSetting(scenario, settingId);
   scenario.schedule = {
     ...scenario.schedule,
@@ -270,8 +275,8 @@ function readControls(previous: ScenarioV1): ScenarioV1 {
   }
   scenario.envelope = {
     ...scenario.envelope,
-    TMin: numberValue("envelope-t-min") / 1e6,
-    TMax: numberValue("envelope-t-max") / 1e6,
+    TMin: gramsFromMicrograms(numberValue("envelope-t-min")),
+    TMax: gramsFromMicrograms(numberValue("envelope-t-max")),
     NsMin: numberValue("envelope-ns-min"),
     NsMax: numberValue("envelope-ns-max"),
     dIhMax: numberValue("envelope-dih-max"),
@@ -312,6 +317,8 @@ function numberValue(id: string): number { return Number(document.querySelector<
 function setValue(id: string, value: string | number): void { const element = document.querySelector<HTMLInputElement | HTMLSelectElement>(`#${id}`); if (element) element.value = String(value); }
 function unitExposure(value: number) { return { value, unit: "grams/exposure" as const, basis: "per_exposure" as const }; }
 function unitFrequency(value: number) { return { value, unit: "exposures/person/day", basis: "per_day" as const }; }
+function microgramsFromGrams(grams: number): number { return grams * MICROGRAMS_PER_GRAM; }
+function gramsFromMicrograms(micrograms: number): number { return micrograms / MICROGRAMS_PER_GRAM; }
 
 function summaryCards(result: ModelOutputsV1): string {
   const m = result.metrics;
@@ -365,7 +372,7 @@ function settingMap(result: ModelOutputsV1): string {
   const exposureValues = [...new Set(result.settingSurface.map((point) => point.Tih))].sort((a, b) => a - b);
   const contactValues = [...new Set(result.settingSurface.map((point) => point.Ns))].sort((a, b) => a - b);
   const columns = exposureValues.length; const rows = contactValues.length;
-  const x = scaleLog().domain([result.scenario.envelope.TMin * 1e6, result.scenario.envelope.TMax * 1e6]).range([margin.left, width - margin.right]);
+  const x = scaleLog().domain([microgramsFromGrams(result.scenario.envelope.TMin), microgramsFromGrams(result.scenario.envelope.TMax)]).range([margin.left, width - margin.right]);
   const yMin = contactValues[0] ?? 0; const yMax = contactValues.at(-1) ?? yMin + 1;
   const y = scaleLinear().domain(yMin === yMax ? [yMin - 0.5, yMax + 0.5] : [yMin, yMax]).range([height - margin.bottom, margin.top]);
   const cellWidth = (width - margin.left - margin.right) / columns; const cellHeight = (height - margin.top - margin.bottom) / Math.max(rows, 1);
@@ -374,8 +381,8 @@ function settingMap(result: ModelOutputsV1): string {
     return result.settingSurface[exposureIndex * rows + contactIndex]?.rLoc ?? 0;
   });
   const cells = result.settingSurface.map((point) => {
-    const px = x(point.Tih * 1e6) - cellWidth / 2; const py = y(point.Ns) - cellHeight / 2;
-    const hatch = point.rLoc >= 1 - PARAMETERS.success.tieTolerance ? `<rect x="${px}" y="${py}" width="${cellWidth + 0.3}" height="${cellHeight + 0.3}" fill="url(#surface-fail-hatch)"/>` : "";
+    const px = x(microgramsFromGrams(point.Tih)) - cellWidth / 2; const py = y(point.Ns) - cellHeight / 2;
+    const hatch = point.rLoc >= FRONTIER_GRID.contour.threshold - FRONTIER_GRID.contour.tieTolerance ? `<rect x="${px}" y="${py}" width="${cellWidth + 0.3}" height="${cellHeight + 0.3}" fill="url(#surface-fail-hatch)"/>` : "";
     return `<g><rect x="${px}" y="${py}" width="${cellWidth + 0.3}" height="${cellHeight + 0.3}" fill="${surfaceColor(point.rLoc)}"><title>Prototype: ${formatMicrograms(point.Tih)} micrograms/exposure, Ns ${point.Ns}; Rloc ${format(point.rLoc)}</title></rect>${hatch}</g>`;
   }).join("");
   const contourPaths = thresholdContour(values, columns, rows, (index) => margin.left + index * (width - margin.left - margin.right) / (columns - 1), (index) => height - margin.bottom - index * (height - margin.top - margin.bottom) / Math.max(rows - 1, 1));
@@ -383,9 +390,9 @@ function settingMap(result: ModelOutputsV1): string {
     const offsets: Record<string, [number, number]> = { low: [-4, 17], houston: [7, -8], matlab: [7, 17], "up-bihar": [7, -8] };
     const [dx, dy] = offsets[anchor.id] ?? [7, -8];
     const interval = anchor.id === "matlab" && anchor.interval
-      ? `<line class="hybrid-interval" x1="${x(Math.max(anchor.interval.low, result.scenario.envelope.TMin * 1e6))}" x2="${x(Math.min(anchor.interval.high, result.scenario.envelope.TMax * 1e6))}" y1="${y(anchor.Ns)}" y2="${y(anchor.Ns)}"/>`
+      ? `<line class="hybrid-interval" x1="${x(Math.max(anchor.interval.low, microgramsFromGrams(result.scenario.envelope.TMin)))}" x2="${x(Math.min(anchor.interval.high, microgramsFromGrams(result.scenario.envelope.TMax)))}" y1="${y(anchor.Ns)}" y2="${y(anchor.Ns)}"/>`
       : "";
-    return `${interval}<circle class="anchor-point ${anchor.kind === "hybrid" ? "hybrid-anchor" : ""}" cx="${x(anchor.Tih.value * 1e6)}" cy="${y(anchor.Ns)}" r="5"><title>${anchor.label}${anchor.tooltip ? `: ${anchor.tooltip}` : ""}</title></circle><text class="anchor-label" x="${x(anchor.Tih.value * 1e6) + dx}" y="${y(anchor.Ns) + dy}">${anchorShortLabel(anchor.id)}</text>`;
+    return `${interval}<circle class="anchor-point ${anchor.kind === "hybrid" ? "hybrid-anchor" : ""}" cx="${x(microgramsFromGrams(anchor.Tih.value))}" cy="${y(anchor.Ns)}" r="5"><title>${anchor.label}${anchor.tooltip ? `: ${anchor.tooltip}` : ""}</title></circle><text class="anchor-label" x="${x(microgramsFromGrams(anchor.Tih.value)) + dx}" y="${y(anchor.Ns) + dy}">${anchorShortLabel(anchor.id)}</text>`;
   }).join("");
   return `<svg id="setting-figure" viewBox="0 0 ${width} ${height}" role="img" aria-labelledby="setting-title setting-desc"><title id="setting-title">Prototype selected-product setting surface</title><desc id="setting-desc">Color reports prototype log10 Rloc. Diagonal hatching marks cells not below one in the unreleased prototype calculation. The heavy line is Rloc equals one. Named setting anchors and the Matlab interval are overlaid. This is not a v1 sufficiency classification.</desc><defs><pattern id="surface-fail-hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" class="surface-hatch-line"/></pattern></defs><rect class="plot-bg" x="${margin.left}" y="${margin.top}" width="${width - margin.left - margin.right}" height="${height - margin.top - margin.bottom}"/>${cells}${contourPaths}${anchors}${surfaceLegend(width - 326, 15)}<text class="axis-label" x="${width / 2}" y="${height - 14}" text-anchor="middle">Stool-equivalent exposure (micrograms/exposure, log scale)</text><text class="axis-label" transform="translate(18 ${height / 2}) rotate(-90)" text-anchor="middle">Close social contacts (Ns)</text>${settingTicks(x, y, result.scenario)}</svg>`;
 }
@@ -405,7 +412,7 @@ function tickLabels(x: (value: number) => number, y: (value: number) => number, 
 }
 
 function settingTicks(x: (value: number) => number, y: (value: number) => number, scenario: ScenarioV1): string {
-  const xCandidates = [0.1, 1, 10, 100, 1000, 2000].filter((value) => value >= scenario.envelope.TMin * 1e6 && value <= scenario.envelope.TMax * 1e6);
+  const xCandidates = [0.1, 1, 10, 100, 1000, 2000].filter((value) => value >= microgramsFromGrams(scenario.envelope.TMin) && value <= microgramsFromGrams(scenario.envelope.TMax));
   const ySpan = scenario.envelope.NsMax - scenario.envelope.NsMin;
   const yCandidates = [...new Set([scenario.envelope.NsMin, Math.round(scenario.envelope.NsMin + ySpan / 2), scenario.envelope.NsMax])];
   return `${xCandidates.map((tick) => `<text class="tick" x="${x(tick)}" y="371" text-anchor="middle">${tick}</text>`).join("")}${yCandidates.map((tick) => `<text class="tick" x="64" y="${y(tick) + 4}" text-anchor="end">${tick}</text>`).join("")}`;
@@ -478,7 +485,7 @@ function csvValue(value: string): string { return `"${value.replaceAll('"', '""'
 
 function format(value: number): string { return Number.isFinite(value) ? value.toFixed(value < 10 ? 3 : 2) : "—"; }
 function percent(value: number): string { return `${(100 * value).toFixed(1)}%`; }
-function formatMicrograms(grams: number): string { return (grams * 1e6).toPrecision(3); }
+function formatMicrograms(grams: number): string { return microgramsFromGrams(grams).toPrecision(3); }
 function formatDays(days: number): string { return `${days.toFixed(0)} days`; }
 
 document.querySelector<HTMLElement>("#app") && mountApp(document.querySelector<HTMLElement>("#app")!);

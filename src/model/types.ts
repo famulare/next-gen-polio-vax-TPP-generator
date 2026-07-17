@@ -1,5 +1,6 @@
 export const BIN_COUNT = 16;
 export const MICROGRAMS_PER_GRAM = 1_000_000;
+export const ROUTINE_DAYS = [42, 70, 98] as const;
 
 export type Bins = number[];
 export type ProductId = "sabin2" | "ipv" | "hypothetical";
@@ -28,7 +29,7 @@ export interface VaccineV1 {
 }
 
 export interface ScheduleV1 {
-  routineDays: [42, 70, 98];
+  routineDays: [...typeof ROUTINE_DAYS];
   boosterAgeYears: 0 | 1 | 2 | 3 | 4;
   assessmentLagDays: 28 | 90;
   productId: ProductId;
@@ -104,7 +105,7 @@ export interface ParameterManifestV1 {
     titerFloor: number;
   };
   transmission: { horizonDays: number; indexReferenceExposure: string; dIh: number; dHs: number };
-  success: { tieTolerance: number; calibrationLog10Tolerance: number };
+  success: { calibrationLog10Tolerance: number };
 }
 
 export interface ImmuneGroup {

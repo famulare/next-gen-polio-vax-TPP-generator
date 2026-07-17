@@ -3,6 +3,7 @@ import { doseResponse } from "./dose-response";
 import { PARAMETERS, SETTING_ANCHORS } from "./parameters";
 import { conditionIndexBreakthrough, naiveRLocForSetting, rLocForSetting } from "./transmission";
 import type { AnchorSettingId, ImmuneState, PointMetrics, ScenarioV1, SettingV1 } from "./types";
+import { DAYS_PER_MONTH } from "./waning";
 
 export type ProductRatios = Pick<PointMetrics, "qAcq" | "qShed" | "qIndex" | "effectiveFirstDoseTake" | "assessmentAgeDays" | "assessmentLagDays" | "indexReferenceExposure">;
 
@@ -16,7 +17,7 @@ export function computeProductRatios(scenario: ScenarioV1, state: ImmuneState): 
     PARAMETERS.wpv1.gamma
   );
   const qAcq = naiveSusceptibility > 0 ? index.probability / naiveSusceptibility : 0;
-  const ageMonths = state.assessmentAgeDays / (365.25 / 12);
+  const ageMonths = state.assessmentAgeDays / DAYS_PER_MONTH;
   const vaccinatedBurden = index.cohorts.reduce((sum, cohort) =>
     sum + cohort.mass * integratedShedding(cohort.sourceBin, ageMonths, scenario.horizonDays), 0);
   const naiveBurden = integratedShedding(0, ageMonths, scenario.horizonDays);

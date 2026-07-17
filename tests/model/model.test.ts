@@ -4,13 +4,13 @@ import test from "node:test";
 import { applyBoost, buildBoostMatrix, normalizeBins, shiftBins } from "../../src/model/bins";
 import { buildFrontier, gridPointRLocMatchesDirect, passesThreshold } from "../../src/model/frontier";
 import { defaultScenario, evaluateScenario, scenarioWithProduct, scenarioWithSetting } from "../../src/model/model";
-import { PARAMETERS, SETTING_ANCHORS, vaccineDefaults } from "../../src/model/parameters";
+import { FRONTIER_GRID, PARAMETERS, SETTING_ANCHORS, vaccineDefaults } from "../../src/model/parameters";
 import { envelopeCorner } from "../../src/model/metrics";
 import { canonicalJson, decodeScenario, encodeScenario, validateScenario } from "../../src/model/serialization";
-import { applyDose, buildScheduleState, initialImmuneState, moveState, scheduleDays } from "../../src/model/schedule";
+import { applyDose, buildScheduleState, buildStateAtAssessment, initialImmuneState, moveState, scheduleDays } from "../../src/model/schedule";
 import { peakSheddingAgeAmplitude, sheddingTerms } from "../../src/model/shedding";
 import { doseResponse, susceptibilityPerBin, vaccineTakePerBin, wpvSusceptibilityPerBin } from "../../src/model/dose-response";
-import { naiveRLocForSetting, repeatedExposureProbability, rLocForSetting } from "../../src/model/transmission";
+import { createRLocEvaluator, naiveRLocForSetting, repeatedExposureProbability, rLocForSetting } from "../../src/model/transmission";
 import { waneMucosal, waningDeltaMonths } from "../../src/model/waning";
 import { evaluateMatlabFixedTiterMotif } from "../../src/model/matlab-compat";
 import type { ProductId, ScenarioV1, ScheduleV1, SettingV1, VaccineV1 } from "../../src/model/types";
@@ -721,8 +721,10 @@ test("schedule events and assessment lag follow the locked days", () => {
   const scenario = defaultScenario();
   assert.deepEqual(scheduleDays(scenario.schedule), [42, 70, 98]);
   const state = buildScheduleState(scenario.vaccine, scenario.schedule);
+  const explicitState = buildStateAtAssessment(scenario.vaccine, scheduleDays(scenario.schedule), 126);
   assert.deepEqual(state.events, [42, 70, 98]);
   assert.equal(state.assessmentAgeDays, 126);
+  assert.deepEqual(explicitState, state);
   const boosted = buildScheduleState(scenario.vaccine, { ...scenario.schedule, boosterAgeYears: 2 });
   assert.deepEqual(boosted.events, [42, 70, 98, 730.5]);
   assert.equal(boosted.assessmentAgeDays, 758.5);
@@ -787,6 +789,23 @@ test("Rloc is monotone in setting axes and zero on any interrupted transmission 
   ] as SettingV1[]) {
     assert.equal(rLocForSetting(state, zero, scenario.indexReferenceExposure, scenario.horizonDays), 0);
     assert.equal(naiveRLocForSetting(zero, scenario.indexReferenceExposure, scenario.horizonDays, state.assessmentAgeDays), 0);
+  }
+});
+
+test("precomputed Rloc evaluator agrees with direct factorized calculation", () => {
+  const scenario = defaultScenario();
+  const scenarios = [
+    scenario,
+    { ...scenario, schedule: { ...scenario.schedule, boosterAgeYears: 2 as const } },
+    scenarioWithProduct(scenario, "sabin2")
+  ];
+  for (const candidate of scenarios) {
+    const state = buildScheduleState(candidate.vaccine, candidate.schedule);
+    for (const setting of [SETTING_ANCHORS[0]!, envelopeCorner(candidate)]) {
+      const evaluator = createRLocEvaluator(setting, candidate.indexReferenceExposure, state.assessmentAgeDays, candidate.horizonDays);
+      const direct = rLocForSetting(state, setting, candidate.indexReferenceExposure, candidate.horizonDays);
+      assert.ok(Math.abs(evaluator(state) - direct) <= 1e-10, `Rloc paths disagree for ${candidate.vaccine.id} at ${setting.id}`);
+    }
   }
 });
 
@@ -885,8 +904,8 @@ test("frontier cells are direct evaluations and classification uses the locked b
   const frontier = buildFrontier(scenario);
   assert.equal(frontier.points.length, 51 * 51);
   assert.ok(frontier.points.every((point) => point.passes === passesThreshold(point.rLocEnvelopeMax)));
-  assert.equal(passesThreshold(1 - 2 * PARAMETERS.success.tieTolerance), true);
-  assert.equal(passesThreshold(1 - PARAMETERS.success.tieTolerance), false);
+  assert.equal(passesThreshold(1 - 2 * FRONTIER_GRID.contour.tieTolerance), true);
+  assert.equal(passesThreshold(1 - FRONTIER_GRID.contour.tieTolerance), false);
   assert.equal(passesThreshold(1), false);
   const point = frontier.points[1300]!;
   assert.equal(gridPointRLocMatchesDirect(scenario, point), true);

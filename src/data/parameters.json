@@ -43,5 +43,5 @@
     "titerFloor": 398.1071705534973
   },
   "transmission": { "horizonDays": 100, "indexReferenceExposure": "one_WPV1_HID50", "dIh": 1, "dHs": 8.9685 },
-  "success": { "tieTolerance": 1e-9, "calibrationLog10Tolerance": 0.1 }
+  "success": { "calibrationLog10Tolerance": 0.1 }
 }

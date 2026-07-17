@@ -1,8 +1,10 @@
-import { normalizeBins, sourceQuadratureValues } from "./bins";
+import { sourceQuadratureValues } from "./bins";
 import { doseResponse, wpvSusceptibilityPerBin } from "./dose-response";
 import { PARAMETERS } from "./parameters";
+import { initialImmuneState } from "./schedule";
 import { sheddingTerms } from "./shedding";
 import type { ImmuneGroup, ImmuneState, IncidenceCohort, SettingV1, SourceCohort } from "./types";
+import { DAYS_PER_MONTH } from "./waning";
 
 export interface BreakthroughResult {
   probability: number;
@@ -86,7 +88,7 @@ export function rLocForSetting(state: ImmuneState, setting: SettingV1, reference
   if (setting.Ns === 0 || setting.Tih.value === 0 || setting.Ths.value === 0 || setting.dIh.value === 0 || setting.dHs.value === 0) return 0;
   const index = conditionIndexBreakthrough(state, referenceExposure);
   if (index.cohorts.length === 0) return 0;
-  const ageMonths = state.assessmentAgeDays / (365.25 / 12);
+  const ageMonths = state.assessmentAgeDays / DAYS_PER_MONTH;
   const recipientMass = recipientMassByHistoryAndBin(state.groups);
   const indexMass = sourceMassByBin(index.cohorts);
   const indexHousehold = linkKernel(setting.Tih.value, setting.dIh.value, ageMonths, horizonDays);
@@ -125,10 +127,14 @@ export function rLocForSetting(state: ImmuneState, setting: SettingV1, reference
   return setting.Ns * socialProbability;
 }
 
+/**
+ * Precomputes a fixed-setting motif tensor for repeated design-grid evaluation.
+ * rLocForSetting remains the direct factorized path for point and surface work.
+ */
 export function createRLocEvaluator(setting: SettingV1, referenceExposure: number, ageDays: number, horizonDays: number): RLocEvaluator {
   validateSettingInputs(setting, referenceExposure, horizonDays);
   if (setting.Tih.value === 0 || setting.Ths.value === 0 || setting.dIh.value === 0 || setting.dHs.value === 0) return () => 0;
-  const ageMonths = ageDays / (365.25 / 12);
+  const ageMonths = ageDays / DAYS_PER_MONTH;
   const first = linkKernel(setting.Tih.value, setting.dIh.value, ageMonths, horizonDays);
   const second = linkKernel(setting.Ths.value, setting.dHs.value, ageMonths, horizonDays);
   const tensor = buildMotifTensor(first, second);
@@ -162,12 +168,7 @@ export function createRLocEvaluator(setting: SettingV1, referenceExposure: numbe
 }
 
 export function naiveRLocForSetting(setting: SettingV1, referenceExposure: number, horizonDays: number, ageDays: number): number {
-  const naive: ImmuneState = {
-    groups: [{ mass: 1, everInfected: false, mucosal: normalizeBins([1, ...Array<number>(BIN_COUNT - 1).fill(0)]), serum: normalizeBins([1, ...Array<number>(BIN_COUNT - 1).fill(0)]) }],
-    assessmentAgeDays: ageDays,
-    lastDoseDay: 0,
-    events: []
-  };
+  const naive: ImmuneState = { ...initialImmuneState(), assessmentAgeDays: ageDays };
   return rLocForSetting(naive, setting, referenceExposure, horizonDays);
 }
 

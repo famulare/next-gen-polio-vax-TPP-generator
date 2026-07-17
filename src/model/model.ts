@@ -1,10 +1,11 @@
 import rawProvenance from "../data/provenance.json";
 import { buildFrontier } from "./frontier";
-import { DEFAULTS, ENVELOPE, FRONTIER_GRID, GLOBAL_SETTING, PARAMETERS, PRODUCT_LABELS, SETTING_ANCHORS, SETTING_MANIFEST_VERSION, UNCERTAINTY_ENSEMBLE, vaccineDefaults } from "./parameters";
+import { anchorById, DEFAULTS, ENVELOPE, FRONTIER_GRID, GLOBAL_SETTING, PARAMETERS, PRODUCT_LABELS, SETTING_ANCHORS, SETTING_MANIFEST_VERSION, UNCERTAINTY_ENSEMBLE, vaccineDefaults } from "./parameters";
 import { computePointMetrics } from "./metrics";
 import { buildScheduleState } from "./schedule";
 import { canonicalHash, validateScenario } from "./serialization";
 import { rLocForSetting } from "./transmission";
+import { ROUTINE_DAYS } from "./types";
 import type { EnvelopeV1, ModelOutputsV1, ScenarioV1, SettingV1 } from "./types";
 
 export function defaultScenario(): ScenarioV1 {
@@ -14,7 +15,7 @@ export function defaultScenario(): ScenarioV1 {
     targetId: "WPV1",
     comparatorId: DEFAULTS.productId,
     vaccine: product,
-    schedule: { routineDays: [42, 70, 98], boosterAgeYears: DEFAULTS.boosterAgeYears, assessmentLagDays: DEFAULTS.assessmentLagDays, productId: DEFAULTS.productId },
+    schedule: { routineDays: [...ROUTINE_DAYS], boosterAgeYears: DEFAULTS.boosterAgeYears, assessmentLagDays: DEFAULTS.assessmentLagDays, productId: DEFAULTS.productId },
     setting: globalSetting(),
     envelope: { ...ENVELOPE },
     successRule: DEFAULTS.successRule,
@@ -34,8 +35,7 @@ export function globalSetting(): SettingV1 {
 export function scenarioWithSetting(scenario: ScenarioV1, id: ScenarioV1["setting"]["id"]): ScenarioV1 {
   if (id === "global") return { ...scenario, setting: globalSetting() };
   if (id === "custom") return { ...scenario, setting: { ...scenario.setting, id: "custom" } };
-  const anchor = SETTING_ANCHORS.find((candidate) => candidate.id === id);
-  if (!anchor) throw new Error(`Unknown setting ${id}`);
+  const anchor = anchorById(id);
   return {
     ...scenario,
     setting: {

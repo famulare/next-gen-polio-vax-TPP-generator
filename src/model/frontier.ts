@@ -1,4 +1,4 @@
-import { FRONTIER_GRID, PARAMETERS, PRODUCT_LABELS, vaccineDefaults } from "./parameters";
+import { FRONTIER_GRID, PRODUCT_LABELS, vaccineDefaults } from "./parameters";
 import type { ComparatorPoint, DesignGridPoint, FrontierResult, ProductId, ScenarioV1, VaccineV1 } from "./types";
 import { buildScheduleState } from "./schedule";
 import { createRLocEvaluator, rLocForSetting } from "./transmission";
@@ -35,11 +35,11 @@ export function buildFrontier(scenario: ScenarioV1): FrontierResult {
 }
 
 export function passesThreshold(rLocEnvelopeMax: number): boolean {
-  return rLocEnvelopeMax < FRONTIER_GRID.contour.threshold - PARAMETERS.success.tieTolerance;
+  return rLocEnvelopeMax < FRONTIER_GRID.contour.threshold - FRONTIER_GRID.contour.tieTolerance;
 }
 
 export function paretoBoundary(points: readonly DesignGridPoint[]): DesignGridPoint[] {
-  const tolerance = PARAMETERS.success.tieTolerance;
+  const tolerance = FRONTIER_GRID.contour.tieTolerance;
   const passing = points.filter((point) => point.passes);
   return passing.filter((candidate) => !passing.some((other) => {
     if (other === candidate) return false;

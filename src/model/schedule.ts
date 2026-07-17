@@ -1,14 +1,14 @@
 import { applyBoost, normalizeBins, weightedMix } from "./bins";
 import { vaccineTakePerBin } from "./dose-response";
 import { PARAMETERS } from "./parameters";
-import { waneMucosal } from "./waning";
+import { DAYS_PER_YEAR, waneMucosal } from "./waning";
 import type { ImmuneGroup, ImmuneState, ScheduleV1, VaccineV1 } from "./types";
 
 const INITIAL_BINS = [1, ...Array<number>(PARAMETERS.immunity.bins - 1).fill(0)];
 
 export function scheduleDays(schedule: ScheduleV1): number[] {
   const days = [...schedule.routineDays] as number[];
-  if (schedule.boosterAgeYears > 0) days.push(365.25 * schedule.boosterAgeYears);
+  if (schedule.boosterAgeYears > 0) days.push(DAYS_PER_YEAR * schedule.boosterAgeYears);
   return days.sort((a, b) => a - b);
 }
 
@@ -23,18 +23,31 @@ export function initialImmuneState(): ImmuneState {
 
 export function buildScheduleState(vaccine: VaccineV1, schedule: ScheduleV1): ImmuneState {
   if (vaccine.id !== schedule.productId) throw new Error("Schedule product and vaccine product must match");
+  const doseDays = scheduleDays(schedule);
+  const lastDoseDay = doseDays.at(-1) ?? 0;
+  return buildStateAtAssessment(vaccine, doseDays, lastDoseDay + schedule.assessmentLagDays);
+}
+
+/**
+ * Applies an explicit dose sequence through a specified assessment age. This
+ * shared state transition is used by the locked app schedule and the
+ * calibration-only schedule; only their allowed input domains differ.
+ */
+export function buildStateAtAssessment(vaccine: VaccineV1, doseDays: readonly number[], assessmentAgeDays: number): ImmuneState {
+  if (!Number.isFinite(assessmentAgeDays) || assessmentAgeDays < 0) throw new Error("Assessment age must be finite and nonnegative");
   let state = initialImmuneState();
   let currentDay = 0;
-  for (const eventDay of scheduleDays(schedule)) {
-    state = moveState(state, eventDay - currentDay);
+  for (const doseDay of doseDays) {
+    if (!Number.isFinite(doseDay) || doseDay < currentDay || doseDay > assessmentAgeDays) {
+      throw new Error("Dose days must be sorted, finite, and no later than assessment");
+    }
+    state = moveState(state, doseDay - currentDay);
     state = applyDose(state, vaccine);
-    state.events.push(eventDay);
-    state.lastDoseDay = eventDay;
-    currentDay = eventDay;
+    state = { ...state, events: [...state.events, doseDay], lastDoseDay: doseDay };
+    currentDay = doseDay;
   }
-  state = moveState(state, schedule.assessmentLagDays);
-  state.assessmentAgeDays = state.lastDoseDay + schedule.assessmentLagDays;
-  return state;
+  state = moveState(state, assessmentAgeDays - currentDay);
+  return { ...state, assessmentAgeDays };
 }
 
 export function moveState(state: ImmuneState, elapsedDays: number): ImmuneState {
@@ -110,7 +123,7 @@ export function mergeGroups(groups: ImmuneGroup[]): ImmuneGroup[] {
     });
   }
   const total = merged.reduce((sum, group) => sum + group.mass, 0);
-  if (total <= 0) return [{ mass: 1, everInfected: false, mucosal: [...INITIAL_BINS], serum: [...INITIAL_BINS] }];
+  if (total <= 0) return initialImmuneState().groups;
   return merged.map((group) => ({ ...group, mass: group.mass / total }));
 }
 
