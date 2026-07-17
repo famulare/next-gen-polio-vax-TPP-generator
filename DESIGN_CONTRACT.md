@@ -28,9 +28,22 @@ shedding constants remain source diagnostics rather than production
 substitutions. Each motif link receives an independent post-infection horizon;
 the default is increased from 100 to 120 days because 100 days failed the
 Section 9.4 tail discriminator at the low anchor. Broad hypothetical-product
-hard bounds are versioned in `parameters.json`.
+hard bounds are versioned in `parameters.json`. Interaction amendment
+2026-07-17: the setting surface is the opening and visually dominant result,
+followed by the simultaneously visible linked requirement and product-design
+maps; selected setting probes and decision envelopes are separate; explicitly
+labeled named single-setting decision scopes are allowed; the core explanatory
+layer includes a measurement/provenance map, while one-dimensional parameter
+slices are deferred pending usability review. Decision amendment 2026-07-17:
+the default decision scope is the UP/Bihar high anchor, treated as the hardest
+known empirical/model-calibrated stress-test rather than a universal bound. The
+setting surface is nonbinding context for the product-specific shape and margin
+of that result. Its versioned display domain is `T = 0.1-2,000
+micrograms/exposure`, `N_s = 1-20`; the prior source-code exploration maximum
+of 40 contacts is not a v1 default.
 
-**Primary audience:** vaccine developers, polio program scientists, modelers, and funders
+**Primary audience:** people well versed in vaccine development who do not yet
+have a clean mechanistic mental model analogous to this mathematical model
 
 **Implementation target:** a deterministic, self-contained interactive HTML application suitable for static GitHub Pages hosting
 
@@ -54,10 +67,10 @@ stop for a contract amendment when meaning would change.
 
 The application will help users reason about:
 
-> What combination of vaccine take, mucosal immune boosting, dose-response
-> performance, and schedule is sufficient to prevent sustained close-contact
-> transmission of wild poliovirus (WPV), including in very high-transmission
-> settings?
+> Under what setting conditions can a candidate vaccine and schedule block the
+> modeled close-contact transmission motif, and what combination of vaccine
+> take, mucosal immune boosting, and dose-response performance is sufficient
+> for a declared decision scope?
 
 The original motivating shorthand was "how much shedding reduction is
 required?" That shorthand is not the primary TPP endpoint because a single
@@ -67,11 +80,17 @@ effects:
 1. reducing the probability that a vaccinated person acquires WPV; and
 2. reducing the duration and amount of WPV shed after a breakthrough infection.
 
-The primary output will therefore be a **Pareto frontier** showing combinations
-of acquisition blocking and breakthrough infectiousness reduction that are
-sufficient under the selected schedule and setting envelope. A scalar shedding
-index may be displayed as a derived diagnostic, never as the sole definition of
-product success.
+The authoritative decision output is the direct `R_loc_max` result under the
+selected product, schedule, point success rule, and declared decision scope.
+The versioned default scope is the singleton UP/Bihar high anchor, so its
+maximum is the direct `R_loc` value at that point.
+The opening setting surface shows where that candidate crosses `R_loc = 1` as
+exposure and close-social-contact conditions vary. The linked effect-space
+requirement and product-design maps then show which combinations are sufficient
+for the selected scope. If no evaluated design passes, the absence of a Pareto
+frontier is an explicit result rather than a reason to draw a substitute line.
+A scalar shedding index may be displayed as a derived diagnostic, never as the
+sole definition of product success.
 
 The tool is a model explorer and TPP reasoning aid. It is not a clinical-trial
 calculator, a forecast of outbreak size, or a substitute for a full population
@@ -84,14 +103,22 @@ transmission model.
 Version 1 adopts the following **TPP sufficiency axiom** at Mike's direction:
 
 > If a feasible vaccine schedule drives the modeled close-contact local
-> reproduction number, `R_loc`, below 1 throughout a declared conservative
-> setting envelope, the product is classified as sufficient to "guarantee a
-> win" for this TPP exercise.
+> reproduction number, `R_loc`, below 1 throughout the declared decision scope,
+> the product is classified as sufficient to "guarantee a win" for this TPP
+> exercise. The default v1 decision scope is the singleton UP/Bihar high anchor.
 
 This is a deliberately high bar and a decision rule for the tool. It is not a
 result inferred from the source paper. The source paper defines `R_loc` over an
 index-person -> household-member -> close-social-contact motif and notes that it
 is not a complete population reproduction number.
+
+UP/Bihar 2003-2008 is used as the hardest known empirical/model-calibrated
+stress-test because it represents extreme transmission conditions under which
+polio was ultimately eliminated with an unusually intensive vaccination
+program. The inference that a product clearing this anchor will likely work in
+less demanding settings is a reasoned extrapolation from outside the modeled
+data, not a theorem or a guarantee about every setting on Earth. It does not,
+for example, directly establish adequacy in an unmodeled present-day setting.
 
 The tool is therefore a **conditional-plausibility screen for population-level
 herd immunity**: its v1 premise is that the modeled close-contact motif is the
@@ -103,14 +130,17 @@ clustering, or unmodeled pathways may change a population result.
 The application must therefore label the outcome precisely:
 
 - **Allowed:** "Meets the v1 close-contact sufficiency criterion."
-- **Allowed:** "Below `R_loc = 1` under the selected v1 success rule and modeled
-  setting envelope."
+- **Allowed:** "Clears the hardest known modeled anchor: below `R_loc = 1` at
+  the UP/Bihar high-transmission decision scope."
+- **Allowed:** "This supports likely adequacy in less demanding settings
+  represented by this model; it does not prove control everywhere."
 - **Not allowed:** "Guaranteed to stop all poliovirus transmission everywhere"
   without the adjacent qualification "under the v1 close-contact sufficiency
-  axiom and declared model envelope."
+  axiom and declared decision scope."
 
-The app will expose the setting envelope and all assumptions used to make this
-classification. It will not silently equate `R_loc` with a complete `R_e`.
+The app will expose the decision scope, the separate setting-surface display
+domain, and all assumptions used to make this classification. It will not
+silently equate `R_loc` with a complete `R_e`.
 
 ---
 
@@ -137,7 +167,8 @@ classification. It will not silently equate `R_loc` with a complete `R_e`.
 - Named anchors for low transmission, Houston/Louisiana, Matlab, and UP/Bihar.
 - Deterministic propagation of probability mass and a deterministic fixed
   parameter ensemble for uncertainty/sensitivity.
-- One to three linked visuals, with the Pareto frontier primary.
+- One to three linked visuals, with the setting surface opening and visually
+  dominant and the linked requirement/product maps together next.
 - One self-contained HTML deliverable with no runtime network dependency.
 
 ### 3.2 Explicitly out of scope for v1
@@ -674,7 +705,7 @@ must not infer a correlation between them without a versioned empirical model.
 | Low | 0.5 micrograms/exposure | 3 | Published Fig 9 low setting |
 | Houston/Louisiana moderate | 5 micrograms/exposure | 3 | Houston fecal-exposure fit plus Louisiana/WPV calibration context; published Fig 9 moderate point |
 | Matlab household exposure | 18.6 micrograms/day for contacts under 5 | 3 provisional | `10^-4.73 g/day` from Taniuchi 2017 Table S6; `N_s` is borrowed from the published moderate-setting reduction because the Matlab study did not fit the extrafamilial link |
-| UP/Bihar high | 230 micrograms/exposure | 10 | Published Fig 9 high setting |
+| UP/Bihar high | 230 micrograms/exposure | 10 | Published Fig 9 high setting, calibrated to UP/Bihar 2003-2008 household prevalence data |
 
 The Matlab marker must be visually distinguishable as a hybrid mapping, with an
 exposure interval of approximately 3.2-61.7 micrograms/day from the reported
@@ -690,30 +721,41 @@ Additional Matlab validation values, not setting axes:
 - study/detection take multiplier: 1.55 (1.19-1.97), not a biological
   `[0,1]` probability and therefore not used as `take_context`.
 
-### 10.3 Declared "any setting" envelope
+### 10.3 Default decision scope and setting-surface display domain
 
-Recommended conservative v1 envelope:
+The versioned default decision scope is the singleton **UP/Bihar high** anchor:
+`T_ih = T_hs = 230 micrograms/exposure`, `N_s = 10`, `D_ih = 1/day`, and
+`D_hs = 8.9685/day`. A default win is direct `R_loc < 1` at that point.
+UP/Bihar is the hardest known empirical/model-calibrated anchor, not a claim
+that these coordinates are a physical upper bound on transmission conditions.
+
+The separate, nonbinding setting-surface display domain is:
 
 - linked fecal-oral exposure `T`: 0.1 to 2,000 micrograms/exposure;
-- close social contacts `N_s`: 1 to 40;
+- close social contacts `N_s`: 1 to 20;
 - `D_ih = 1` exposure/day;
 - `D_hs = 8.9685` exposures/day;
 - default `T_hs = T_ih`.
 
 The 2,000-microgram upper exposure bound follows the physiological range used
-in the source paper. The 40-contact upper bound follows the source code's
-maximum close-network exploration and is intentionally more demanding than the
-published anchor points.
+in the source paper. The contact range remains deliberately broader than the
+published high anchor at `N_s = 10`, but stops at 20. The prior 40-contact bound
+was a source-code exploration maximum; it lacks a defensible interpretation as
+an average daily number of family-like child contacts and does not define v1
+success.
 
-The primary status is based on the maximum `R_loc` over this declared envelope,
-not only on the named settings. Users may narrow or widen the envelope, but the
-status must then say "selected envelope" rather than "v1 global envelope."
+The surface shows where a selected product crosses `R_loc = 1` and makes the
+parameter-specific shape and margin of the anchor result visible. Its outer
+corner does not control status merely because it is drawn. Users may explicitly
+select another named point or a custom envelope as the decision scope; the
+status and export must name that scope.
 
-Because `R_loc` must be nondecreasing in `T`, `D`, and `N_s`, the rectangular
-envelope maximum is evaluated at its upper corner after the monotonicity tests
-pass. A grid is still computed for display. If an advanced control unlinks axes,
-the maximum uses every corresponding upper bound. Failure of monotonicity is a
-model error, not a reason to search for a convenient maximum.
+For a selected rectangular decision envelope, `R_loc` must be nondecreasing in
+`T`, `D`, and `N_s`, so its maximum is evaluated at the upper corner after the
+monotonicity tests pass. For a named singleton scope, the maximum is the direct
+value at that point. If an advanced control unlinks axes, a rectangular scope
+uses every corresponding upper bound. Failure of monotonicity is a model error,
+not a reason to search for a convenient maximum.
 
 ---
 
@@ -745,8 +787,13 @@ q_acq  = P(WPV acquisition | vaccinated) / P(WPV acquisition | naive)
 q_shed = E[integrated infectious shedding | vaccinated breakthrough]
          / E[integrated infectious shedding | naive infection]
 q_index = q_acq * q_shed
-R_loc_max(v) = max_setting R_loc(v, setting)
+R_loc_max(v; S) = max_{setting in decision scope S} R_loc(v, setting)
 ```
+
+For the default singleton UP/Bihar scope, `R_loc_max` is simply direct `R_loc`
+at that anchor. The broader setting-surface display domain is not `S` and does
+not enter classification unless a user explicitly selects it as a custom
+decision envelope.
 
 The one-HID50 reference exposure is used for `q_acq` and index conditioning.
 `q_shed` integrates the joint survival-intensity expectation. These ratios
@@ -771,7 +818,7 @@ independently tunable vaccine parameters or that every coordinate pair is
 biologically reachable.
 
 This frontier is conditional on the current `alpha_vax`, `beta_vax`, vaccine
-dose, schedule, assessment lag, and setting envelope. Changing those controls
+dose, schedule, assessment lag, and decision scope. Changing those controls
 recomputes both linked panels. If multiple designs produce the same displayed
 outcome pair, the UI reports the non-uniqueness instead of selecting one
 silently. Evaluated designs determine classification; interpolation is only for
@@ -784,7 +831,7 @@ The linked right primary panel is actionable product space:
 - x-axis: setting-specific `take_context`, 0 to 1;
 - y-axis: `mu0_new`, 0 to 8 log2 units;
 - fixed-by-current-controls: `alpha_vax`, `beta_vax`, administered dose,
-  schedule, assessment lag, and setting envelope;
+  schedule, assessment lag, and decision scope;
 - overlays: `R_loc_max = 1`, selected design, and Sabin 2-like anchor.
 
 The panel uses a `51 x 51` direct-evaluation grid. The left panel is a second
@@ -814,7 +861,7 @@ point success := point R_loc_max < 1
 This iteration exposes no parameter-uncertainty interval or alternate success
 rule. Future uncertainty or sensitivity work requires a contract amendment;
 named low/base/high values are sensitivity, not probability. The word
-"guaranteed" may appear only with the close-contact axiom and envelope
+"guaranteed" may appear only with the close-contact axiom and decision-scope
 qualification from Section 2.
 
 ---
@@ -854,57 +901,102 @@ drawn marginal confidence intervals. No runtime random sampling is allowed.
 
 ## 13. Interaction and visual design
 
-The application should answer three questions in order: **what product is
-enough, why, and where?**
+The application should answer four questions in order: **under what conditions
+can this candidate block the modeled close-contact motif; what product
+performance is enough for the declared decision scope; why; and what is
+measured, calibrated, fixed, derived, or unavailable?** The opening result must
+precede the detailed control surface.
 
-### 13.1 Visual 1 -- linked TPP maps (required, primary)
+### 13.1 Visual 1 -- setting surface (required, opening and dominant)
 
-Two panels are visible together:
+- x-axis: fecal-oral exposure/sanitation, log scale;
+- y-axis: number of close social contacts;
+- fill: `log10(R_loc)` on a fixed blue -> near-white -> red scale, with
+  `R_loc = 1` at the near-white center;
+- a strong `R_loc = 1` contour plus a non-color cue that distinguishes the
+  passing and failing sides;
+- named anchor points and a collision-aware Matlab exposure interval whose
+  daily exposure basis and hybrid status are explicit;
+- the selected product and schedule reflected immediately;
+- the UP/Bihar default decision anchor or selected alternative scope marked
+  distinctly from the display-domain bounds; and
+- an accessible text alternative and exact point readout.
+
+The display grid is 81 log-spaced exposure values over `T = 0.1-2,000
+micrograms/exposure` by every integer `N_s = 1-20`. Raster cells have no visible
+stroke. Contour construction must not trace the plot frame as though it were a
+scientific threshold. The status remains the direct decision-scope calculation,
+not the display-domain corner or an interpolated raster value; the interface
+and exports state that distinction. The surface is contextual evidence about
+the product-specific shape and margin of the result.
+
+### 13.2 Visual 2 -- linked TPP maps (required together)
+
+Two panels are simultaneously visible and linked:
 
 1. the effect-space requirement map from Section 11.3; and
 2. the product-design map from Section 11.4.
 
-Both show the `R_loc_max = 1` contour, passing side, selected candidate, and
-applicable comparators. Selection and hover are linked. The summary strip above
-them shows the derived shedding index and authoritative direct `R_loc` result.
+Both show the `R_loc_max = 1` contour when one exists on the evaluated grid,
+the passing side, selected candidate, and applicable comparators. Selection,
+hover, focus, and keyboard traversal resolve to the same design in both views.
+If `frontier.pareto` is empty, the interface states that no evaluated design
+passes the selected scope and draws no Pareto line. The adjacent summary shows
+the derived shedding index as a diagnostic and the direct `R_loc_max` as the
+authoritative result.
 
-### 13.2 Visual 2 -- setting surface (required)
+### 13.3 Mechanistic and measurement explanation (required core)
 
-- x-axis: fecal-oral exposure/sanitation, log scale;
-- y-axis: number of close social contacts;
-- fill: `log10(R_loc)`;
-- strong contour at `R_loc = 1`;
-- named anchor points and Matlab exposure interval;
-- selected product/schedule reflected immediately.
+A compact explanatory sequence shows:
 
-The display grid is 81 log-spaced exposure values over the selected `T` range
-by every integer `N_s` value in the selected range (40 rows for the default
-1-40 envelope). The status maximum remains the direct upper-corner calculation,
-not an interpolated raster value.
-
-### 13.3 Visual 3 -- mechanistic decomposition (optional for v1)
-
-A compact plot or linked small multiples show:
-
-- schedule-derived immunity distribution or median/interval by age;
+- the index -> household member -> close-social-contact motif;
 - WPV acquisition probability;
-- conditional breakthrough shedding burden;
-- derived shedding index.
+- conditional breakthrough infectious-shedding burden;
+- the derived shedding index; and
+- the direct `R_loc` decision result.
 
-This visual exists to prevent users from reading a common shedding-index value
-as evidence of a common mechanism.
+It is paired with a parameter/measurement map that labels each displayed
+quantity as directly measured, scenario input, calibrated, fixed assumption,
+derived model output, or unavailable evidence. This explanation must prevent
+users from reading a common shedding-index value as evidence of a common
+mechanism, `take_context` as dose receipt, or OPV-equivalent mucosal immunity as
+a measured serum titer.
+
+Interactive one-dimensional parameter slices are deferred. They may be added
+only after review shows that users still cannot explain how take, boost,
+exposure, and contacts affect the result. A schedule-derived immunity-
+distribution visualization remains deferred because the current model-output
+schema does not expose that distribution.
 
 ### 13.4 Controls
 
-The default control surface must stay small:
+The interface must distinguish three objects in state, labels, prose, and
+exports:
 
-- named setting or global/custom envelope;
+1. the candidate product and schedule;
+2. the selected setting probe used for inspection; and
+3. the point or envelope decision scope used to classify the candidate.
+
+A selected probe never changes the decision scope implicitly. The versioned
+default decision scope is the UP/Bihar high anchor. Explicitly labeled named
+single-setting and custom-envelope scope presets are allowed; selecting one
+intentionally changes classification, and editing a defining value changes the
+preset label to Custom.
+
+The opening control surface must stay small:
+
 - RI plus booster choice and 28/90-day assessment lag;
-- setting-specific take and immune boost strength;
-- vaccine dose and Sabin-2-like/custom dose-response preset;
-- the fixed point success rule.
+- candidate product;
+- selected setting probe; and
+- UP/Bihar high, another named single-setting, or custom decision scope.
 
-The primary frontier also exposes a target crosshair/readout so a user can vary
+Setting-specific take and immune boost strength appear contextually with the
+product-design explanation. Vaccine dose and the Sabin-2-like/custom dose-
+response preset appear in a compact candidate editor after their meanings have
+been introduced. The fixed point success rule is visible but not presented as
+an editable scientific choice.
+
+The linked map pair also exposes a target crosshair/readout so a user can vary
 the desired acquisition or shedding reduction and see where `R_loc` remains
 uncontrolled. The official pass threshold remains `R_loc < 1`.
 
@@ -912,15 +1004,19 @@ Advanced controls contain:
 
 - `alpha_vax`, `beta_vax`, vaccine dose;
 - `T_ih`, `T_hs`, `D_ih`, `D_hs`, `N_s`;
-- setting-envelope bounds;
+- custom decision-scope bounds;
 - index reference exposure;
-- visible fixed parameters.
+- visible fixed parameters as labeled assumptions rather than a disabled-form
+  dump.
 
 ### 13.5 Usability requirements
 
 - Every scientific control shows units and a plain-language definition.
-- Tooltips distinguish observed inputs, calibrated parameters, assumptions, and
-  derived outputs.
+- Status labels and tooltips distinguish direct measurements, scenario inputs,
+  calibrated parameters, fixed assumptions, derived outputs, and evidence
+  gaps.
+- The default result and its adjacent sufficiency qualification are legible
+  before the detailed control surface.
 - A reset button restores the versioned default scenario.
 - Current state is serialized in the URL hash for sharing without a server.
 - The app supports keyboard operation and does not use color alone for pass/fail.
@@ -1040,6 +1136,12 @@ assessment lag, setting or envelope bounds, product parameters, success rule,
 schema version, and manifest hashes. Objects reject unknown fields on imported
 JSON. Invalid URL state falls back to defaults with a visible warning and is not
 evaluated. Schema migrations are explicit functions, never permissive aliases.
+
+`ScenarioV1.envelope` stores the active point or rectangular decision scope; a
+named point is represented as a degenerate envelope. The setting/grid manifest
+separately stores the nonbinding setting-surface display domain. These objects
+must not be collapsed merely because the current implementation originally used
+one envelope for both.
 
 Canonical serialization uses sorted keys, finite JSON numbers, and no `NaN` or
 `Infinity`. The cache/export identity is a hash of canonical scenario,
@@ -1316,6 +1418,12 @@ Frontier tests compare selected grid cells and contour sides with direct
 `R_loc` calls, cover threshold ties, and verify cache invalidation after every
 scientific input or manifest change.
 
+Default-scenario tests additionally require direct UP/Bihar `R_loc =
+0.9201071208363125` within relative `1e-10`, 92 passing points and eight Pareto
+points on the committed `51 x 51` product grid, a passing selected design, and a
+setting-surface display domain with 81 exposure columns and 20 contact rows.
+The former 40-contact envelope result must not control or label default status.
+
 The release build must pass:
 
 - exactly one required runtime file: `dist/index.html`;
@@ -1373,14 +1481,17 @@ Implementation is complete only when all of the following are true:
    assessment 28 or 90 days after the last dose for every role.
 6. Users can vary take, boost, dose-response, setting, contacts, sanitation, and
    schedule.
-7. The primary result is the linked requirement and product-design Pareto maps,
-   not a scalar shedding target.
+7. The setting surface is the opening and visually dominant result; the linked
+   requirement and product-design maps are simultaneously visible in the next
+   explanatory step. No scalar shedding target is the primary result.
 8. Acquisition blocking and breakthrough shedding are shown separately.
 9. The setting surface includes low, Houston/Louisiana, Matlab, and UP/Bihar.
-10. The point `R_loc_max < 1` rule is explicit. Parameter uncertainty and an
-    upper-95 rule are explicitly out of scope for this iteration.
-11. The app never reports a global guarantee without the v1 sufficiency axiom
-    and setting-envelope qualification.
+10. The point `R_loc_max < 1` rule is explicit, with UP/Bihar high as the
+    default singleton decision scope. Parameter uncertainty and an upper-95
+    rule are explicitly out of scope for this iteration.
+11. The app identifies UP/Bihar as the hardest known anchor and qualifies the
+    inference beyond it; it never reports universal adequacy without the v1
+    sufficiency axiom and decision-scope qualification.
 12. All parity, calibration-gate, invariant, schema, frontier, browser, and
     artifact tests pass.
 13. The README explains the question, limitations, development commands, and
@@ -1409,13 +1520,16 @@ The following decisions are binding for v1:
    `gamma_vax` is fixed. Sabin-2-like dose and parameter anchors are present.
 7. The Matlab base uses measured 18.6 micrograms/day household exposure and the
    borrowed `N_s = 3` moderate social link, visibly labeled as hybrid.
-8. The v1 global envelope is `T = 0.1-2,000 micrograms/exposure`, `N_s = 1-40`,
-   with source contact frequencies.
+8. The v1 default decision scope is the singleton UP/Bihar high anchor. The
+   separate setting-surface display domain is `T = 0.1-2,000
+   micrograms/exposure`, `N_s = 1-20`, with source contact frequencies; its
+   outer corner does not determine default status.
 9. Index breakthrough is conditioned on one WPV HID50.
 10. Point `R_loc_max < 1` is the sole criterion for this iteration; parameter
     uncertainty and an upper central 95% rule are deferred.
-11. Both the effect-space and product-design frontier views are simultaneously
-    visible and linked; shedding index is a summary, not a pass axis.
+11. The setting surface is opening and visually dominant. Both the effect-space
+    and product-design frontier views are simultaneously visible and linked in
+    the next explanatory step; shedding index is a summary, not a pass axis.
 12. Everything needed for auditability and reproducibility, including the built
     HTML artifact, is committed.
 13. The primary model is distribution-native through index, household, and
@@ -1426,6 +1540,19 @@ The following decisions are binding for v1:
 15. Implementation may use bounded fresh-context agents and, after a
     high-confidence `likely_false_positive` block, supervised GPT-5.5 only under
     the controls in Section 14.6.
+16. The primary audience is people well versed in vaccine development who do
+    not yet have a clean mechanistic mental model analogous to this mathematical
+    model.
+17. Candidate product/schedule, selected setting probe, and decision scope are
+    distinct. UP/Bihar high is the default decision scope; another named point
+    or custom envelope changes classification only through an explicit labeled
+    selection.
+18. The measurement/provenance map is part of the core explanatory design.
+    One-dimensional parameter slices are deferred pending usability review.
+19. UP/Bihar is described as the hardest known empirical/model-calibrated
+    anchor. Clearing it supports likely adequacy under less demanding conditions
+    represented by the model, but is not presented as proof for every place or
+    present-day setting.
 
 Implementation discretion is limited to presentation details, accessible color
 choices, module decomposition below the ownership boundaries, and equivalent
