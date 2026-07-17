@@ -497,8 +497,7 @@ function buildReport(fixture: SourceFixture) {
     calibrationGateSatisfied: cases.every((sourceCase) => sourceCase.passes),
     releaseGateSatisfied: false,
     remainingReleaseConditions: [
-      "Section 15.1 source parity remains partial.",
-      "A reviewed deterministic uncertainty ensemble remains absent."
+      "This Section 15.2 calibration artifact is not an application-release decision; apply the complete Section 17 checklist."
     ]
   };
 }

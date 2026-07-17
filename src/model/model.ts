@@ -56,19 +56,16 @@ export function scenarioWithProduct(scenario: ScenarioV1, productId: ScenarioV1[
 
 export function evaluateScenario(scenario: ScenarioV1): ModelOutputsV1 {
   validateScenario(scenario);
-  if (scenario.successRule === "upper95" && UNCERTAINTY_ENSEMBLE.draws.length === 0) {
-    throw new Error("The upper central 95% success rule is unavailable because the bundled joint uncertainty ensemble is absent.");
-  }
   const state = buildScheduleState(scenario.vaccine, scenario.schedule);
   const metrics = computePointMetrics(scenario, state);
   const frontier = buildFrontier(scenario);
   const settingSurface = buildSettingSurface(scenario, state);
   const assumptions = [
-    "If source parity and a reviewed uncertainty ensemble are completed, the v1 close-contact sufficiency criterion will be R_loc below 1 across the declared envelope; it is not a complete population R_e. Current threshold comparisons are prototype output only.",
+    "The point-rule close-contact criterion is R_loc below 1 across the declared envelope; it is not a complete population R_e. Current threshold comparisons remain prototype output pending intended-use review.",
     "All scheduled doses are received. take is biological productive live-vaccine infection, not receipt or coverage.",
     "Transmission, susceptibility, and shedding use mucosal immunity only; IPV has no mucosal effect in a live-virus-naive cohort.",
     "The Matlab marker is a hybrid: daily exposure mass is converted to mass per exposure using each link's contact frequency; the social-contact structure is inherited rather than fitted by the Matlab study.",
-    "Runtime uncertainty draws are absent. Any interval-like comparison must be labeled sensitivity until a reviewed joint ensemble is bundled."
+    "A parameter-uncertainty interval and upper-95 rule are out of scope for this iteration. Any future low/base/high evaluation must be labeled sensitivity, not probability."
   ];
   return {
     schemaVersion: "ModelOutputsV1",
@@ -76,7 +73,7 @@ export function evaluateScenario(scenario: ScenarioV1): ModelOutputsV1 {
     metrics,
     settingSurface,
     frontier,
-    uncertainty: { available: false, label: "central 95% range conditional on the included parameter groups", reason: UNCERTAINTY_ENSEMBLE.provenance, rLocMax: null },
+    uncertainty: { available: false, label: "parameter-uncertainty interval is out of scope for this iteration", reason: UNCERTAINTY_ENSEMBLE.provenance, rLocMax: null },
     assumptions,
     modelIdentity: canonicalHash({ scenario, parameters: PARAMETERS, settings: SETTING_ANCHORS, uncertainty: UNCERTAINTY_ENSEMBLE, frontierGrid: FRONTIER_GRID }),
     provenance: rawProvenance

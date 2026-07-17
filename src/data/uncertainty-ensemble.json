@@ -1,10 +1,10 @@
 {
   "schemaVersion": "UncertaintyEnsembleV1",
-  "version": "uncertainty-ensemble-1.0.0",
-  "status": "absent",
+  "version": "uncertainty-ensemble-1.1.0",
+  "status": "out_of_scope",
   "groups": [],
   "draws": [],
   "weights": [],
   "quantileAlgorithm": null,
-  "provenance": "No joint bootstrap or posterior draws were supplied in the locked source snapshot. Published confidence ranges remain sensitivity inputs, not runtime probability draws."
+  "provenance": "Parameter-uncertainty intervals and the upper-95 rule are out of scope for this iteration. The locked Cessation bootstrap arrays and India grouped-Sobol sweep are not used as runtime probability draws. Future sensitivity analyses must not be presented as posterior probability."
 }

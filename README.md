@@ -8,13 +8,12 @@ Explore the related [data explorer](https://famulare.github.io/cessationStabilit
 
 ## Prototype status
 
-This working artifact is an **unreleased scientific prototype**, not a
-decision-use TPP tool. Its threshold comparisons and exports are for
-implementation review only; they must not be interpreted as v1 sufficiency
-classifications, product targets, source-model parity, or calibrated uncertainty
-support. The documented Section 15.2 prevalence calibration passes, but
-source-derived Section 15.1 parity and a reviewed uncertainty ensemble remain
-required before any such conclusion.
+This working artifact is a **scientific prototype**, not a complete-population
+model or a decision-use product claim. Its point-rule threshold comparisons and
+exports describe the v1 close-contact sufficiency calculation only; they do not
+establish a complete population `R_e`, clinical performance, or an unconditional
+guarantee. Section 15.1 direct-port grids and the Section 15.2 prevalence
+calibration are the approved hybrid-equivalence evidence for this iteration.
 
 ## Run locally
 
@@ -46,17 +45,19 @@ runtime network dependency.
 - Linked requirement/product maps, setting surface with low, Houston/Louisiana,
   Matlab hybrid, and UP/Bihar anchors, URL state, and JSON/CSV/SVG exports.
 
-The locked [design contract](./DESIGN_CONTRACT.md) remains canonical. The v1
-uncertainty manifest is deliberately empty: no reviewed joint bootstrap or
-posterior draws were supplied by the locked source snapshot, so the UI exposes
-that limitation and does not relabel independent confidence endpoints as a
-probability interval. Source-model parity fixtures, faithful-modernization
-calibration, and a reviewed ensemble are release gates for claiming numerical
-parity or upper-95 decision support;
-the current implementation includes invariant/schema/frontier/artifact tests
-and records this residual gap in [IMPLEMENTATION_LOG.md](./IMPLEMENTATION_LOG.md).
+The locked [design contract](./DESIGN_CONTRACT.md) remains canonical. This
+iteration has **one point success rule**: `R_loc_max < 1`. Parameter-uncertainty
+intervals and an upper-95 rule are deliberately out of scope. The source audit
+found Cessation bootstrap arrays whose fit/evaluation path invokes a prohibited
+independent CI sampler, and an India grouped-Sobol sweep rather than posterior
+draws; neither is relabeled as a probability interval. A future sensitivity
+analysis must stay labeled as sensitivity unless its own contract amendment
+supplies an admissible joint ensemble. The record of that scope decision is in
+[docs/release-blocker-source-audit.md](./docs/release-blocker-source-audit.md).
 
 ## Pages
 
-The intended static-host URL is
-`https://famulare.github.io/next-gen-polio-vax-TPP-generator/`.
+The self-contained artifact is compatible with GitHub Pages and deploys through
+the checked-in Actions workflow. Configure **Settings → Pages → Build and
+deployment → Source: GitHub Actions**; the live URL is
+<https://famulare.github.io/next-gen-polio-vax-TPP-generator/>.

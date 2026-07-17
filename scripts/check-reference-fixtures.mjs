@@ -21,10 +21,10 @@ const provenance = readJson("src/data/provenance.json");
 const manifest = readJson("reference/fixtures/manifest-v1.json");
 
 requireCondition(manifest.schemaVersion === "ReferenceFixtureV1", "Unexpected reference-fixture manifest schema");
-requireCondition(manifest.section15KernelParitySatisfied === false, "Partial fixtures must not claim Section 15.1 parity");
+requireCondition(manifest.section15KernelParitySatisfied === true, "Section 15.1 kernel-parity manifest must pass the amended gate");
 requireCondition(manifest.section152CalibrationSatisfied === true, "Committed calibration artifact must satisfy Section 15.2");
 requireCondition(Array.isArray(manifest.artifacts) && manifest.artifacts.length > 0, "Reference-fixture manifest has no artifacts");
-requireCondition(Array.isArray(manifest.remainingRequiredCoverage) && manifest.remainingRequiredCoverage.length > 0, "Partial-fixture manifest must name missing coverage");
+requireCondition(Array.isArray(manifest.remainingRequiredCoverage) && manifest.remainingRequiredCoverage.length === 0, "All amended release-gate coverage must be present");
 requireCondition(
   manifest.calibrationArtifact?.path === "reference/fixtures/calibration-report-v1.json"
     && manifest.calibrationArtifact?.schemaVersion === "DistributionNativePrevalenceCalibrationReportV1"
@@ -62,4 +62,62 @@ for (const artifact of manifest.artifacts) {
   );
 }
 
-console.log(`Reference fixtures OK: ${manifest.artifacts.length} partial Section 15.1 artifact(s); Section 15.2 calibration passes.`);
+function expectedProduct(values) {
+  return values.reduce((product, value) => product * value, 1);
+}
+
+function readCoverageFixture(name) {
+  const record = manifest.kernelCoverage?.[name];
+  requireCondition(record && typeof record.path === "string" && typeof record.caseProperty === "string" && typeof record.gridProperty === "string", `Missing ${name} coverage record`);
+  const fixture = readJson(record.path);
+  const cases = fixture[record.caseProperty];
+  const grid = fixture[record.gridProperty];
+  requireCondition(Array.isArray(cases) && grid && typeof grid === "object", `Malformed ${name} coverage fixture`);
+  return { cases, grid };
+}
+
+const susceptibilityCoverage = readCoverageFixture("susceptibility");
+requireCondition(
+  susceptibilityCoverage.grid.systematicCaseCount === expectedProduct([
+    susceptibilityCoverage.grid.alphas.length,
+    susceptibilityCoverage.grid.betas.length,
+    susceptibilityCoverage.grid.doseLabels.length,
+    susceptibilityCoverage.grid.strains.length,
+    susceptibilityCoverage.grid.everInfected.length
+  ]),
+  "Susceptibility grid metadata has the wrong Cartesian size"
+);
+requireCondition(susceptibilityCoverage.cases.length >= susceptibilityCoverage.grid.systematicCaseCount, "Susceptibility fixture omits systematic grid cases");
+
+const takeCoverage = readCoverageFixture("vaccineTake");
+requireCondition(
+  takeCoverage.grid.systematicCaseCount === expectedProduct([
+    takeCoverage.grid.alphas.length,
+    takeCoverage.grid.betas.length,
+    takeCoverage.grid.dosesTCID50.length,
+    takeCoverage.grid.takeContexts.length
+  ]) && takeCoverage.cases.length === takeCoverage.grid.systematicCaseCount,
+  "Vaccine-take fixture does not cover its declared Cartesian grid"
+);
+
+const boostCoverage = readCoverageFixture("comparatorBoost");
+requireCondition(
+  boostCoverage.grid.systematicCaseCount === expectedProduct([boostCoverage.grid.mu0Values.length, boostCoverage.grid.everInfected.length])
+    && boostCoverage.cases.length === boostCoverage.grid.systematicCaseCount,
+  "Boost fixture does not cover its declared Cartesian grid"
+);
+
+const scheduleCoverage = readCoverageFixture("schedule");
+requireCondition(scheduleCoverage.grid.length === 3 && scheduleCoverage.cases.length === scheduleCoverage.grid.length * 12, "Schedule fixture must cover low/default/high products and every selected schedule");
+
+const sheddingCoverage = readCoverageFixture("shedding");
+requireCondition(
+  sheddingCoverage.grid.systematicCaseCount === expectedProduct([
+    sheddingCoverage.grid.sourceBins.length,
+    sheddingCoverage.grid.daysSinceInfection.length,
+    sheddingCoverage.grid.agesMonths.length
+  ]) && sheddingCoverage.cases.length === sheddingCoverage.grid.systematicCaseCount,
+  "Shedding fixture does not cover its declared Cartesian grid"
+);
+
+console.log(`Reference fixtures OK: ${manifest.artifacts.length} Section 15.1 artifact(s) and the Section 15.2 calibration gate pass.`);

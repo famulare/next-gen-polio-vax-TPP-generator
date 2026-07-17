@@ -1,7 +1,7 @@
 {
   "schemaVersion": "ReferenceFixtureV1",
-  "coverage": "partial: India R biological kernels, fixed-comparator transition/schedule semantics, and Cessation Matlab fixed-titer motif plus day-1-45 prevalence calibration fixtures",
-  "section15KernelParitySatisfied": false,
+  "coverage": "Section 15.1 direct-port India R kernel grids, fixed-comparator schedule semantics, and Cessation Matlab fixed-titer motif fixtures under the 2026-07-17 hybrid-equivalence amendment",
+  "section15KernelParitySatisfied": true,
   "section152CalibrationSatisfied": true,
   "generatorCommand": "Rscript scripts/generate-reference-fixtures.R",
   "sourceRepositories": [
@@ -41,27 +41,27 @@
     {
       "path": "reference/fixtures/india-r-susceptibility-v1.json",
       "schemaVersion": "SourceKernelFixtureV1",
-      "sha256": "a1a19c45223ece9ea55a5cea94c2d966c143b261a18bb7c73923d870e26ca45e"
+      "sha256": "c420989ff21abf0fb33a3275d0f546afe0e01147b08701be0e9537e85f0f89a5"
     },
     {
       "path": "reference/fixtures/india-r-vaccine-take-v1.json",
       "schemaVersion": "SourceKernelFixtureV1",
-      "sha256": "28c1efbfb921f0a7aaea65a62f15edaf82b5247431fda575c10b9467ec9a2f4c"
+      "sha256": "0bd62224b9440334888256e7cb007883b4c0258814aeadff09cc7873eca486c0"
     },
     {
       "path": "reference/fixtures/india-r-comparators-v1.json",
       "schemaVersion": "SourceKernelFixtureV1",
-      "sha256": "61d5796084c31434ba11c2904cd0dde988e92784d2d5258516bbc99158c46221"
+      "sha256": "e55df9639a56ab6b4b378128853fc9949cb57d430d59b21310884b36a9a1e5af"
     },
     {
       "path": "reference/fixtures/india-r-shedding-v1.json",
       "schemaVersion": "SourceKernelFixtureV1",
-      "sha256": "9fc0390baf1e0d580e18e8d2d01f32cab1173a9e61958509df253db0a9017504"
+      "sha256": "d7d8aa76d678337ea080b5573c4734e8cb3d2c76d43dbc9e3c6057e54fbb1a73"
     },
     {
       "path": "reference/fixtures/india-r-schedule-v1.json",
       "schemaVersion": "SourceKernelFixtureV1",
-      "sha256": "ef1a3e87768f274e3478fc9ac63f454667f4d784329140e5e399c75d18d4a9c9"
+      "sha256": "d828e39e4c1a85305a4a721f232fc0c503151696e9435b0497f401b65468d2e9"
     },
     {
       "path": "reference/fixtures/cessation-matlab-motif-v1.json",
@@ -74,13 +74,38 @@
       "sha256": "5378015d42850466c0d6fd384301fbf1bdcc58810d13ed8a7414de8c76a7872c"
     }
   ],
-  "remainingRequiredCoverage": [
-    "Broader India R direct-port grids and fixed-comparator transmission outcomes required for the full Section 15.1 gate"
-  ],
+  "kernelCoverage": {
+    "susceptibility": {
+      "path": "reference/fixtures/india-r-susceptibility-v1.json",
+      "caseProperty": "cases",
+      "gridProperty": "grid"
+    },
+    "vaccineTake": {
+      "path": "reference/fixtures/india-r-vaccine-take-v1.json",
+      "caseProperty": "gridCases",
+      "gridProperty": "grid"
+    },
+    "comparatorBoost": {
+      "path": "reference/fixtures/india-r-comparators-v1.json",
+      "caseProperty": "boostTransitionCases",
+      "gridProperty": "boostGrid"
+    },
+    "schedule": {
+      "path": "reference/fixtures/india-r-schedule-v1.json",
+      "caseProperty": "cases",
+      "gridProperty": "vaccineGrid"
+    },
+    "shedding": {
+      "path": "reference/fixtures/india-r-shedding-v1.json",
+      "caseProperty": "cases",
+      "gridProperty": "grid"
+    }
+  },
+  "remainingRequiredCoverage": [],
   "calibrationArtifact": {
     "path": "reference/fixtures/calibration-report-v1.json",
     "schemaVersion": "DistributionNativePrevalenceCalibrationReportV1",
-    "sha256": "03551fbb9d3c5612df1120c6d785498e70b00e041391b35b818f7dd8cc68dcc8",
+    "sha256": "1f3c85b2f12f3fb36d6454ea07cd51d573fc4ca923eb7027079172ac64b88c41",
     "calibrationGateSatisfied": true
   }
 }

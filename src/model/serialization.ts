@@ -41,7 +41,7 @@ export function validateScenario(value: unknown): asserts value is ScenarioV1 {
   if (value.schedule.productId !== value.vaccine.id || value.comparatorId !== value.vaccine.id) throw new Error("Product ids must agree across scenario, vaccine, and schedule");
   validateSetting(value.setting);
   validateEnvelope(value.envelope);
-  if (value.successRule !== "point" && value.successRule !== "upper95") throw new Error("Invalid success rule");
+  if (value.successRule !== "point") throw new Error("This iteration supports only the point R_loc success rule");
   finitePositive(value.indexReferenceExposure, "indexReferenceExposure");
   integerRange(value.horizonDays, 1, 1000, "horizonDays");
   for (const [key, expected] of [["parameterManifestVersion", PARAMETERS.manifestVersion], ["settingManifestVersion", SETTING_MANIFEST_VERSION], ["frontierGridVersion", FRONTIER_GRID.version], ["uncertaintyEnsembleVersion", UNCERTAINTY_ENSEMBLE.version]] as const) {

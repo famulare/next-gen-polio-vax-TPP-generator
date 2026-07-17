@@ -1,20 +1,23 @@
 # Reference fixtures
 
 The locked source repositories and commits are recorded in
-`src/data/provenance.json`. The committed fixtures are **partial**
-source-derived fixtures:
+`src/data/provenance.json`. The committed fixtures are source-derived direct
+ports and calibration artifacts:
 
-- `india-r-susceptibility-v1.json` checks the India R WPV per-bin
-  susceptibility kernel, including the source-defined low-dose branch;
+- `india-r-susceptibility-v1.json` checks the India R WPV/Sabin per-bin
+  susceptibility kernel, including the source-defined low-dose branch and the
+  full declared alpha/beta/dose/strain/history hard-bound grid;
 - `india-r-vaccine-take-v1.json` checks one-dose take/no-take conditioning and
-  boosting;
+  boosting across the declared lower/default/higher product grid;
 - `india-r-comparators-v1.json` checks Sabin boost-transition matrices across
   the hypothetical boost range, fixed Sabin-2/IPV one-, three-, and four-dose
   schedule composition, and the fixed catalog's history-dependent IPV
   mucosal/serum semantics;
 - `india-r-schedule-v1.json` checks one-, three-, and four-dose composition
-  plus each selected schedule/assessment waning interval;
-- `india-r-shedding-v1.json` checks source shedding survival and records the
+  plus each selected schedule/assessment waning interval across
+  lower/default/higher hypothetical products;
+- `india-r-shedding-v1.json` checks source shedding survival across the
+  declared bin/day/age grid and records the
   India-source joint-intensity result as a diagnostic. Its age-amplitude
   equation deliberately does **not** match the browser: this repository uses
   the original Cessation Matlab seven-month plateau/offset, which Mike has
@@ -47,12 +50,13 @@ the missing/dirty/provenance failures against temporary Git repositories;
 After regenerating source fixtures, run `npm run generate:calibration-report`;
 `check:calibration` verifies that the report and its manifest hash are current.
 
-The source fixture collection remains partial and does **not** satisfy the full
-Section 15.1 parity gate: broader direct-port coverage across the declared UI
-domain, including fixed-comparator transmission outcomes, remains.
-The Cessation fixed-titer `R_loc` anchors and Section 15.2
-`sourceRLocContextOnly` values are context/calibration records, not fixed
-Sabin/IPV product-schedule transmission parity.
-The committed Section 15.2 prevalence calibration report passes its named
-cases, but that does not remove the separate source-parity or
-uncertainty-ensemble release conditions.
+Under the 2026-07-17 Design Contract amendment, the manifest's direct-port
+grid coverage plus the passing Section 15.2 prevalence calibration satisfy the
+Section 15.1 hybrid parity gate for this iteration. Each individual source
+artifact retains `releaseGateSatisfied: false`: a single kernel or scalar-motif
+fixture is never an application-release decision. The Cessation fixed-titer
+`R_loc` anchors and Section 15.2 `sourceRLocContextOnly` values remain
+context/calibration records, not fixed Sabin/IPV product-schedule transmission
+parity. The [source audit](../../docs/release-blocker-source-audit.md) records
+why an original-source product-schedule transmission fixture cannot be added
+without a future new-reference-harness amendment.

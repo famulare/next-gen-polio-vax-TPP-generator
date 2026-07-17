@@ -9,7 +9,7 @@ export const FRONTIER_GRID = rawFrontierGrid as FrontierGridManifestV1;
 export const UNCERTAINTY_ENSEMBLE = rawEnsemble as {
   schemaVersion: "UncertaintyEnsembleV1";
   version: string;
-  status: "absent";
+  status: "out_of_scope";
   groups: never[];
   draws: never[];
   weights: never[];

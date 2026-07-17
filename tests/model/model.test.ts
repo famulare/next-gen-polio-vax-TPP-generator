@@ -13,7 +13,7 @@ import { doseResponse, susceptibilityPerBin, vaccineTakePerBin, wpvSusceptibilit
 import { naiveRLocForSetting, repeatedExposureProbability, rLocForSetting } from "../../src/model/transmission";
 import { waneMucosal, waningDeltaMonths } from "../../src/model/waning";
 import { evaluateMatlabFixedTiterMotif } from "../../src/model/matlab-compat";
-import type { ProductId, ScenarioV1, ScheduleV1, SettingV1 } from "../../src/model/types";
+import type { ProductId, ScenarioV1, ScheduleV1, SettingV1, VaccineV1 } from "../../src/model/types";
 
 const sourceKernelFixture = JSON.parse(
   readFileSync(new URL("../../reference/fixtures/india-r-susceptibility-v1.json", import.meta.url), "utf8")
@@ -21,6 +21,7 @@ const sourceKernelFixture = JSON.parse(
   schemaVersion: string;
   releaseGateSatisfied: boolean;
   inputs: { serotype: number; log2NMax: number; lowDoseLinearRatio: number };
+  grid: { alphas: number[]; betas: number[]; doseLabels: string[]; strains: string[]; everInfected: boolean[]; systematicCaseCount: number };
   cases: Array<{
     id: string;
     strain: "WPV" | "Sabin";
@@ -53,6 +54,7 @@ const sheddingKernelFixture = JSON.parse(
     temporalKappa: number;
     titerFloor: number;
   };
+  grid: { sourceBins: number[]; daysSinceInfection: number[]; agesMonths: number[]; systematicCaseCount: number };
   cases: Array<{
     sourceBin: number;
     daysSinceInfection: number;
@@ -91,6 +93,22 @@ const vaccineTakeFixture = JSON.parse(
     boostedTakeMucosal: number[];
     boostedTakeSerum: number[];
   };
+  grid: { alphas: number[]; betas: number[]; dosesTCID50: number[]; takeContexts: number[]; systematicCaseCount: number };
+  gridCases: Array<{
+    id: string;
+    alpha: number;
+    beta: number;
+    doseTCID50: number;
+    takeContext: number;
+    takeProbability: number;
+    noTakeProbability: number;
+    takeMucosal: number[];
+    noTakeMucosal: number[];
+    takeSerum: number[];
+    noTakeSerum: number[];
+    boostedTakeMucosal: number[];
+    boostedTakeSerum: number[];
+  }>;
 };
 
 const comparatorFixture = JSON.parse(
@@ -98,6 +116,7 @@ const comparatorFixture = JSON.parse(
 ) as {
   schemaVersion: string;
   releaseGateSatisfied: boolean;
+  boostGrid: { mu0Values: number[]; everInfected: boolean[]; systematicCaseCount: number };
   boostTransitionCases: Array<{
     id: string;
     mu0: number;
@@ -145,8 +164,10 @@ const scheduleKernelFixture = JSON.parse(
     lowDoseLinearRatio: number;
     waningInputBins: number[];
   };
+  vaccineGrid: Array<{ id: string; alpha: number; beta: number; doseTCID50: number; takeContext: number; mu0: number; sigma0: number }>;
   cases: Array<{
     id: string;
+    vaccine: { alpha: number; beta: number; doseTCID50: number; takeContext: number; mu0: number; sigma0: number };
     doseDays: number[];
     assessmentLagDays: number;
     assessmentAgeDays: number;
@@ -287,18 +308,19 @@ test("dose response is bounded and decreases with mucosal immunity", () => {
   for (let i = 1; i < bins.length; i += 1) assert.ok((bins[i] ?? 0) <= (bins[i - 1] ?? 0) + 1e-12);
 });
 
-test("partial India R susceptibility fixture matches every pinned per-bin case", () => {
+test("India R susceptibility grid matches every pinned per-bin case", () => {
   assert.equal(sourceKernelFixture.schemaVersion, "SourceKernelFixtureV1");
   assert.equal(sourceKernelFixture.releaseGateSatisfied, false);
   assert.equal(sourceKernelFixture.inputs.serotype, 1);
   assert.equal(sourceKernelFixture.inputs.log2NMax, PARAMETERS.immunity.maxLog2);
   assert.equal(sourceKernelFixture.inputs.lowDoseLinearRatio, PARAMETERS.numerics.sourceLowDoseLinearRatio);
+  assert.equal(
+    sourceKernelFixture.grid.systematicCaseCount,
+    sourceKernelFixture.grid.alphas.length * sourceKernelFixture.grid.betas.length * sourceKernelFixture.grid.doseLabels.length
+      * sourceKernelFixture.grid.strains.length * sourceKernelFixture.grid.everInfected.length
+  );
+  assert.ok(sourceKernelFixture.cases.length >= sourceKernelFixture.grid.systematicCaseCount);
   for (const fixtureCase of sourceKernelFixture.cases) {
-    if (fixtureCase.strain === "WPV") {
-      assert.equal(fixtureCase.alpha, PARAMETERS.wpv1.alpha, `${fixtureCase.id}: WPV alpha`);
-      assert.equal(fixtureCase.beta, PARAMETERS.wpv1.beta, `${fixtureCase.id}: WPV beta`);
-      assert.equal(fixtureCase.gamma, PARAMETERS.wpv1.gamma, `${fixtureCase.id}: WPV gamma`);
-    }
     const actual = susceptibilityPerBin(
       fixtureCase.doseTCID50,
       fixtureCase.alpha,
@@ -326,6 +348,11 @@ test("India R shedding fixture remains a source diagnostic while survival parity
   assert.equal(sheddingKernelFixture.inputs.temporalSigma, PARAMETERS.shedding.temporal.sigma);
   assert.equal(sheddingKernelFixture.inputs.temporalKappa, PARAMETERS.shedding.temporal.kappa);
   assert.equal(sheddingKernelFixture.inputs.titerFloor, PARAMETERS.shedding.titerFloor);
+  assert.equal(
+    sheddingKernelFixture.grid.systematicCaseCount,
+    sheddingKernelFixture.grid.sourceBins.length * sheddingKernelFixture.grid.daysSinceInfection.length * sheddingKernelFixture.grid.agesMonths.length
+  );
+  assert.equal(sheddingKernelFixture.cases.length, sheddingKernelFixture.grid.systematicCaseCount);
 
   for (const fixtureCase of sheddingKernelFixture.cases) {
     const actual = sheddingTerms(fixtureCase.daysSinceInfection, fixtureCase.sourceBin, fixtureCase.ageMonths);
@@ -363,7 +390,7 @@ test("higher mucosal immunity cannot increase shedding duration or intensity acr
   }
 });
 
-test("partial India R vaccine fixture matches take/no-take conditioning and boost", () => {
+test("India R vaccine fixture matches take/no-take conditioning and boost across the declared grid", () => {
   const inputs = vaccineTakeFixture.inputs;
   const defaults = vaccineDefaults("hypothetical");
   assert.equal(vaccineTakeFixture.schemaVersion, "SourceKernelFixtureV1");
@@ -377,6 +404,12 @@ test("partial India R vaccine fixture matches take/no-take conditioning and boos
   assert.equal(inputs.mu0, defaults.mu0);
   assert.equal(inputs.sigma0, defaults.sigma0);
   assert.equal(inputs.lowDoseLinearRatio, PARAMETERS.numerics.sourceLowDoseLinearRatio);
+  assert.equal(
+    vaccineTakeFixture.grid.systematicCaseCount,
+    vaccineTakeFixture.grid.alphas.length * vaccineTakeFixture.grid.betas.length
+      * vaccineTakeFixture.grid.dosesTCID50.length * vaccineTakeFixture.grid.takeContexts.length
+  );
+  assert.equal(vaccineTakeFixture.gridCases.length, vaccineTakeFixture.grid.systematicCaseCount);
 
   const takeHazard = vaccineTakePerBin(
     inputs.doseTCID50,
@@ -412,12 +445,51 @@ test("partial India R vaccine fixture matches take/no-take conditioning and boos
   assertKernelVector(noTakeGroup.serum, vaccineTakeFixture.output.noTakeSerum, "no-take serum state");
   assertKernelVector(takeGroup.mucosal, vaccineTakeFixture.output.boostedTakeMucosal, "boosted take mucosal state");
   assertKernelVector(takeGroup.serum, vaccineTakeFixture.output.boostedTakeSerum, "boosted take serum state");
+
+  for (const fixtureCase of vaccineTakeFixture.gridCases) {
+    const vaccine: VaccineV1 = {
+      ...defaults,
+      alpha: fixtureCase.alpha,
+      beta: fixtureCase.beta,
+      dose: fixtureCase.doseTCID50,
+      takeContext: fixtureCase.takeContext
+    };
+    const takeHazard = vaccineTakePerBin(
+      vaccine.dose, vaccine.alpha, vaccine.beta, vaccine.gamma, vaccine.takeContext, vaccine.formulationMultiplier, false
+    );
+    assertKernelVector(
+      normalizeBins(inputs.mucosalBins.map((value, bin) => value * (takeHazard[bin] ?? 0))),
+      fixtureCase.takeMucosal,
+      `${fixtureCase.id}: conditioned take mucosal`
+    );
+    const postDose = applyDose({
+      groups: [{ mass: 1, everInfected: false, mucosal: inputs.mucosalBins, serum: inputs.serumBins }],
+      assessmentAgeDays: 0,
+      lastDoseDay: 0,
+      events: []
+    }, vaccine);
+    const noTakeGroup = postDose.groups.find((group) => !group.everInfected);
+    const takeGroup = postDose.groups.find((group) => group.everInfected);
+    assert.ok(noTakeGroup, `${fixtureCase.id}: no-take group`);
+    assert.ok(takeGroup, `${fixtureCase.id}: take group`);
+    assertKernelValue(takeGroup.mass, fixtureCase.takeProbability, `${fixtureCase.id}: take mass`);
+    assertKernelValue(noTakeGroup.mass, fixtureCase.noTakeProbability, `${fixtureCase.id}: no-take mass`);
+    assertKernelVector(noTakeGroup.mucosal, fixtureCase.noTakeMucosal, `${fixtureCase.id}: no-take mucosal`);
+    assertKernelVector(noTakeGroup.serum, fixtureCase.noTakeSerum, `${fixtureCase.id}: no-take serum`);
+    assertKernelVector(takeGroup.mucosal, fixtureCase.boostedTakeMucosal, `${fixtureCase.id}: boosted take mucosal`);
+    assertKernelVector(takeGroup.serum, fixtureCase.boostedTakeSerum, `${fixtureCase.id}: boosted take serum`);
+  }
 });
 
-test("partial India R comparator fixture matches Sabin boost grids, IPV semantics, and fixed-comparator schedules", () => {
+test("India R comparator fixture matches full boost grid, IPV semantics, and fixed-comparator schedules", () => {
   assert.equal(comparatorFixture.schemaVersion, "SourceKernelFixtureV1");
   assert.equal(comparatorFixture.releaseGateSatisfied, false);
   assert.equal(vaccineDefaults("sabin2").mu0, PARAMETERS.boosts.sabin.mu0);
+  assert.equal(
+    comparatorFixture.boostGrid.systematicCaseCount,
+    comparatorFixture.boostGrid.mu0Values.length * comparatorFixture.boostGrid.everInfected.length
+  );
+  assert.equal(comparatorFixture.boostTransitionCases.length, comparatorFixture.boostGrid.systematicCaseCount);
 
   for (const fixtureCase of comparatorFixture.boostTransitionCases) {
     const actual = buildBoostMatrix(fixtureCase.mu0, fixtureCase.sigma0, fixtureCase.everInfected);
@@ -483,7 +555,7 @@ test("partial India R comparator fixture matches Sabin boost grids, IPV semantic
   }
 });
 
-test("partial India R schedule fixture matches one-, three-, and four-dose composition and every schedule waning interval", () => {
+test("India R schedule fixture matches low/default/high product grids, every selected schedule, and waning interval", () => {
   const inputs = scheduleKernelFixture.inputs;
   const defaults = vaccineDefaults("hypothetical");
   assert.equal(scheduleKernelFixture.schemaVersion, "SourceKernelFixtureV1");
@@ -501,13 +573,24 @@ test("partial India R schedule fixture matches one-, three-, and four-dose compo
   assert.equal(inputs.log2NMax, PARAMETERS.immunity.maxLog2);
   assert.equal(inputs.waningLambda, PARAMETERS.immunity.waningLambda);
   assert.equal(inputs.lowDoseLinearRatio, PARAMETERS.numerics.sourceLowDoseLinearRatio);
+  assert.equal(scheduleKernelFixture.vaccineGrid.length, 3);
+  assert.equal(scheduleKernelFixture.cases.length, scheduleKernelFixture.vaccineGrid.length * 12);
 
   for (const fixtureCase of scheduleKernelFixture.cases) {
+    const vaccine: VaccineV1 = {
+      ...defaults,
+      alpha: fixtureCase.vaccine.alpha,
+      beta: fixtureCase.vaccine.beta,
+      dose: fixtureCase.vaccine.doseTCID50,
+      takeContext: fixtureCase.vaccine.takeContext,
+      mu0: fixtureCase.vaccine.mu0,
+      sigma0: fixtureCase.vaccine.sigma0
+    };
     let state = initialImmuneState();
     let currentDay = 0;
     for (const doseDay of fixtureCase.doseDays) {
       state = moveState(state, doseDay - currentDay);
-      state = applyDose(state, defaults);
+      state = applyDose(state, vaccine);
       state.events.push(doseDay);
       state.lastDoseDay = doseDay;
       currentDay = doseDay;
@@ -837,5 +920,8 @@ test("full outputs expose required grid sizes and explicit uncertainty absence",
   );
   assert.ok(Math.abs(Math.max(...outputs.settingSurface.map((point) => point.rLoc)) - directEnvelopeMaximum) <= 1e-10);
   assert.deepEqual(evaluateScenario(defaultScenario()), outputs);
-  assert.throws(() => evaluateScenario({ ...defaultScenario(), successRule: "upper95" }));
+  assert.throws(
+    () => evaluateScenario({ ...defaultScenario(), successRule: "upper95" as never }),
+    /point R_loc success rule/
+  );
 });

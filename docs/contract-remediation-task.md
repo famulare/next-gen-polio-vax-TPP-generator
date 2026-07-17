@@ -1,5 +1,10 @@
 # Contract-grounded task brief: post-review remediation
 
+> **Archived task brief.** This describes the pre-1.5 remediation boundary.
+> Its statements about pending Section 15.1 and upper-95 work are superseded by
+> the 2026-07-17 contract amendment; consult `DESIGN_CONTRACT.md` for the
+> current point-rule scope and accepted hybrid-equivalence evidence.
+
 ## Decision purpose
 
 Restore one auditable meaning for each v1 result before anyone uses the tool to

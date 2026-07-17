@@ -11,7 +11,7 @@ declare const __BUILD_IDENTITY__: string;
 
 const APP_VERSION = "0.2.0-prototype";
 const AUTO_UPDATE_DELAY_MS = 180;
-const PROTOTYPE_STATUS = "Not release eligible: prototype output pending source parity and a reviewed uncertainty ensemble";
+const PROTOTYPE_STATUS = "Scientific prototype: point-rule close-contact results require intended-use review";
 const BUILD_IDENTITY = __BUILD_IDENTITY__;
 
 export function mountApp(root: HTMLElement): void {
@@ -145,7 +145,7 @@ export function mountApp(root: HTMLElement): void {
     const resultStatus = document.querySelector<HTMLElement>("#result-status")!;
     resultStatus.className = `result-status prototype ${belowThreshold ? "below-threshold" : "at-or-above-threshold"}`;
     resultStatus.dataset.modelIdentity = result.modelIdentity;
-    resultStatus.innerHTML = `<strong>PROTOTYPE THRESHOLD COMPARISON: ${belowThreshold ? "R<sub>loc</sub> is below 1" : "R<sub>loc</sub> is not below 1"}</strong><span>Direct maximum R<sub>loc</sub> = ${format(metrics.rLocEnvelopeMax)} across the ${formatMicrograms(result.scenario.envelope.TMin)}–${formatMicrograms(result.scenario.envelope.TMax)} microgram/exposure and ${result.scenario.envelope.NsMin}–${result.scenario.envelope.NsMax} contact ${envelopeName}. This is not a v1 sufficiency classification or decision-use result: source parity and a reviewed uncertainty ensemble remain required. Ties within ${PARAMETERS.success.tieTolerance} of 1 are not below threshold.</span>`;
+    resultStatus.innerHTML = `<strong>PROTOTYPE POINT-RULE COMPARISON: ${belowThreshold ? "R<sub>loc</sub> is below 1" : "R<sub>loc</sub> is not below 1"}</strong><span>Direct maximum R<sub>loc</sub> = ${format(metrics.rLocEnvelopeMax)} across the ${formatMicrograms(result.scenario.envelope.TMin)}–${formatMicrograms(result.scenario.envelope.TMax)} microgram/exposure and ${result.scenario.envelope.NsMin}–${result.scenario.envelope.NsMax} contact ${envelopeName}. This is a close-contact point-rule result, not a complete population R<sub>e</sub>, product claim, or decision-use classification. Ties within ${PARAMETERS.success.tieTolerance} of 1 are not below threshold.</span>`;
     const selectedRLoc = metrics.rLocSelectedSetting ?? metrics.rLocEnvelopeMax;
     document.querySelector<HTMLElement>("#selected-setting-result")!.textContent = `${result.scenario.setting.id === "global" ? "Prototype envelope maximum" : "Prototype selected-setting probe"} · ${settingLabel(result.scenario.setting.id)} · Rloc ${format(selectedRLoc)}`;
     document.querySelector<HTMLElement>("#summary-cards")!.innerHTML = summaryCards(result);
@@ -172,7 +172,7 @@ function shell(): string {
       <h1>What vaccine performance is enough?</h1>
       <p class="lede">Explore acquisition blocking, breakthrough infectiousness, schedule, and close-contact setting assumptions. The authoritative modeled result is the direct R<sub>loc</sub> envelope criterion—not a scalar shedding target and not a complete population R<sub>e</sub>.</p>
     </header>
-    <aside class="prototype-banner" role="note"><strong>Scientific prototype — not release eligible</strong><span>The named Section 15.2 prevalence calibration passes, but full source parity and a reviewed uncertainty ensemble are not yet bundled. Every number and threshold comparison is for implementation review, not decision use or a v1 sufficiency classification.</span></aside>
+    <aside class="prototype-banner" role="note"><strong>Scientific prototype — point rule only</strong><span>Kernel parity and the named prevalence calibration support this close-contact calculation. Every number and threshold comparison remains for implementation review, not a complete-population result, product claim, or decision-use classification.</span></aside>
     <section class="control-panel" aria-labelledby="controls-heading">
       <div class="section-heading"><div><p class="eyebrow">Scenario</p><h2 id="controls-heading">Product, schedule, and setting</h2></div><button id="reset" class="secondary">Reset versioned defaults</button></div>
       <div class="controls-grid">
@@ -199,7 +199,7 @@ function shell(): string {
         <label>Envelope Dih maximum<input id="envelope-dih-max" data-model-control type="number" min="0" max="1000" step="0.01"></label>
         <label>Envelope Dhs maximum<input id="envelope-dhs-max" data-model-control type="number" min="0" max="1000" step="0.01"></label>
         <label>Index reference exposure (WPV1 dose units)<input id="index-reference" data-model-control type="number" min="0.000001" max="1000000000" step="0.01"></label>
-        <label>Success rule<select id="success-rule" data-model-control><option value="point">Point Rloc &lt; 1</option><option value="upper95" disabled>Upper central 95% bound &lt; 1 (unavailable)</option></select></label>
+        <label>Success rule<input value="Point Rloc &lt; 1" disabled></label>
         <label>Fixed gamma<input id="fixed-gamma" type="number" disabled></label>
         <label>Fixed boost sigma<input id="fixed-sigma" type="number" disabled></label>
         <label>Episode horizon (days)<input id="fixed-horizon" type="number" disabled></label>
@@ -246,7 +246,6 @@ function syncControls(scenario: ScenarioV1): void {
   setValue("envelope-dih-max", scenario.envelope.dIhMax);
   setValue("envelope-dhs-max", scenario.envelope.dHsMax);
   setValue("index-reference", scenario.indexReferenceExposure);
-  setValue("success-rule", scenario.successRule);
   setValue("fixed-gamma", scenario.vaccine.gamma);
   setValue("fixed-sigma", scenario.vaccine.sigma0);
   setValue("fixed-horizon", scenario.horizonDays);
@@ -279,7 +278,6 @@ function readControls(previous: ScenarioV1): ScenarioV1 {
     dHsMax: numberValue("envelope-dhs-max")
   };
   scenario.indexReferenceExposure = numberValue("index-reference");
-  scenario.successRule = document.querySelector<HTMLSelectElement>("#success-rule")!.value as ScenarioV1["successRule"];
   return scenario;
 }
 
@@ -465,7 +463,7 @@ function combinedSvgExport(): string {
   const effect = document.querySelector<SVGSVGElement>("#effect-figure")?.innerHTML ?? "";
   const product = document.querySelector<SVGSVGElement>("#product-figure")?.innerHTML ?? "";
   const setting = document.querySelector<SVGSVGElement>("#setting-figure")?.innerHTML ?? "";
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="830" viewBox="0 0 1120 830" role="img" aria-labelledby="prototype-export-title prototype-export-desc"><title id="prototype-export-title">Unreleased scientific prototype figures</title><desc id="prototype-export-desc">${PROTOTYPE_STATUS}. Threshold comparisons are not v1 sufficiency classifications or decision-use results.</desc><style>text{font-family:system-ui,sans-serif;fill:#17202a}.plot-bg{fill:#fbfcfd;stroke:#d5dde5}.pass-point{fill:#176b55}.fail-point{fill:#fff;stroke:#9e2a2b}.pass-cell{fill:#61ae8e}.fail-cell{fill:url(#product-fail-hatch)}.pareto-line,.contour-line{fill:none;stroke:#bc4b29;stroke-width:2.5}.selected-ring{fill:none;stroke:#111;stroke-width:2}.comparator-marker{fill:#fff;stroke:#17202a;stroke-width:2}.axis-label{font-size:12px;font-weight:650}.tick,.anchor-label,.chart-legend,.surface-legend{font-size:10px}</style><text x="20" y="20" font-size="13" font-weight="700">SCIENTIFIC PROTOTYPE — NOT RELEASE ELIGIBLE</text><text x="20" y="36" font-size="10">Threshold comparisons are pending source parity and a reviewed uncertainty ensemble.</text><g transform="translate(0 24)">${effect}</g><g transform="translate(560 24)">${product}</g><g transform="translate(80 394)">${setting}</g></svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="830" viewBox="0 0 1120 830" role="img" aria-labelledby="prototype-export-title prototype-export-desc"><title id="prototype-export-title">Scientific prototype figures</title><desc id="prototype-export-desc">${PROTOTYPE_STATUS}. Threshold comparisons are close-contact point-rule results, not complete-population or decision-use classifications.</desc><style>text{font-family:system-ui,sans-serif;fill:#17202a}.plot-bg{fill:#fbfcfd;stroke:#d5dde5}.pass-point{fill:#176b55}.fail-point{fill:#fff;stroke:#9e2a2b}.pass-cell{fill:#61ae8e}.fail-cell{fill:url(#product-fail-hatch)}.pareto-line,.contour-line{fill:none;stroke:#bc4b29;stroke-width:2.5}.selected-ring{fill:none;stroke:#111;stroke-width:2}.comparator-marker{fill:#fff;stroke:#17202a;stroke-width:2}.axis-label{font-size:12px;font-weight:650}.tick,.anchor-label,.chart-legend,.surface-legend{font-size:10px}</style><text x="20" y="20" font-size="13" font-weight="700">SCIENTIFIC PROTOTYPE — POINT RULE ONLY</text><text x="20" y="36" font-size="10">Threshold comparisons are close-contact point-rule results, not complete-population or decision-use classifications.</text><g transform="translate(0 24)">${effect}</g><g transform="translate(560 24)">${product}</g><g transform="translate(80 394)">${setting}</g></svg>`;
 }
 
 function download(name: string, content: string, type = "application/json"): void {

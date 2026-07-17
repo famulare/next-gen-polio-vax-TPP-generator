@@ -6,6 +6,9 @@ import { resolve } from "node:path";
 const artifact = resolve(new URL("../dist/index.html", import.meta.url).pathname);
 const pagesPath = "/next-gen-polio-vax-TPP-generator/";
 const artifactHtml = readFileSync(artifact, "utf8");
+const { designContractVersion } = JSON.parse(
+  readFileSync(new URL("../src/data/parameters.json", import.meta.url), "utf8")
+);
 const server = createServer((request, response) => {
   if (request.url === pagesPath) {
     response.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
@@ -32,8 +35,8 @@ page.on("request", (request) => { if (!request.url().startsWith("file:")) extern
 await page.goto(`file://${artifact}`, { waitUntil: "load" });
 await page.locator("#result-status strong").waitFor({ state: "visible", timeout: 30_000 });
 if (!(await page.locator(".prototype-banner").count())) throw new Error("Prototype release-status banner did not render");
-if (!(await page.locator(".hero .eyebrow").textContent())?.includes("design contract 1.4")) throw new Error("UI does not identify the current design-contract version");
-if (!(await page.locator("#result-status").textContent())?.includes("PROTOTYPE THRESHOLD COMPARISON")) throw new Error("Result is not labeled as a prototype threshold comparison");
+if (!(await page.locator(".hero .eyebrow").textContent())?.includes(`design contract ${designContractVersion}`)) throw new Error("UI does not identify the current design-contract version");
+if (!(await page.locator("#result-status").textContent())?.includes("PROTOTYPE POINT-RULE COMPARISON")) throw new Error("Result is not labeled as a prototype point-rule comparison");
 if ((await page.locator("#result-status").textContent())?.includes("MEETS the point")) throw new Error("Prototype result uses a release-style sufficiency classification");
 if (!(await page.locator("#effect-figure").count())) throw new Error("Effect-space figure did not render");
 if (!(await page.locator("#product-figure").count())) throw new Error("Product-space figure did not render");
@@ -44,23 +47,23 @@ if (!(await page.locator("#export-status").textContent())?.includes("Exports are
 const expectedBuildIdentity = process.env.GITHUB_SHA ?? "local-working-tree";
 const footerText = await page.locator("footer").textContent();
 if (!footerText?.includes(`build ${expectedBuildIdentity}`)) throw new Error("Footer does not identify the build");
-if (!footerText.includes("design contract 1.4")) throw new Error("Footer does not identify the design-contract version");
+if (!footerText.includes(`design contract ${designContractVersion}`)) throw new Error("Footer does not identify the design-contract version");
 if (!(await page.locator('footer a[href="#assumptions"]').count())) throw new Error("Footer does not link to model assumptions");
 
 await page.selectOption("#product", "sabin2");
-await page.locator("#result-status").filter({ hasText: "PROTOTYPE THRESHOLD COMPARISON" }).waitFor({ state: "visible", timeout: 30_000 });
+await page.locator("#result-status").filter({ hasText: "PROTOTYPE POINT-RULE COMPARISON" }).waitFor({ state: "visible", timeout: 30_000 });
 if (!(await page.locator("#take").isDisabled()) || !(await page.locator("#mu").isDisabled())) throw new Error("Fixed Sabin 2 comparator controls remained editable");
 if (!(await page.locator("#take-help").textContent())?.includes("Fixed Sabin 2 catalog")) throw new Error("Sabin 2 take help blurs fixed comparator identity");
 if (!(await page.locator("#mu-help").textContent())?.includes("Fixed Sabin 2 catalog")) throw new Error("Sabin 2 boost help blurs fixed comparator identity");
 
 await page.selectOption("#product", "ipv");
-await page.locator("#result-status").filter({ hasText: "PROTOTYPE THRESHOLD COMPARISON" }).waitFor({ state: "visible", timeout: 30_000 });
+await page.locator("#result-status").filter({ hasText: "PROTOTYPE POINT-RULE COMPARISON" }).waitFor({ state: "visible", timeout: 30_000 });
 if (!(await page.locator("#take").isDisabled()) || !(await page.locator("#mu").isDisabled())) throw new Error("Fixed IPV comparator controls remained editable");
 if (!(await page.locator("#take-help").textContent())?.includes("IPV has no live-vaccine take")) throw new Error("IPV take help does not expose its non-live semantics");
 if (!(await page.locator("#mu-help").textContent())?.includes("mucosal boost requires prior live infection")) throw new Error("IPV boost help does not expose its history-dependent mucosal semantics");
 
 await page.selectOption("#product", "hypothetical");
-await page.locator("#result-status").filter({ hasText: "PROTOTYPE THRESHOLD COMPARISON" }).waitFor({ state: "visible", timeout: 30_000 });
+await page.locator("#result-status").filter({ hasText: "PROTOTYPE POINT-RULE COMPARISON" }).waitFor({ state: "visible", timeout: 30_000 });
 if (await page.locator("#take").isDisabled() || await page.locator("#mu").isDisabled()) throw new Error("Hypothetical-product controls did not become editable");
 
 const [jsonDownload] = await Promise.all([
@@ -99,7 +102,7 @@ if (!(await page.locator("#result-status").textContent())?.includes("RESULT WITH
 if (await page.locator("#effect-figure").count() || await page.locator("#product-figure").count() || await page.locator("#setting-figure").count()) throw new Error("Prior figures remained visible after a control changed");
 if (!(await page.locator("[data-export]").first().isDisabled())) throw new Error("Exports remained enabled after a control changed");
 if (!(await page.locator("#export-status").textContent())?.includes("unavailable")) throw new Error("Export status did not withdraw the stale scenario");
-await page.locator("#result-status").filter({ hasText: "PROTOTYPE THRESHOLD COMPARISON" }).waitFor({ state: "visible", timeout: 30_000 });
+await page.locator("#result-status").filter({ hasText: "PROTOTYPE POINT-RULE COMPARISON" }).waitFor({ state: "visible", timeout: 30_000 });
 if (await page.locator("[data-export]").first().isDisabled()) throw new Error("Exports were not re-enabled for the newly evaluated scenario");
 
 await page.locator("#envelope-t-min").evaluate((element) => {

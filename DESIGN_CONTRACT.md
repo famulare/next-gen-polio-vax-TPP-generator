@@ -2,7 +2,7 @@
 
 **Status:** LOCKED FOR IMPLEMENTATION
 
-**Contract version:** 1.4
+**Contract version:** 1.5
 
 **Locked:** 2026-07-15
 
@@ -11,7 +11,12 @@ primary false-positive judgment. Scientific amendment 2026-07-16: retain the
 legacy Cessation age-shedding plateau/offset rather than the divergent
 India-source age-amplitude equation; jointly fit the India contact-distribution
 mean and `T_ih` against the household prevalence trajectory under the
-schedule-derived mean--variance constraint.
+schedule-derived mean--variance constraint. Scientific amendment 2026-07-17:
+Section 15.1 accepts the direct-port kernel grids plus the Section 15.2
+prevalence calibration as the best available hybrid equivalence evidence; no
+source product-schedule `R_loc` fixture is to be fabricated from the scalar
+Cessation motif. This iteration implements only the point success rule;
+parameter-uncertainty intervals and the upper-95 rule are deferred.
 
 **Primary audience:** vaccine developers, polio program scientists, modelers, and funders
 
@@ -770,9 +775,9 @@ schedules may be overlaid only if the legend preserves their identity.
 
 The two panels are simultaneously visible and linked by selection and hover.
 A shared summary strip reports `q_acq`, `q_shed`, `q_index`, point `R_loc_max`,
-its central 95% interval, assessment lag, and success rule. This satisfies the
-need to show both the shedding-index intuition and its two-axis decomposition
-without allowing the scalar to control the decision.
+assessment lag, and the point success rule. This satisfies the need to show
+both the shedding-index intuition and its two-axis decomposition without
+allowing the scalar to control the decision.
 
 All grid coordinates, ordering, and contour conventions live in a committed
 `frontier-grid.json` manifest and are included in JSON/CSV exports.
@@ -785,14 +790,9 @@ The default rule is:
 point success := point R_loc_max < 1
 ```
 
-The uncertainty interval remains visible. A versioned configuration option can
-instead require:
-
-```text
-upper-95 success := upper central 95% bound of R_loc_max < 1
-```
-
-The UI labels the selected rule. An all-retained-draw rule is deferred. The word
+This iteration exposes no parameter-uncertainty interval or alternate success
+rule. Future uncertainty or sensitivity work requires a contract amendment;
+named low/base/high values are sensitivity, not probability. The word
 "guaranteed" may appear only with the close-contact axiom and envelope
 qualification from Section 2.
 
@@ -810,47 +810,22 @@ conditioning, infection-day distribution, and shedding survival are propagated
 deterministically as probability mass. This is not Monte Carlo uncertainty and
 must be present in every run.
 
-### 12.2 Calibration uncertainty: fixed joint ensemble
+### 12.2 Parameter uncertainty is out of scope for this iteration
 
-Where joint bootstrap or posterior draws exist, implementation will curate a
-fixed, versioned ensemble offline and bundle it into the HTML. Runtime results
-will be deterministic.
+The current release has no parameter-uncertainty interval, posterior claim, or
+upper-95 success rule. The bundled empty manifest is an explicit scope record,
+not a runtime ensemble. The inspected Cessation arrays are generated through an
+independent confidence-interval sampler, and the India grouped-Sobol records
+are a design sweep; neither is an admissible joint posterior or bootstrap
+ensemble for this hybrid endpoint.
 
-Requirements:
-
-- preserve joint draws from each fit;
-- define optimizer-failure and physiological-validity filters before viewing
-  TPP outcomes;
-- record the source file, source commit, transform, filter, and retained count;
-- never construct a posterior by independently drawing marginal confidence
-  interval endpoints;
-- never describe sensitivity ranges as posterior probability.
-
-Draws from different fits remain in named uncertainty groups. The app may show
-their separate effects or a documented composition only when independence is a
-defensible modeling assumption. It must not imply that all parameter groups
-come from one global posterior. The manifest records represented and fixed
-groups, retained count, weights, and the quantile algorithm.
-
-The legacy Matlab helper that independently resamples confidence intervals is
-not an acceptable probabilistic posterior for v1.
-
-### 12.3 Parameters without joint uncertainty: sensitivity envelope
-
-For modern boost parameters and any other quantity without defensible joint
-draws, the app may evaluate named low/base/high sensitivity values. These are
-displayed as **sensitivity**, not a confidence or credible interval.
-
-### 12.4 Runtime behavior and interval semantics
-
-Point results render first; the fixed ensemble then computes deterministically
-and updates the central 95% interval. The selected success rule is finalized only
-when the needed computation is complete. No runtime random sampling is allowed.
-
-The label is **central 95% range conditional on the included parameter groups**,
-not an undifferentiated confidence interval. If the ensemble is absent, invalid,
-or incomplete for the configured upper-95 rule, that rule is unavailable and
-the app explains why; it may not silently fall back to point success.
+Future work may evaluate named low/base/high values only as **sensitivity**.
+It may not call them a confidence, credible, posterior, or central-95 range.
+A future probabilistic ensemble requires a contract amendment and must preserve
+joint rows, predeclare failure and physiological-validity filters, record source
+file/commit/transforms/counts/weights/quantile algorithm, and never construct a
+posterior from independently drawn marginal confidence intervals. No runtime
+random sampling is allowed.
 
 ---
 
@@ -904,7 +879,7 @@ The default control surface must stay small:
 - RI plus booster choice and 28/90-day assessment lag;
 - setting-specific take and immune boost strength;
 - vaccine dose and Sabin-2-like/custom dose-response preset;
-- point or upper-95 success rule.
+- the fixed point success rule.
 
 The primary frontier also exposes a target crosshair/readout so a user can vary
 the desired acquisition or shedding reduction and see where `R_loc` remains
@@ -987,7 +962,6 @@ src/
     transmission.ts
     metrics.ts
     frontier.ts
-    uncertainty.ts
   ui/
     state.ts
     controls.ts
@@ -1003,7 +977,6 @@ src/
 scripts/
   build.mjs
   generate-reference-fixtures.R
-  generate-uncertainty-ensemble.R
 reference/
   fixtures/
 tests/
@@ -1033,7 +1006,7 @@ Ownership is binding:
 |---|---|---|
 | source R/Matlab | reference behavior and fixture generation | runtime UI |
 | `scripts/` | extraction, transforms, manifests, fixtures | hand-edited scientific defaults |
-| `src/model/` | all equations, units, schedules, grids, uncertainty | DOM or chart state |
+| `src/model/` | all equations, units, schedules, and grids | DOM or chart state |
 | `src/ui/` | controls, rendering, accessibility, serialization adapters | duplicated scientific formulas |
 | committed data/manifests | parameters, grids, draws, provenance | undocumented copied constants |
 
@@ -1057,8 +1030,8 @@ Targets on a current laptop:
 - selected-scenario recomputation: under 100 ms;
 - setting surface update: under 300 ms after parameter change;
 - either point frontier grid: under 2 seconds;
-- uncertainty summary for the selected scenario: under 5 seconds with
-  progressive rendering.
+- selected-scenario result uses the point rule only; no parameter-uncertainty
+  computation is performed in this iteration.
 
 Use memoization and precomputed kernel tables before considering workers or
 WebAssembly. Any approximation introduced for speed requires a parity tolerance
@@ -1182,6 +1155,25 @@ Required parity tests:
 Default numeric tolerance is relative `1e-8` for direct ports and `1e-5` for
 integrated transmission outputs. Any looser tolerance must be justified in the
 test name and contract amendment.
+
+**2026-07-17 hybrid-equivalence amendment.** The direct-port collection must
+cover the full declared susceptibility hard bounds, take/no-take conditioning
+over a lower/default/higher product grid, boost transitions over `mu0 = 0..8`,
+one-, three-, and four-dose composition across lower/default/higher
+hypothetical-product settings, and shedding across the declared bin/day/age
+grid. Together with the fixed catalog schedule fixtures, the scalar Cessation
+motif anchors, and the distribution-native prevalence calibration in Section
+15.2, this satisfies the Section 15.1 hybrid parity requirement for this
+iteration.
+
+The pinned sources do not contain a catalog Sabin-2/IPV schedule input and the
+same distribution-native close-contact `R_loc` output. Cessation fixed-titer
+`R_loc` values therefore remain scalar-motif context and must not be relabeled
+as source product-schedule parity. Creating an additional joined R/Matlab
+harness would be a new reference model and requires a future contract
+amendment. Visual agreement with a published setting surface is a useful
+qualitative review, not an acceptance discriminator; extracting values from
+plot colours is not required.
 
 ### 15.2 Faithful-modernization calibration gate
 
@@ -1314,7 +1306,10 @@ The release build must pass:
 
 - GitHub Actions runs type checking, unit tests, parity tests, build, and artifact
   checks on pull requests.
-- The Pages workflow deploys the tested `dist/index.html` from `main`.
+- The Pages workflow deploys the tested `dist/index.html` from `main` once the
+  repository's Pages source is configured as **GitHub Actions**. The static
+  artifact is compatible with GitHub Pages; no backend, server-side rendering,
+  or runtime API is required.
 - No CDN or API is required at runtime.
 - The app footer displays:
   - app version/commit;
@@ -1340,7 +1335,8 @@ CI workspace.
 Implementation is complete only when all of the following are true:
 
 1. The contract is locked before coding begins.
-2. The app opens from the local filesystem and from GitHub Pages.
+2. The app opens from the local filesystem and, when the repository Pages
+   setting enables the existing workflow, from GitHub Pages.
 3. The release consists of one self-contained HTML file.
 4. WPV1 is the visible target; Sabin 2 OPV, India-semantics IPV, and a
    hypothetical OPV-like vaccine can be compared.
@@ -1352,14 +1348,14 @@ Implementation is complete only when all of the following are true:
    not a scalar shedding target.
 8. Acquisition blocking and breakthrough shedding are shown separately.
 9. The setting surface includes low, Houston/Louisiana, Matlab, and UP/Bihar.
-10. The default point and optional upper-95 success rules are distinguishable,
-    and uncertainty coverage is explicit.
+10. The point `R_loc_max < 1` rule is explicit. Parameter uncertainty and an
+    upper-95 rule are explicitly out of scope for this iteration.
 11. The app never reports a global guarantee without the v1 sufficiency axiom
     and setting-envelope qualification.
 12. All parity, calibration-gate, invariant, schema, frontier, browser, and
     artifact tests pass.
 13. The README explains the question, limitations, development commands, and
-    Pages URL.
+    Pages deployment prerequisite/URL.
 14. Versioned JSON/CSV/SVG exports and manifests reproduce every displayed
     result.
 15. All audit inputs and the self-contained artifact are committed, and a clean
@@ -1387,8 +1383,8 @@ The following decisions are binding for v1:
 8. The v1 global envelope is `T = 0.1-2,000 micrograms/exposure`, `N_s = 1-40`,
    with source contact frequencies.
 9. Index breakthrough is conditioned on one WPV HID50.
-10. Point `R_loc_max < 1` is the default criterion with uncertainty shown; a
-    configuration option can require the upper central 95% bound below 1.
+10. Point `R_loc_max < 1` is the sole criterion for this iteration; parameter
+    uncertainty and an upper central 95% rule are deferred.
 11. Both the effect-space and product-design frontier views are simultaneously
     visible and linked; shedding index is a summary, not a pass axis.
 12. Everything needed for auditability and reproducibility, including the built

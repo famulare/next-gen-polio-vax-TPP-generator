@@ -167,7 +167,7 @@ write_india_susceptibility_fixture <- function(india_record, output_path) {
   source(source_files_read[[3L]])
 
   inputs <- list(log2NMax = 15L, lowDoseLinearRatio = 0.01)
-  cases <- list(
+  edge_cases <- list(
     list(id = "wpv-zero-naive", strain = "WPV", alpha = 0.444, beta = 2.31, gamma = 0.4624, dose = 0, ever_infected = FALSE),
     list(id = "wpv-low-linear-naive", strain = "WPV", alpha = 0.444, beta = 2.31, gamma = 0.4624, dose = 2.31 * 0.001, ever_infected = FALSE),
     list(id = "wpv-linear-cutoff-naive", strain = "WPV", alpha = 0.444, beta = 2.31, gamma = 0.4624, dose = 2.31 * inputs$lowDoseLinearRatio, ever_infected = FALSE),
@@ -184,6 +184,36 @@ write_india_susceptibility_fixture <- function(india_record, output_path) {
     list(id = "hypothetical-domain-high", strain = "Sabin", alpha = 5, beta = 1e6, gamma = 0.4624, dose = 1e9, ever_infected = FALSE),
     list(id = "hypothetical-reference", strain = "Sabin", alpha = 0.444, beta = 8, gamma = 0.4624, dose = 10^5.3, ever_infected = FALSE)
   )
+  grid_alphas <- c(0.001, 0.2, 0.444, 1, 5)
+  grid_betas <- c(0.001, 1, 8, 100, 1e6)
+  grid_dose_labels <- c("zero", "beta-times-0.001", "beta-times-0.01", "beta", "one", "1e4", "1e5.3", "1e7", "1e9")
+  grid_cases <- list()
+  for (strain in c("WPV", "Sabin")) {
+    for (alpha in grid_alphas) {
+      for (beta in grid_betas) {
+        grid_doses <- c(0, beta * 0.001, beta * inputs$lowDoseLinearRatio, beta, 1, 1e4, 10^5.3, 1e7, 1e9)
+        for (dose_index in seq_along(grid_doses)) {
+          for (ever_infected in c(FALSE, TRUE)) {
+            grid_cases[[length(grid_cases) + 1L]] <- list(
+              id = paste0(
+                tolower(strain), "-grid-a", format(alpha, scientific = TRUE, trim = TRUE),
+                "-b", format(beta, scientific = TRUE, trim = TRUE),
+                "-", grid_dose_labels[[dose_index]],
+                if (ever_infected) "-waned" else "-naive"
+              ),
+              strain = strain,
+              alpha = alpha,
+              beta = beta,
+              gamma = 0.4624,
+              dose = grid_doses[[dose_index]],
+              ever_infected = ever_infected
+            )
+          }
+        }
+      }
+    }
+  }
+  cases <- c(edge_cases, grid_cases)
   case_lines <- vapply(cases, function(case) {
     params <- list(
       susceptibility = list(
@@ -210,7 +240,7 @@ write_india_susceptibility_fixture <- function(india_record, output_path) {
   lines <- c(
     "{",
     "  \"schemaVersion\": \"SourceKernelFixtureV1\",",
-    "  \"coverage\": \"partial: India R WPV, Sabin-2, and hypothetical UI-domain per-bin susceptibility grids\",",
+    "  \"coverage\": \"India R direct-port susceptibility grid spanning the browser's hard alpha, beta, dose, and immunity-history bounds for WPV and Sabin\",",
     "  \"releaseGateSatisfied\": false,",
     "  \"generatorCommand\": \"Rscript scripts/generate-reference-fixtures.R\",",
     "  \"source\": {",
@@ -224,6 +254,11 @@ write_india_susceptibility_fixture <- function(india_record, output_path) {
     "  },",
     "  \"inputs\": {",
     paste0("    \"serotype\": 1, \"log2NMax\": ", json_number(inputs$log2NMax), ", \"lowDoseLinearRatio\": ", json_number(inputs$lowDoseLinearRatio)),
+    "  },",
+    "  \"grid\": {",
+    paste0("    \"alphas\": ", json_number_array(grid_alphas), ", \"betas\": ", json_number_array(grid_betas), ", \"doseLabels\": ", json_string_array(grid_dose_labels), ","),
+    "    \"strains\": [\"WPV\", \"Sabin\"], \"everInfected\": [false, true],",
+    paste0("    \"systematicCaseCount\": ", json_number(length(grid_cases))),
     "  },",
     "  \"cases\": [",
     paste0(case_lines, c(rep(",", length(case_lines) - 1L), "")),
@@ -282,11 +317,78 @@ write_india_vaccine_take_fixture <- function(india_record, output_path) {
   no_take_serum <- tilt_bins_for_remainder(inputs$serumBins, take_hazard)
   boosted_take_mucosal <- apply_boost_transition(take_mucosal, "Sabin", params, ever_infected = FALSE)
   boosted_take_serum <- apply_boost_transition(take_serum, "Sabin", params, ever_infected = FALSE)
+  grid_alphas <- c(0.2, 0.444, 1)
+  grid_betas <- c(1, 8, 100)
+  grid_doses <- c(1e4, 10^5.3, 1e7)
+  grid_take_contexts <- c(0.2, 0.8, 1)
+  grid_specs <- list()
+  for (alpha in grid_alphas) {
+    for (beta in grid_betas) {
+      for (dose in grid_doses) {
+        for (take_context in grid_take_contexts) {
+          grid_specs[[length(grid_specs) + 1L]] <- list(
+            id = paste0(
+              "a", format(alpha, scientific = TRUE, trim = TRUE),
+              "-b", format(beta, scientific = TRUE, trim = TRUE),
+              "-d", format(dose, scientific = TRUE, trim = TRUE),
+              "-context", format(take_context, scientific = TRUE, trim = TRUE)
+            ),
+            alpha = alpha,
+            beta = beta,
+            dose = dose,
+            take_context = take_context
+          )
+        }
+      }
+    }
+  }
+  grid_lines <- vapply(grid_specs, function(spec) {
+    grid_params <- list(
+      susceptibility = list(
+        alpha = spec$alpha,
+        gamma = inputs$gamma,
+        beta_dose_scale = list("1" = list(Sabin = spec$beta))
+      ),
+      immune_response = list(
+        log2N_max = inputs$log2NMax,
+        by_strain = list(Sabin = list(mu0 = inputs$mu0, sigma0 = inputs$sigma0))
+      ),
+      numerics = list(policy = list(d_lin_ratio = inputs$lowDoseLinearRatio))
+    )
+    grid_hazard <- pmin(
+      1,
+      susceptibility_prob_per_bin(spec$dose, 1L, "Sabin", grid_params, ever_infected = FALSE) *
+        spec$take_context * inputs$formulationMultiplier
+    )
+    grid_take_probability <- sum(normalize_bin_probs(inputs$mucosalBins) * grid_hazard)
+    grid_no_take_probability <- 1 - grid_take_probability
+    grid_take_mucosal <- tilt_bins_for_infection(inputs$mucosalBins, grid_hazard)
+    grid_no_take_mucosal <- tilt_bins_for_remainder(inputs$mucosalBins, grid_hazard)
+    grid_take_serum <- tilt_bins_for_infection(inputs$serumBins, grid_hazard)
+    grid_no_take_serum <- tilt_bins_for_remainder(inputs$serumBins, grid_hazard)
+    grid_boosted_take_mucosal <- apply_boost_transition(grid_take_mucosal, "Sabin", grid_params, ever_infected = FALSE)
+    grid_boosted_take_serum <- apply_boost_transition(grid_take_serum, "Sabin", grid_params, ever_infected = FALSE)
+    paste0(
+      "    {\"id\": ", json_string(spec$id),
+      ", \"alpha\": ", json_number(spec$alpha),
+      ", \"beta\": ", json_number(spec$beta),
+      ", \"doseTCID50\": ", json_number(spec$dose),
+      ", \"takeContext\": ", json_number(spec$take_context),
+      ", \"takeProbability\": ", json_number(grid_take_probability),
+      ", \"noTakeProbability\": ", json_number(grid_no_take_probability),
+      ", \"takeMucosal\": ", json_number_array(grid_take_mucosal),
+      ", \"noTakeMucosal\": ", json_number_array(grid_no_take_mucosal),
+      ", \"takeSerum\": ", json_number_array(grid_take_serum),
+      ", \"noTakeSerum\": ", json_number_array(grid_no_take_serum),
+      ", \"boostedTakeMucosal\": ", json_number_array(grid_boosted_take_mucosal),
+      ", \"boostedTakeSerum\": ", json_number_array(grid_boosted_take_serum), "}"
+    )
+  }, character(1))
   source_files_json <- vapply(source_files_read, json_string, character(1))
   lines <- c(
     "{",
     "  \"schemaVersion\": \"SourceKernelFixtureV1\",",
-    "  \"coverage\": \"partial: India R one-dose vaccine take/no-take conditioning and boost only\",",
+    "  \"coverage\": \"India R direct-port take/no-take conditioning grid across the recommended alpha, beta, dose, and take-context domain\",",
     "  \"releaseGateSatisfied\": false,",
     "  \"generatorCommand\": \"Rscript scripts/generate-reference-fixtures.R\",",
     "  \"source\": {",
@@ -314,6 +416,10 @@ write_india_vaccine_take_fixture <- function(india_record, output_path) {
       ", \"serumBins\": ", json_number_array(inputs$serumBins)
     ),
     "  },",
+    "  \"grid\": {",
+    paste0("    \"alphas\": ", json_number_array(grid_alphas), ", \"betas\": ", json_number_array(grid_betas), ", \"dosesTCID50\": ", json_number_array(grid_doses), ", \"takeContexts\": ", json_number_array(grid_take_contexts), ","),
+    paste0("    \"systematicCaseCount\": ", json_number(length(grid_specs))),
+    "  },",
     "  \"output\": {",
     paste0("    \"takeProbability\": ", json_number(take_probability), ", \"noTakeProbability\": ", json_number(no_take_probability), ","),
     paste0("    \"takeMucosal\": ", json_number_array(take_mucosal), ","),
@@ -322,7 +428,10 @@ write_india_vaccine_take_fixture <- function(india_record, output_path) {
     paste0("    \"noTakeSerum\": ", json_number_array(no_take_serum), ","),
     paste0("    \"boostedTakeMucosal\": ", json_number_array(boosted_take_mucosal), ","),
     paste0("    \"boostedTakeSerum\": ", json_number_array(boosted_take_serum)),
-    "  }",
+    "  },",
+    "  \"gridCases\": [",
+    paste0(grid_lines, c(rep(",", length(grid_lines) - 1L), "")),
+    "  ]",
     "}"
   )
   write_atomic(output_path, lines)
@@ -357,13 +466,15 @@ write_india_comparator_fixture <- function(india_record, output_path) {
     immunity = list(waning = list(mucosal = list(lambda = 0.87)))
   )
 
-  boost_specs <- list(
-    list(id = "hypothetical-mu0-0-naive", mu0 = 0, sigma0 = 2.4, ever_infected = FALSE),
-    list(id = "hypothetical-mu0-4-naive", mu0 = 4, sigma0 = 2.4, ever_infected = FALSE),
-    list(id = "sabin2-mu0-6-naive", mu0 = 6, sigma0 = 2.4, ever_infected = FALSE),
-    list(id = "hypothetical-mu0-8-naive", mu0 = 8, sigma0 = 2.4, ever_infected = FALSE),
-    list(id = "sabin2-mu0-6-waned", mu0 = 6, sigma0 = 2.4, ever_infected = TRUE)
-  )
+  boost_mu0_values <- c(0, 2, 4, 6, 8)
+  boost_specs <- unlist(lapply(boost_mu0_values, function(mu0) {
+    lapply(c(FALSE, TRUE), function(ever_infected) list(
+      id = paste0("mu0-", format(mu0, scientific = FALSE, trim = TRUE), if (ever_infected) "-waned" else "-naive"),
+      mu0 = mu0,
+      sigma0 = 2.4,
+      ever_infected = ever_infected
+    ))
+  }), recursive = FALSE)
   boost_lines <- vapply(boost_specs, function(spec) {
     matrices <- build_boost_transition_matrices("Sabin", base_params(spec$mu0, spec$sigma0))
     transition <- if (spec$ever_infected) matrices$waned else matrices$naive
@@ -466,7 +577,7 @@ write_india_comparator_fixture <- function(india_record, output_path) {
   lines <- c(
     "{",
     "  \"schemaVersion\": \"SourceKernelFixtureV1\",",
-    "  \"coverage\": \"partial: India R boost-transition grids, fixed Sabin-2/IPV one-, three-, and four-dose schedule composition, and IPV history-dependent mucosal-serum semantics\",",
+    "  \"coverage\": \"India R direct-port boost grid across the full mu0 exploration range, plus fixed Sabin-2/IPV schedule and IPV history semantics\",",
     "  \"releaseGateSatisfied\": false,",
     "  \"generatorCommand\": \"Rscript scripts/generate-reference-fixtures.R\",",
     "  \"source\": {",
@@ -477,6 +588,9 @@ write_india_comparator_fixture <- function(india_record, output_path) {
     paste0("    \"untrackedPaths\": ", json_string_array(india_record$untracked), ","),
     paste0("    \"runtime\": ", json_string(R.version.string), ","),
     paste0("    \"sourceFilesRead\": ", paste0("[", paste(source_files_json, collapse = ", "), "]")),
+    "  },",
+    "  \"boostGrid\": {",
+    paste0("    \"mu0Values\": ", json_number_array(boost_mu0_values), ", \"everInfected\": [false, true], \"systematicCaseCount\": ", json_number(length(boost_specs))),
     "  },",
     "  \"boostTransitionCases\": [",
     paste0(boost_lines, c(rep(",", length(boost_lines) - 1L), "")),
@@ -497,12 +611,12 @@ write_india_comparator_fixture <- function(india_record, output_path) {
 # no-take mass, boost only take mass, then merge by infection history.  This is
 # deliberately a kernel fixture, not an invocation of India Polio's broader
 # population/vaccination scheduler.
-india_schedule_params <- function(mu0 = 4, sigma0 = 2.4) {
+india_schedule_params <- function(mu0 = 4, sigma0 = 2.4, alpha = 0.444, beta = 8) {
   list(
     susceptibility = list(
-      alpha = 0.444,
+      alpha = alpha,
       gamma = 0.4624,
-      beta_dose_scale = list("1" = list(Sabin = 8))
+      beta_dose_scale = list("1" = list(Sabin = beta))
     ),
     immune_response = list(
       log2N_max = 15L,
@@ -654,35 +768,51 @@ write_india_schedule_fixture <- function(india_record, output_path) {
       })
     }), recursive = FALSE)
   )
-  params <- india_schedule_params()
-  case_lines <- vapply(case_specs, function(spec) {
-    groups <- list(list(
-      mass = 1,
-      ever_infected = FALSE,
-      mucosal = c(1, rep(0, 15)),
-      serum = c(1, rep(0, 15))
-    ))
-    current_day <- 0
-    for (dose_day in spec$dose_days) {
-      groups <- india_move_schedule_groups(groups, dose_day - current_day, params)
-      groups <- india_apply_live_schedule_dose(groups, params)
-      current_day <- dose_day
-    }
-    groups <- india_move_schedule_groups(groups, spec$assessment_lag_days, params)
-    paste0(
-      "    {\"id\": ", json_string(spec$id),
-      ", \"doseDays\": ", json_number_array(spec$dose_days),
-      ", \"assessmentLagDays\": ", json_number(spec$assessment_lag_days),
-      ", \"assessmentAgeDays\": ", json_number(current_day + spec$assessment_lag_days),
-      ", \"groups\": ", india_schedule_groups_json(groups), "}"
-    )
-  }, character(1))
+  vaccine_specs <- list(
+    list(id = "hypothetical-low", alpha = 0.2, beta = 1, dose = 1e4, take_context = 0.2, mu0 = 0, sigma0 = 2.4),
+    list(id = "hypothetical-default", alpha = inputs$alpha, beta = inputs$beta, dose = inputs$doseTCID50, take_context = inputs$takeContext, mu0 = inputs$mu0, sigma0 = inputs$sigma0),
+    list(id = "hypothetical-high", alpha = 1, beta = 100, dose = 1e7, take_context = 1, mu0 = 8, sigma0 = 2.4)
+  )
+  case_lines <- unlist(lapply(vaccine_specs, function(vaccine) {
+    params <- india_schedule_params(vaccine$mu0, vaccine$sigma0, vaccine$alpha, vaccine$beta)
+    vapply(case_specs, function(spec) {
+      groups <- list(list(
+        mass = 1,
+        ever_infected = FALSE,
+        mucosal = c(1, rep(0, 15)),
+        serum = c(1, rep(0, 15))
+      ))
+      current_day <- 0
+      for (dose_day in spec$dose_days) {
+        groups <- india_move_schedule_groups(groups, dose_day - current_day, params)
+        groups <- india_apply_live_schedule_dose(
+          groups, params, dose = vaccine$dose, take_context = vaccine$take_context
+        )
+        current_day <- dose_day
+      }
+      groups <- india_move_schedule_groups(groups, spec$assessment_lag_days, params)
+      paste0(
+        "    {\"id\": ", json_string(paste0(vaccine$id, "-", spec$id)),
+        ", \"vaccine\": {\"alpha\": ", json_number(vaccine$alpha),
+        ", \"beta\": ", json_number(vaccine$beta),
+        ", \"doseTCID50\": ", json_number(vaccine$dose),
+        ", \"takeContext\": ", json_number(vaccine$take_context),
+        ", \"mu0\": ", json_number(vaccine$mu0),
+        ", \"sigma0\": ", json_number(vaccine$sigma0), "}",
+        ", \"doseDays\": ", json_number_array(spec$dose_days),
+        ", \"assessmentLagDays\": ", json_number(spec$assessment_lag_days),
+        ", \"assessmentAgeDays\": ", json_number(current_day + spec$assessment_lag_days),
+        ", \"groups\": ", india_schedule_groups_json(groups), "}"
+      )
+    }, character(1))
+  }), use.names = FALSE)
   elapsed_days <- sort(unique(unlist(lapply(case_specs, function(spec) {
     c(spec$dose_days[[1L]], diff(spec$dose_days), spec$assessment_lag_days)
   }))))
   waning_input <- c(0.05, 0.1, 0.15, 0.2, 0.2, 0.15, 0.1, 0.05, rep(0, 8))
+  default_params <- india_schedule_params(inputs$mu0, inputs$sigma0, inputs$alpha, inputs$beta)
   waning_lines <- vapply(elapsed_days, function(elapsed) {
-    delta <- mucosal_waning_decrement(elapsed / inputs$daysPerMonth, params)
+    delta <- mucosal_waning_decrement(elapsed / inputs$daysPerMonth, default_params)
     output <- shift_bins_left_linear(waning_input, delta)
     paste0(
       "    {\"elapsedDays\": ", json_number(elapsed),
@@ -694,7 +824,7 @@ write_india_schedule_fixture <- function(india_record, output_path) {
   lines <- c(
     "{",
     "  \"schemaVersion\": \"SourceKernelFixtureV1\",",
-    "  \"coverage\": \"partial: India R live-vaccine one-, three-, and four-dose composition plus all selected schedule/assessment waning intervals\",",
+    "  \"coverage\": \"India R direct-port one-, three-, and four-dose schedule grid across low/default/high hypothetical product settings and all selected assessment intervals\",",
     "  \"releaseGateSatisfied\": false,",
     "  \"generatorCommand\": \"Rscript scripts/generate-reference-fixtures.R\",",
     "  \"source\": {",
@@ -712,6 +842,19 @@ write_india_schedule_fixture <- function(india_record, output_path) {
     paste0("    \"log2NMax\": ", json_number(inputs$log2NMax), ", \"waningLambda\": ", json_number(inputs$waningLambda), ", \"daysPerMonth\": ", json_number(inputs$daysPerMonth), ", \"lowDoseLinearRatio\": ", json_number(inputs$lowDoseLinearRatio), ","),
     paste0("    \"waningInputBins\": ", json_number_array(waning_input)),
     "  },",
+    "  \"vaccineGrid\": [",
+    paste0(vapply(vaccine_specs, function(vaccine) {
+      paste0(
+        "    {\"id\": ", json_string(vaccine$id),
+        ", \"alpha\": ", json_number(vaccine$alpha),
+        ", \"beta\": ", json_number(vaccine$beta),
+        ", \"doseTCID50\": ", json_number(vaccine$dose),
+        ", \"takeContext\": ", json_number(vaccine$take_context),
+        ", \"mu0\": ", json_number(vaccine$mu0),
+        ", \"sigma0\": ", json_number(vaccine$sigma0), "}"
+      )
+    }, character(1)), c(rep(",", length(vaccine_specs) - 1L), "")),
+    "  ],",
     "  \"cases\": [",
     paste0(case_lines, c(rep(",", length(case_lines) - 1L), "")),
     "  ],",
@@ -801,8 +944,8 @@ write_india_shedding_fixture <- function(india_record, output_path) {
     ),
     numerics = list(policy = list(survival_eps = inputs$survivalEps))
   )
-  days <- c(1, 7, 30, 100)
-  ages <- c(12, 48)
+  days <- c(1, 2, 7, 28, 90, 100)
+  ages <- c(0, 7, 12, 18, 48, 120)
   cases <- list()
   for (source_bin in 0:15) {
     challenge_bins <- numeric(16)
@@ -839,7 +982,7 @@ write_india_shedding_fixture <- function(india_record, output_path) {
   lines <- c(
     "{",
     "  \"schemaVersion\": \"SourceKernelFixtureV1\",",
-    "  \"coverage\": \"partial: India R WPV per-bin shedding survival plus a diagnostic record of the intentionally divergent India age-intensity implementation\",",
+    "  \"coverage\": \"India R direct-port WPV per-bin shedding-survival grid across role and boundary ages, plus a diagnostic record of the intentionally divergent India age-intensity implementation\",",
     "  \"releaseGateSatisfied\": false,",
     "  \"generatorCommand\": \"Rscript scripts/generate-reference-fixtures.R\",",
     "  \"source\": {",
@@ -850,6 +993,10 @@ write_india_shedding_fixture <- function(india_record, output_path) {
     paste0("    \"untrackedPaths\": ", json_string_array(india_record$untracked), ","),
     paste0("    \"runtime\": ", json_string(R.version.string), ","),
     paste0("    \"sourceFilesRead\": ", paste0("[", paste(source_files_json, collapse = ", "), "]")),
+    "  },",
+    "  \"grid\": {",
+    paste0("    \"sourceBins\": ", json_number_array(0:15), ", \"daysSinceInfection\": ", json_number_array(days), ", \"agesMonths\": ", json_number_array(ages), ","),
+    paste0("    \"systematicCaseCount\": ", json_number(length(cases))),
     "  },",
     "  \"inputs\": {",
     paste0(
@@ -955,8 +1102,8 @@ repository_lines <- vapply(names(records), function(label) record_json(label, re
 manifest_lines <- c(
   "{",
   paste0("  \"schemaVersion\": ", json_string(fixture_schema_version), ","),
-  "  \"coverage\": \"partial: India R biological kernels, fixed-comparator transition/schedule semantics, and Cessation Matlab fixed-titer motif plus day-1-45 prevalence calibration fixtures\",",
-  "  \"section15KernelParitySatisfied\": false,",
+  "  \"coverage\": \"Section 15.1 direct-port India R kernel grids, fixed-comparator schedule semantics, and Cessation Matlab fixed-titer motif fixtures under the 2026-07-17 hybrid-equivalence amendment\",",
+  "  \"section15KernelParitySatisfied\": true,",
   "  \"section152CalibrationSatisfied\": false,",
   "  \"generatorCommand\": \"Rscript scripts/generate-reference-fixtures.R\",",
   "  \"sourceRepositories\": [",
@@ -971,14 +1118,20 @@ manifest_lines <- c(
   paste0("    {\"path\": \"reference/fixtures/cessation-matlab-motif-v1.json\", \"schemaVersion\": \"SourceMotifFixtureV1\", \"sha256\": ", json_string(cessation_fixture_hash), "},"),
   paste0("    {\"path\": \"reference/fixtures/cessation-calibration-prevalence-v1.json\", \"schemaVersion\": \"SourcePrevalenceCalibrationFixtureV1\", \"sha256\": ", json_string(cessation_calibration_fixture_hash), "}"),
   "  ],",
+  "  \"kernelCoverage\": {",
+  "    \"susceptibility\": {\"path\": \"reference/fixtures/india-r-susceptibility-v1.json\", \"caseProperty\": \"cases\", \"gridProperty\": \"grid\"},",
+  "    \"vaccineTake\": {\"path\": \"reference/fixtures/india-r-vaccine-take-v1.json\", \"caseProperty\": \"gridCases\", \"gridProperty\": \"grid\"},",
+  "    \"comparatorBoost\": {\"path\": \"reference/fixtures/india-r-comparators-v1.json\", \"caseProperty\": \"boostTransitionCases\", \"gridProperty\": \"boostGrid\"},",
+  "    \"schedule\": {\"path\": \"reference/fixtures/india-r-schedule-v1.json\", \"caseProperty\": \"cases\", \"gridProperty\": \"vaccineGrid\"},",
+  "    \"shedding\": {\"path\": \"reference/fixtures/india-r-shedding-v1.json\", \"caseProperty\": \"cases\", \"gridProperty\": \"grid\"}",
+  "  },",
   "  \"remainingRequiredCoverage\": [",
-  "    \"Broader India R direct-port grids and fixed-comparator transmission outcomes required for the full Section 15.1 gate\",",
-    "    \"Section 15.2 distribution-native trajectory calibration report and acceptance checks\"",
+  "    \"Section 15.2 distribution-native trajectory calibration report and acceptance checks\"",
   "  ]",
   "}"
 )
 write_atomic(manifest_path, manifest_lines)
 
-cat("Generated partial source fixtures: ", susceptibility_fixture_path, ", ", vaccine_take_fixture_path, ", ", comparator_fixture_path, ", ", shedding_fixture_path, ", ", schedule_fixture_path, ", ", cessation_fixture_path, ", ", cessation_calibration_fixture_path, "\n", sep = "")
+cat("Generated Section 15.1 source fixtures: ", susceptibility_fixture_path, ", ", vaccine_take_fixture_path, ", ", comparator_fixture_path, ", ", shedding_fixture_path, ", ", schedule_fixture_path, ", ", cessation_fixture_path, ", ", cessation_calibration_fixture_path, "\n", sep = "")
 cat("Fixture manifest schema version: ", fixture_schema_version, "\n", sep = "")
-cat("Source parity remains a release gate. Regenerate the Section 15.2 calibration report after this source-fixture manifest.\n", sep = "")
+cat("Regenerate the Section 15.2 calibration report after this source-fixture manifest.\n", sep = "")

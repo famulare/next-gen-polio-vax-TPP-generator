@@ -51,6 +51,115 @@ does not replace source provenance, git history, or verification output.
 
 ## Implementation status
 
+### 2026-07-17 -- hybrid-equivalence amendment, direct-port expansion, and Pages enablement
+
+- **Objective:** complete the approved Section 15.1 direct-port increment,
+  amend the release evidence boundary without relabeling Cessation scalar-titer
+  context as Sabin/IPV product parity, defer parameter uncertainty/upper-95,
+  and determine whether the static artifact can deploy on GitHub Pages.
+- **Executor/model version:** Codex direct implementation.
+- **Contract sections and source files supplied:** Sections 11.5, 12,
+  14.1--14.5, 15.1--15.3, 16, and 17; pinned India R kernel files and pinned
+  Cessation Matlab motif; the source audit; fixture generator; calibration
+  report generator; model/UI/schema tests; GitHub Pages workflow.
+- **Allowed files or worktree:** this repository; pinned sources read-only; no
+  changes to source equations, calibration targets, source commits, product
+  catalog semantics, or population-level endpoint claims.
+- **Required output and discriminator:** regenerated source fixtures with
+  explicit grid metadata and tests that execute every direct port; Contract
+  1.5 records that these grids plus the passing Section 15.2 prevalence
+  calibration are the best available hybrid-equivalence check. No Cessation
+  scalar `R_loc` value is treated as a product-schedule source outcome. The
+  parameter-uncertainty manifest is explicit scope metadata and no `upper95`
+  scenario is accepted. Pages must be confirmed as a static-compatible Actions
+  deployment, rather than redesigned as a server application.
+- **Content-block classification and rationale:** not applicable; direct,
+  bounded implementation and source review.
+- **Reframe/retry status:** the first expanded schedule-fixture generation
+  exposed a stale `params` reference outside the per-vaccine loop. It was
+  corrected to use the declared default schedule parameters, then all fixtures
+  were regenerated rather than retaining stale outputs.
+- **Result disposition:** accepted. The
+  fixture grids now cover 900 systematic susceptibility cells plus edge cases,
+  81 take/no-take cases, 10 boost transitions, 36 schedule cases, and 576
+  shedding cases. The manifest reports both Section 15.1 and 15.2 gates true
+  and no remaining required coverage. Individual source artifacts remain
+  non-release records by design.
+- **Primary review:** Section 15.2 is a prevalence equivalence discriminator,
+  not `R_loc` product parity; its use under the amendment does not blur that
+  distinction. The upper-95 removal reduces the result to the declared point
+  rule rather than promoting unqualified historical arrays to posterior draws.
+  GitHub Pages is technically compatible: the build produces one static
+  `dist/index.html` with no runtime API. The prior deploy failure was only a
+  repository-level Pages-disabled `404`; the repository now reports
+  `build_type: workflow`, public HTTPS deployment, and the intended URL.
+- **Verification run:** `npm run typecheck`; `npm test` (24/24); fixture
+  generator preflight; `check:reference-fixtures`; `check:calibration`;
+  `check:performance` (selected `2.4 ms`, surface `15.1 ms`, frontier
+  `897.2 ms`); build; artifact integrity; and Chromium local-file/path-prefix
+  smoke all pass. Two successive local builds produce the same SHA-256
+  `f6867dc76654370cbaab2a000349b381a81ec43c399e064ff85b17346be3fdf9`.
+  The GitHub Pages workflow is verified after the commit is pushed.
+- **Residual uncertainty:** this remains a close-contact, point-rule prototype
+  result. It does not determine complete-population `R_e`, clinical product
+  performance, or an unconditional public-health guarantee. A future original
+  source product-schedule `R_loc` comparator or probabilistic ensemble needs a
+  separate contract amendment and the evidence specified in the source audit.
+
+### 2026-07-17 -- fixed-comparator transmission and uncertainty-source audit
+
+- **Objective:** determine whether the next Section 15.1 increment can be a
+  source-derived fixed-Sabin-2/IPV transmission fixture, then identify whether
+  the locked sources contain an admissible reviewed joint uncertainty ensemble.
+- **Executor/model version:** Codex direct source audit.
+- **Contract sections and source files supplied:** Sections 4.1--4.3, 7.4,
+  12.2--12.4, 15.1, and 16; the pinned Cessation
+  `primarySecondaryTertiaryDoseModel.m`, `fitHouseholdModel.m`,
+  `fitIndia.m`, `fitLouisiana.m`, likelihood functions, and `*Fit.mat`
+  records; and the pinned India Grassly episode documentation/configuration
+  and grouped-Sobol sweep metadata. The audit report, fixture README,
+  uncertainty manifest, and README are the only repository outputs.
+- **Allowed files or worktree:** this repository and read-only pinned source
+  checkouts. No product parameters, equations, defaults, schedule state,
+  source fixtures, calibration artifact, success rule, or numerical result was
+  changed.
+- **Required output and discriminator:** a written source-role map that either
+  identifies an existing source executable with both the catalog product
+  schedule and the distribution-native `R_loc` motif, or rejects a fixture
+  that would join incompatible source outputs. For uncertainty, distinguish
+  an actual jointly fitted/bootstrap ensemble from independent-CI resampling
+  and unweighted design sweeps before changing upper-95 availability.
+- **Content-block classification and rationale:** not applicable; direct
+  bounded source audit.
+- **Reframe/retry status:** not applicable.
+- **Result disposition:** no transmission fixture and no ensemble were added.
+  The appropriate result is an explicit release-input requirement, not a new
+  numerical claim.
+- **Primary review:** India R supplies bins-native biology and catalog
+  schedule semantics, while the Cessation model supplies a scalar-titer
+  close-contact `R_loc` motif. Neither source accepts the other model's
+  missing state, and the India Grassly/full-model endpoints are expressly not
+  the v1 `R_loc`. Converting schedule distributions to scalar titers, or
+  labeling the Cessation fixed-titer context as Sabin/IPV transmission parity,
+  would violate the contract. Cessation `betaBoot` records are not an
+  admissible v1 ensemble because their fit/evaluation path calls the legacy
+  independent CI sampler prohibited by Section 12.2; the India candidate is
+  an unweighted grouped-Sobol design sweep, not a posterior or bootstrap.
+  The absent-manifest provenance was corrected accordingly. See
+  `docs/release-blocker-source-audit.md` for the file-level evidence and
+  required next input.
+- **Verification run:** source commit/status inspection; direct review of the
+  Cessation fit, likelihood, sampler, and MAT metadata; direct review of the
+  India sweep specification and output metadata; repository text checks; and
+  full project verification after the documentation/manifest change.
+- **Residual uncertainty:** full Section 15.1 needs either a supplied
+  source-level product-schedule transmission target or a contract amendment
+  approving a separately versioned hybrid reference harness. Upper-95 remains
+  unavailable until a reviewer supplies a v1-mappable joint-draw protocol,
+  source data, predeclared filters, group composition decision, and quantile
+  rule. Neither blocker can be closed by scalarizing distributions, sampling
+  marginal intervals, or treating a Sobol design as a posterior.
+
 ### 2026-07-17 -- fixed-comparator schedule source fixture increment
 
 - **Objective:** close the next bounded Section 15.1 gap by making fixed

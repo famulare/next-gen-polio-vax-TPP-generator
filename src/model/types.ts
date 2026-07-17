@@ -5,7 +5,7 @@ export type Bins = number[];
 export type ProductId = "sabin2" | "ipv" | "hypothetical";
 export type SettingId = "low" | "houston" | "matlab" | "up-bihar" | "global" | "custom";
 export type AnchorSettingId = Exclude<SettingId, "global" | "custom">;
-export type SuccessRule = "point" | "upper95";
+export type SuccessRule = "point";
 
 export interface UnitValueV1 {
   value: number;
@@ -193,7 +193,7 @@ export interface ModelOutputsV1 {
   frontier: FrontierResult;
   uncertainty: {
     available: false;
-    label: "central 95% range conditional on the included parameter groups";
+    label: "parameter-uncertainty interval is out of scope for this iteration";
     reason: string;
     rLocMax: null;
   };

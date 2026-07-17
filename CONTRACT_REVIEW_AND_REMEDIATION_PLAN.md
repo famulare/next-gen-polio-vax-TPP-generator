@@ -1,5 +1,12 @@
 # Contract review and remediation plan
 
+> **Historical review record.** This document assesses commit `46e27fb` and
+> its then-locked contract. Its release-blocker conclusions are superseded by
+> the 2026-07-17 Design Contract 1.5 amendment, expanded direct-port fixture
+> grids, passing Section 15.2 report, and point-rule-only scope. The findings
+> remain useful provenance; current requirements are in `DESIGN_CONTRACT.md`
+> and `IMPLEMENTATION_LOG.md`.
+
 **Review status:** implementation is a useful internally consistent prototype,
 but is **not release-eligible under the locked v1 contract**.
 

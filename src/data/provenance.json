@@ -1,6 +1,6 @@
 {
   "schemaVersion": "ProvenanceV1",
-  "designContract": "1.4",
+  "designContract": "1.5",
   "generatedAt": "2026-07-15",
   "sourceFiles": [
     "/Users/famulare/git/famulare/india-polio/model/R/mixture.R",
@@ -20,6 +20,6 @@
   "transforms": [
     "Browser uses 365.25/12 days per month for waning.",
     "The reduced transmission layer is distribution-native and retains contact frequency outside the dose-response kernel.",
-    "Runtime uncertainty draws are absent until a reviewed joint ensemble is supplied."
+    "Parameter-uncertainty intervals and the upper-95 rule are out of scope for this point-rule iteration."
   ]
 }
