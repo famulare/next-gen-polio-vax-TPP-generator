@@ -1,4 +1,5 @@
 import { clearSettingSurfaceCache, defaultScenario, evaluateScenario, settingSurfaceCacheStats } from "../src/model/model";
+import { SETTING_DISPLAY_DOMAIN } from "../src/model/parameters";
 import { clearTransmissionCaches, transmissionCacheStats } from "../src/model/transmission";
 
 const gc = (globalThis as { gc?: () => void }).gc;
@@ -26,8 +27,12 @@ console.log(`Cache memory OK: retained ArrayBuffer growth ${(growth / mebibyte).
 
 function evaluateDistinctEnvelope(index: number): void {
   const scenario = defaultScenario();
-  const multiplier = 0.89 + index * 0.01;
-  scenario.envelope.TihMax *= multiplier;
-  scenario.envelope.ThsMax *= multiplier;
+  const fraction = index / 11;
+  const exposure = SETTING_DISPLAY_DOMAIN.exposure.min
+    * (SETTING_DISPLAY_DOMAIN.exposure.max / SETTING_DISPLAY_DOMAIN.exposure.min) ** fraction;
+  scenario.envelope.TihMin = exposure;
+  scenario.envelope.TihMax = exposure;
+  scenario.envelope.ThsMin = exposure;
+  scenario.envelope.ThsMax = exposure;
   void evaluateScenario(scenario);
 }

@@ -1,4 +1,4 @@
-import type { FrontierGridManifestV1, ParameterManifestV1 } from "./types";
+import type { FrontierGridManifestV2, ParameterManifestV1 } from "./types";
 
 type RecordValue = Record<string, unknown>;
 
@@ -59,19 +59,18 @@ export function validateParameterManifest(value: unknown): asserts value is Para
   positive(success.calibrationLog10Tolerance, "success.calibrationLog10Tolerance"); positive(success.horizonExtensionRelativeTolerance, "success.horizonExtensionRelativeTolerance");
 }
 
-export function validateFrontierGridManifest(value: unknown): asserts value is FrontierGridManifestV1 {
-  const root = record(value, "FrontierGridV1");
-  exact(root, ["schemaVersion", "version", "takeContext", "mu0New", "settingExposure", "settingContacts", "contour", "ordering"], "FrontierGridV1");
-  literal(root.schemaVersion, "FrontierGridV1", "frontier schemaVersion"); string(root.version, "frontier version"); string(root.ordering, "frontier ordering");
+export function validateFrontierGridManifest(value: unknown): asserts value is FrontierGridManifestV2 {
+  const root = record(value, "FrontierGridV2");
+  exact(root, ["schemaVersion", "version", "takeContext", "mu0New", "contour", "ordering"], "FrontierGridV2");
+  literal(root.schemaVersion, "FrontierGridV2", "frontier schemaVersion"); literal(root.version, "frontier-grid-2.0.0", "frontier version"); string(root.ordering, "frontier ordering");
   const take = record(root.takeContext, "takeContext"); exact(take, ["count", "min", "max", "scale"], "takeContext"); integer(take.count, 2, 1000, "takeContext.count"); finite(take.min, "takeContext.min"); finite(take.max, "takeContext.max"); literal(take.scale, "linear", "takeContext.scale");
   const mu = record(root.mu0New, "mu0New"); exact(mu, ["count", "min", "max", "scale", "unit"], "mu0New"); integer(mu.count, 2, 1000, "mu0New.count"); finite(mu.min, "mu0New.min"); finite(mu.max, "mu0New.max"); literal(mu.scale, "linear", "mu0New.scale"); string(mu.unit, "mu0New.unit");
-  const exposure = record(root.settingExposure, "settingExposure"); exact(exposure, ["count", "scale"], "settingExposure"); integer(exposure.count, 2, 1000, "settingExposure.count"); literal(exposure.scale, "logarithmic", "settingExposure.scale");
-  positiveObject(root.settingContacts, ["min", "max", "step"], "settingContacts"); positiveObject(root.contour, ["threshold", "tieTolerance"], "contour");
+  positiveObject(root.contour, ["threshold", "tieTolerance"], "contour");
 }
 
 export function validateSettingManifest(value: unknown): void {
-  const root = record(value, "SettingManifestV1"); exact(root, ["schemaVersion", "version", "anchors", "matlabInterval", "envelope"], "SettingManifestV1");
-  literal(root.schemaVersion, "SettingManifestV1", "setting schemaVersion"); string(root.version, "setting version");
+  const root = record(value, "SettingManifestV2"); exact(root, ["schemaVersion", "version", "anchors", "matlabInterval", "defaultDecisionScope", "surfaceDisplayDomain"], "SettingManifestV2");
+  literal(root.schemaVersion, "SettingManifestV2", "setting schemaVersion"); literal(root.version, "settings-2.0.0", "setting version");
   if (!Array.isArray(root.anchors) || root.anchors.length !== 4) throw new Error("Setting manifest must contain four anchors");
   for (const [index, candidate] of root.anchors.entries()) {
     const anchor = record(candidate, `anchors[${index}]`);
@@ -82,7 +81,14 @@ export function validateSettingManifest(value: unknown): void {
     if (anchor.tooltip !== undefined) string(anchor.tooltip, `anchor[${index}].tooltip`);
   }
   positiveObject(root.matlabInterval, ["low", "high", "unit"], "matlabInterval", ["unit"]);
-  positiveObject(root.envelope, ["TMin", "TMax", "NsMin", "NsMax", "dIhMin", "dIhMax", "dHsMin", "dHsMax"], "envelope");
+  const defaultScope = record(root.defaultDecisionScope, "defaultDecisionScope"); exact(defaultScope, ["kind", "anchorId"], "defaultDecisionScope"); literal(defaultScope.kind, "named_point", "defaultDecisionScope.kind"); literal(defaultScope.anchorId, "up-bihar", "defaultDecisionScope.anchorId");
+  const display = record(root.surfaceDisplayDomain, "surfaceDisplayDomain"); exact(display, ["linkedExposure", "exposure", "contacts", "dIh", "dHs"], "surfaceDisplayDomain"); literal(display.linkedExposure, true, "surfaceDisplayDomain.linkedExposure");
+  const exposure = record(display.exposure, "surfaceDisplayDomain.exposure"); exact(exposure, ["count", "min", "max", "scale", "unit", "basis"], "surfaceDisplayDomain.exposure"); integer(exposure.count, 2, 1000, "surfaceDisplayDomain.exposure.count"); positive(exposure.min, "surfaceDisplayDomain.exposure.min"); positive(exposure.max, "surfaceDisplayDomain.exposure.max"); if ((exposure.max as number) <= (exposure.min as number)) throw new Error("surfaceDisplayDomain.exposure.max must exceed min"); literal(exposure.scale, "logarithmic", "surfaceDisplayDomain.exposure.scale"); literal(exposure.unit, "micrograms/exposure", "surfaceDisplayDomain.exposure.unit"); literal(exposure.basis, "per_exposure", "surfaceDisplayDomain.exposure.basis");
+  const contacts = record(display.contacts, "surfaceDisplayDomain.contacts"); exact(contacts, ["min", "max", "step"], "surfaceDisplayDomain.contacts"); integer(contacts.min, 1, 1000, "surfaceDisplayDomain.contacts.min"); integer(contacts.max, contacts.min as number, 1000, "surfaceDisplayDomain.contacts.max"); integer(contacts.step, 1, 1000, "surfaceDisplayDomain.contacts.step");
+  if (exposure.count !== 81 || exposure.min !== 0.1 || exposure.max !== 2000) throw new Error("surfaceDisplayDomain exposure grid must be the committed 81-column 0.1-2000 microgram domain");
+  if (contacts.min !== 1 || contacts.max !== 20 || contacts.step !== 1) throw new Error("surfaceDisplayDomain contacts must be the committed integer range 1-20");
+  unitValueExact(display.dIh, "surfaceDisplayDomain.dIh", "exposures/person/day", "per_day");
+  unitValueExact(display.dHs, "surfaceDisplayDomain.dHs", "exposures/person/day", "per_day");
 }
 
 export function validateUncertaintyManifest(value: unknown): void {
@@ -112,3 +118,4 @@ function numberArray(value: unknown, length: number, label: string): void { if (
 function orderedTuple(value: unknown, label: string): void { numberArray(value, 2, label); if ((value as number[])[0]! > (value as number[])[1]!) throw new Error(`${label} must be ordered`); }
 function positiveObject(value: unknown, keys: readonly string[], label: string, stringKeys: readonly string[] = []): void { const item = record(value, label); exact(item, keys, label); for (const key of keys) stringKeys.includes(key) ? string(item[key], `${label}.${key}`) : positive(item[key], `${label}.${key}`); }
 function unitValue(value: unknown, label: string): void { const item = record(value, label); exact(item, ["value", "unit", "basis"], label); nonnegative(item.value, `${label}.value`); string(item.unit, `${label}.unit`); string(item.basis, `${label}.basis`); }
+function unitValueExact(value: unknown, label: string, expectedUnit: string, expectedBasis: string): void { const item = record(value, label); exact(item, ["value", "unit", "basis"], label); nonnegative(item.value, `${label}.value`); literal(item.unit, expectedUnit, `${label}.unit`); literal(item.basis, expectedBasis, `${label}.basis`); }

@@ -4,8 +4,8 @@ export const ROUTINE_DAYS = [42, 70, 98] as const;
 
 export type Bins = number[];
 export type ProductId = "sabin2" | "ipv" | "hypothetical";
-export type SettingId = "low" | "houston" | "matlab" | "up-bihar" | "global" | "custom";
-export type AnchorSettingId = Exclude<SettingId, "global" | "custom">;
+export type SettingId = "low" | "houston" | "matlab" | "up-bihar" | "custom";
+export type AnchorSettingId = Exclude<SettingId, "custom">;
 export type SuccessRule = "point";
 
 export interface UnitValueV1 {
@@ -223,13 +223,26 @@ export interface SettingAnchorRecord extends SettingV1 {
   tooltip?: string;
 }
 
-export interface FrontierGridManifestV1 {
-  schemaVersion: "FrontierGridV1";
+export interface SettingManifestV2 {
+  schemaVersion: "SettingManifestV2";
+  version: string;
+  anchors: unknown[];
+  matlabInterval: { low: number; high: number; unit: "micrograms/day" };
+  defaultDecisionScope: { kind: "named_point"; anchorId: AnchorSettingId };
+  surfaceDisplayDomain: {
+    linkedExposure: true;
+    exposure: { count: number; min: number; max: number; scale: "logarithmic"; unit: "micrograms/exposure"; basis: "per_exposure" };
+    contacts: { min: number; max: number; step: number };
+    dIh: UnitValueV1;
+    dHs: UnitValueV1;
+  };
+}
+
+export interface FrontierGridManifestV2 {
+  schemaVersion: "FrontierGridV2";
   version: string;
   takeContext: { count: number; min: number; max: number; scale: "linear" };
   mu0New: { count: number; min: number; max: number; scale: "linear"; unit: string };
-  settingExposure: { count: number; scale: "logarithmic" };
-  settingContacts: { min: number; max: number; step: number };
   contour: { threshold: number; tieTolerance: number };
   ordering: string;
 }

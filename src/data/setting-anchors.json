@@ -1,6 +1,6 @@
 {
-  "schemaVersion": "SettingManifestV1",
-  "version": "settings-1.0.0",
+  "schemaVersion": "SettingManifestV2",
+  "version": "settings-2.0.0",
   "anchors": [
     { "id": "low", "label": "Low transmission", "T_ih": { "value": 0.5, "unit": "micrograms/exposure", "basis": "per_exposure" }, "T_hs": { "value": 0.5, "unit": "micrograms/exposure", "basis": "per_exposure" }, "dIh": { "value": 1, "unit": "exposures/person/day", "basis": "per_day" }, "dHs": { "value": 8.9685, "unit": "exposures/person/day", "basis": "per_day" }, "Ns": 3, "kind": "published" },
     { "id": "houston", "label": "Houston/Louisiana moderate", "T_ih": { "value": 5, "unit": "micrograms/exposure", "basis": "per_exposure" }, "T_hs": { "value": 5, "unit": "micrograms/exposure", "basis": "per_exposure" }, "dIh": { "value": 1, "unit": "exposures/person/day", "basis": "per_day" }, "dHs": { "value": 8.9685, "unit": "exposures/person/day", "basis": "per_day" }, "Ns": 3, "kind": "published" },
@@ -8,5 +8,12 @@
     { "id": "up-bihar", "label": "UP/Bihar high", "T_ih": { "value": 230, "unit": "micrograms/exposure", "basis": "per_exposure" }, "T_hs": { "value": 230, "unit": "micrograms/exposure", "basis": "per_exposure" }, "dIh": { "value": 1, "unit": "exposures/person/day", "basis": "per_day" }, "dHs": { "value": 8.9685, "unit": "exposures/person/day", "basis": "per_day" }, "Ns": 10, "kind": "published" }
   ],
   "matlabInterval": { "low": 3.2, "high": 61.7, "unit": "micrograms/day" },
-  "envelope": { "TMin": 0.1, "TMax": 2000, "NsMin": 1, "NsMax": 40, "dIhMin": 1, "dIhMax": 1, "dHsMin": 8.9685, "dHsMax": 8.9685 }
+  "defaultDecisionScope": { "kind": "named_point", "anchorId": "up-bihar" },
+  "surfaceDisplayDomain": {
+    "linkedExposure": true,
+    "exposure": { "count": 81, "min": 0.1, "max": 2000, "scale": "logarithmic", "unit": "micrograms/exposure", "basis": "per_exposure" },
+    "contacts": { "min": 1, "max": 20, "step": 1 },
+    "dIh": { "value": 1, "unit": "exposures/person/day", "basis": "per_day" },
+    "dHs": { "value": 8.9685, "unit": "exposures/person/day", "basis": "per_day" }
+  }
 }

@@ -42,9 +42,7 @@ export function computePointMetrics(scenario: ScenarioV1, state: ImmuneState): P
   ])) as Record<AnchorSettingId, number>;
   return {
     ...product,
-    rLocSelectedSetting: scenario.setting.id === "global"
-      ? null
-      : rLocForSetting(state, scenario.setting, scenario.indexReferenceExposure, scenario.horizonDays),
+    rLocSelectedSetting: rLocForSetting(state, scenario.setting, scenario.indexReferenceExposure, scenario.horizonDays),
     rLocEnvelopeMax,
     rLocAnchors,
     naiveRLocEnvelopeMax: naiveRLocForSetting(envelopeCorner(scenario), scenario.indexReferenceExposure, scenario.horizonDays, state.assessmentAgeDays)
@@ -54,7 +52,7 @@ export function computePointMetrics(scenario: ScenarioV1, state: ImmuneState): P
 export function envelopeCorner(scenario: ScenarioV1): SettingV1 {
   const envelope = scenario.envelope;
   return {
-    id: "global",
+    id: "custom",
     Tih: { value: envelope.TihMax, unit: "grams/exposure", basis: "per_exposure" },
     Ths: { value: envelope.ThsMax, unit: "grams/exposure", basis: "per_exposure" },
     dIh: { value: envelope.dIhMax, unit: "exposures/person/day", basis: "per_day" },

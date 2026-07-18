@@ -1,240 +1,472 @@
-import { contours } from "d3-contour";
-import { scaleLinear, scaleLog } from "d3-scale";
-import { line } from "d3-shape";
 import { passesThreshold } from "./model/frontier";
-import { defaultScenario, evaluateScenario, scenarioWithProduct, scenarioWithSetting } from "./model/model";
-import { ENVELOPE, FRONTIER_GRID, PARAMETERS, PRODUCT_LABELS, SETTING_ANCHORS, SETTING_MANIFEST_VERSION } from "./model/parameters";
+import {
+  defaultScenario,
+  evaluateScenario,
+  scenarioWithDecisionScope,
+  scenarioWithProduct,
+  scenarioWithSetting
+} from "./model/model";
+import {
+  FRONTIER_GRID,
+  PARAMETERS,
+  PRODUCT_LABELS,
+  SETTING_ANCHORS,
+  SETTING_MANIFEST_VERSION
+} from "./model/parameters";
 import { canonicalJson, decodeScenario, encodeScenario } from "./model/serialization";
 import { MICROGRAMS_PER_GRAM } from "./model/types";
-import type { DesignGridPoint, ModelOutputsV1, ScenarioV1, SettingId } from "./model/types";
+import type { AnchorSettingId, DesignGridPoint, EnvelopeV1, ModelOutputsV1, ProductId, ScenarioV1, SettingId } from "./model/types";
+import { renderEffectMap, renderProductMap, renderSettingSurface } from "./ui/charts";
+import type { ChartViewState } from "./ui/charts";
+import { buildPresentation, describeDecisionScope, designKey } from "./ui/presentation";
+
 
 declare const __BUILD_IDENTITY__: string;
 
-const APP_VERSION = "0.2.0-prototype";
+const APP_VERSION = "0.3.0-prototype";
 const AUTO_UPDATE_DELAY_MS = 180;
-const PROTOTYPE_STATUS = "Scientific prototype: point-rule close-contact results are conditional-plausibility evidence under the v1 sufficiency axiom";
+const MIN_STALE_DISPLAY_MS = 50;
 const BUILD_IDENTITY = __BUILD_IDENTITY__;
+const PROTOTYPE_STATUS = "Scientific prototype: direct point-rule close-contact results under the v1 sufficiency axiom";
+const JSON_EXPORT_SCHEMA_VERSION = "PrototypeModelExportV2";
+const CSV_EXPORT_SCHEMA_VERSION = "PrototypeGridExportV2";
+const SVG_EXPORT_SCHEMA_VERSION = "PrototypeFigureExportV2";
+
+interface AppViewState extends ChartViewState {
+  drawerOpen: boolean;
+}
 
 export function mountApp(root: HTMLElement): void {
   root.innerHTML = shell();
   const initial = scenarioFromHash();
-  let scenario = initial.scenario;
-  let hashWarning = initial.error;
-  let outputs: ModelOutputsV1 | null = null;
+  let draftScenario = initial.scenario;
+  let committedOutputs: ModelOutputsV1 | null = null;
   let updateTimer: number | undefined;
-  const warning = document.querySelector<HTMLElement>("#state-warning")!;
-  const status = document.querySelector<HTMLElement>("#compute-status")!;
+  const view: AppViewState = {
+    inspectedDesignKey: null,
+    persistentDesignKey: null,
+    surfaceColumn: 40,
+    surfaceRow: 9,
+    drawerOpen: false
+  };
 
-  if (initial.error) showWarning(`The URL state was not evaluated: ${initial.error} Defaults were loaded.`);
-  syncControls(scenario);
+  syncControls(draftScenario);
+  bindControls();
+  bindChartInteractions();
+  bindExports();
+  bindGlobalKeys();
+  if (initial.error) showWarning(`The URL state was rejected: ${initial.error} Versioned defaults were loaded instead.`);
+  run(draftScenario, initial.error ? `The URL state was rejected: ${initial.error} Versioned defaults were evaluated instead.` : undefined);
 
-  document.querySelector<HTMLButtonElement>("#reset")!.addEventListener("click", () => {
-    scenario = defaultScenario();
-    hashWarning = undefined;
-    syncControls(scenario);
-    renderPending("Versioned defaults restored; evaluating scenario…");
-    run();
-  });
-  document.querySelector<HTMLButtonElement>("#compute")!.addEventListener("click", () => scheduleUpdate(0));
-  document.querySelector<HTMLSelectElement>("#product")!.addEventListener("change", (event) => {
-    scenario = scenarioWithProduct(scenario, (event.target as HTMLSelectElement).value as ScenarioV1["vaccine"]["id"]);
-    syncControls(scenario);
-    scheduleUpdate(0);
-  });
-  document.querySelector<HTMLSelectElement>("#setting")!.addEventListener("change", (event) => {
-    scenario = scenarioWithSetting(scenario, (event.target as HTMLSelectElement).value as SettingId);
-    syncControls(scenario);
-    scheduleUpdate(0);
-  });
-  document.querySelectorAll<HTMLInputElement | HTMLSelectElement>("[data-model-control]").forEach((input) => {
-    input.addEventListener(input instanceof HTMLInputElement && input.type === "range" ? "input" : "change", () => {
-      updateReadouts();
-      scheduleUpdate();
+  function bindControls(): void {
+    byId<HTMLButtonElement>("reset").addEventListener("click", () => {
+      draftScenario = defaultScenario();
+      view.inspectedDesignKey = null;
+      view.persistentDesignKey = null;
+      syncControls(draftScenario);
+      scheduleUpdate(0, "Versioned defaults restored.");
     });
-  });
-  document.querySelectorAll<HTMLButtonElement>("[data-export]").forEach((button) => button.addEventListener("click", () => {
-    if (!outputs) return;
-    exportOutput(button.dataset.export ?? "json", outputs);
-    const exportStatus = document.querySelector<HTMLElement>("#export-status")!;
-    exportStatus.textContent = `${button.textContent ?? "Export"} prepared from the current evaluated prototype scenario (${outputs.modelIdentity}).`;
-  }));
+    byId<HTMLButtonElement>("compute").addEventListener("click", () => scheduleUpdate(0, "Update requested."));
+    byId<HTMLSelectElement>("product").addEventListener("change", (event) => {
+      draftScenario = scenarioWithProduct(draftScenario, (event.target as HTMLSelectElement).value as ProductId);
+      syncControls(draftScenario);
+      scheduleUpdate(0, "Candidate changed.");
+    });
+    byId<HTMLSelectElement>("probe").addEventListener("change", (event) => {
+      const id = (event.target as HTMLSelectElement).value as SettingId;
+      draftScenario = scenarioWithSetting(draftScenario, id);
+      syncControls(draftScenario);
+      scheduleUpdate(0, "Inspection probe changed.");
+    });
+    byId<HTMLSelectElement>("scope").addEventListener("change", (event) => {
+      const id = (event.target as HTMLSelectElement).value;
+      if (id !== "custom") draftScenario = scenarioWithDecisionScope(draftScenario, id as AnchorSettingId);
+      syncScopeVisibility(id);
+      if (id !== "custom") syncScopeControls(draftScenario.envelope);
+      scheduleUpdate(0, "Decision scope changed.");
+    });
+    document.querySelectorAll<HTMLInputElement | HTMLSelectElement>("[data-model-control]").forEach((input) => {
+      const eventName = input instanceof HTMLInputElement && input.type === "range" ? "input" : "change";
+      input.addEventListener(eventName, () => {
+        updateReadouts();
+        scheduleUpdate(AUTO_UPDATE_DELAY_MS, "Scientific controls changed.");
+      });
+    });
+    byId<HTMLButtonElement>("use-design").addEventListener("click", () => {
+      if (!committedOutputs || !view.persistentDesignKey) return;
+      const point = designPointByKey(committedOutputs, view.persistentDesignKey);
+      if (!point) return;
+      draftScenario = scenarioWithProduct(draftScenario, "hypothetical");
+      draftScenario.vaccine = { ...draftScenario.vaccine, takeContext: point.takeContext, mu0: point.mu0 };
+      syncControls(draftScenario);
+      scheduleUpdate(0, "Selected grid design promoted to the scientific scenario.");
+    });
+  }
 
-  run();
+  function bindChartInteractions(): void {
+    for (const id of ["effect-map", "product-map"]) {
+      const container = byId<HTMLElement>(id);
+      container.addEventListener("pointerover", (event) => {
+        const mark = (event.target as Element).closest<SVGElement>("[data-design-key]");
+        if (!mark || !container.contains(mark)) return;
+        view.inspectedDesignKey = mark.dataset.designKey ?? null;
+        renderLinkedInspection();
+      });
+      container.addEventListener("pointerleave", () => {
+        view.inspectedDesignKey = null;
+        renderLinkedInspection();
+      });
+      container.addEventListener("click", (event) => {
+        const mark = (event.target as Element).closest<SVGElement>("[data-design-key]");
+        if (!mark || !container.contains(mark)) return;
+        view.persistentDesignKey = mark.dataset.designKey ?? null;
+        view.inspectedDesignKey = view.persistentDesignKey;
+        renderLinkedInspection();
+      });
+      container.addEventListener("keydown", (event) => handleDesignKeydown(event as KeyboardEvent));
+    }
+    const surface = byId<HTMLElement>("setting-map");
+    surface.addEventListener("pointerover", (event) => {
+      const cell = (event.target as Element).closest<SVGElement>("[data-surface-column]");
+      if (!cell || !surface.contains(cell)) return;
+      view.surfaceColumn = Number(cell.dataset.surfaceColumn ?? view.surfaceColumn);
+      view.surfaceRow = Number(cell.dataset.surfaceRow ?? view.surfaceRow);
+      renderSurfaceOnly();
+    });
+    surface.addEventListener("keydown", (event) => {
+      if (!committedOutputs) return;
+      const key = (event as KeyboardEvent).key;
+      if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"].includes(key)) return;
+      event.preventDefault();
+      if (key === "ArrowLeft") view.surfaceColumn = Math.max(0, view.surfaceColumn - 1);
+      if (key === "ArrowRight") view.surfaceColumn = Math.min(80, view.surfaceColumn + 1);
+      if (key === "ArrowUp") view.surfaceRow = Math.min(19, view.surfaceRow + 1);
+      if (key === "ArrowDown") view.surfaceRow = Math.max(0, view.surfaceRow - 1);
+      if (key === "Home") view.surfaceColumn = 0;
+      if (key === "End") view.surfaceColumn = 80;
+      renderSurfaceOnly();
+      document.querySelector<SVGSVGElement>("#setting-figure")?.focus();
+    });
+  }
 
-  function scheduleUpdate(delay = AUTO_UPDATE_DELAY_MS): void {
+  function bindExports(): void {
+    document.querySelectorAll<HTMLButtonElement>("[data-export]").forEach((button) => {
+      button.addEventListener("click", () => {
+        if (!committedOutputs || button.disabled) return;
+        try {
+          exportOutput(button.dataset.export ?? "json", committedOutputs, view);
+          byId<HTMLElement>("export-status").textContent = `${button.textContent ?? "Export"} prepared from committed model ${shortIdentity(committedOutputs.modelIdentity)}.`;
+        } catch (error) {
+          byId<HTMLElement>("export-status").textContent = `Export failed: ${errorMessage(error)}`;
+        }
+      });
+    });
+    byId<HTMLButtonElement>("share").addEventListener("click", async () => {
+      if (!committedOutputs) return;
+      const url = window.location.href;
+      try {
+        await navigator.clipboard.writeText(url);
+        byId<HTMLElement>("export-status").textContent = "Canonical scenario link copied.";
+      } catch {
+        byId<HTMLElement>("export-status").textContent = `Canonical scenario link is ready in the address bar: ${url}`;
+      }
+    });
+  }
+
+  function bindGlobalKeys(): void {
+    document.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape") return;
+      view.inspectedDesignKey = null;
+      view.persistentDesignKey = null;
+      const advanced = byId<HTMLDetailsElement>("advanced-controls");
+      advanced.open = false;
+      view.drawerOpen = false;
+      renderLinkedInspection();
+    });
+  }
+
+  function handleDesignKeydown(event: KeyboardEvent): void {
+    if (!committedOutputs) return;
+    if (event.key === "Enter" || event.key === " ") {
+      if (view.inspectedDesignKey) {
+        event.preventDefault();
+        view.persistentDesignKey = view.inspectedDesignKey;
+        renderLinkedInspection();
+      }
+      return;
+    }
+    if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"].includes(event.key)) return;
+    event.preventDefault();
+    const frontier = committedOutputs.frontier;
+    const current = designPointByKey(committedOutputs, view.inspectedDesignKey)
+      ?? frontier.nearestGridPoint
+      ?? frontier.points[0]!;
+    let takeIndex = frontier.takeValues.indexOf(current.takeContext);
+    let boostIndex = frontier.mu0Values.indexOf(current.mu0);
+    if (event.key === "ArrowLeft") takeIndex = Math.max(0, takeIndex - 1);
+    if (event.key === "ArrowRight") takeIndex = Math.min(frontier.takeValues.length - 1, takeIndex + 1);
+    if (event.key === "ArrowDown") boostIndex = Math.max(0, boostIndex - 1);
+    if (event.key === "ArrowUp") boostIndex = Math.min(frontier.mu0Values.length - 1, boostIndex + 1);
+    if (event.key === "Home") { takeIndex = 0; boostIndex = 0; }
+    if (event.key === "End") { takeIndex = frontier.takeValues.length - 1; boostIndex = frontier.mu0Values.length - 1; }
+    const point = frontier.points.find((candidate) => candidate.takeContext === frontier.takeValues[takeIndex] && candidate.mu0 === frontier.mu0Values[boostIndex]);
+    view.inspectedDesignKey = point ? designKey(point) : null;
+    renderLinkedInspection();
+  }
+
+  function scheduleUpdate(delay: number, message: string): void {
     if (updateTimer !== undefined) window.clearTimeout(updateTimer);
-    renderPending("Scenario changed; evaluating current controls…");
-    status.textContent = "Change pending…";
-    status.className = "compute-status pending";
+    markStale(message);
     updateTimer = window.setTimeout(() => {
       updateTimer = undefined;
       try {
-        scenario = readControls(scenario);
-        hashWarning = undefined;
+        draftScenario = readControls(draftScenario);
       } catch (error) {
         renderInvalid(error);
         return;
       }
-      run();
-    }, delay);
+      run(draftScenario);
+    }, Math.max(delay, MIN_STALE_DISPLAY_MS));
   }
 
-  function run(): void {
+  function run(nextScenario: ScenarioV1, notice?: string): void {
     const start = performance.now();
-    status.textContent = "Computing deterministic model…";
-    status.className = "compute-status busy";
+    byId<HTMLElement>("compute-status").textContent = "Evaluating deterministic model…";
     try {
-      const evaluatedScenario = structuredClone(scenario);
-      outputs = evaluateScenario(evaluatedScenario);
+      const outputs = evaluateScenario(structuredClone(nextScenario));
+      draftScenario = structuredClone(outputs.scenario);
+      committedOutputs = outputs;
       window.location.hash = `scenario=${encodeScenario(outputs.scenario)}`;
-      if (hashWarning) showWarning(`The URL state was not evaluated: ${hashWarning} Defaults were loaded.`);
-      else hideWarning();
-      renderOutputs(outputs);
-      status.textContent = `Model updated in ${Math.round(performance.now() - start)} ms`;
-      status.className = "compute-status ready";
+      renderCommitted(outputs);
+      hideWarning();
+      if (notice) showWarning(notice, "notice");
+      byId<HTMLElement>("compute-status").textContent = `Committed in ${Math.round(performance.now() - start)} ms`;
     } catch (error) {
       renderInvalid(error);
     }
   }
 
-  function renderInvalid(error: unknown): void {
-    outputs = null;
-    status.textContent = "Model state is invalid; no result is displayed";
-    status.className = "compute-status error";
-    showWarning(error instanceof Error ? error.message : String(error));
-    setExportAvailability(false);
-    const resultStatus = document.querySelector<HTMLElement>("#result-status")!;
-    resultStatus.className = "result-status invalid";
-    delete resultStatus.dataset.modelIdentity;
-    resultStatus.innerHTML = "<strong>INVALID SCENARIO</strong><span>Correct the highlighted scientific state before evaluation.</span>";
-    document.querySelector<HTMLElement>("#summary-cards")!.innerHTML = "";
-    document.querySelector<HTMLElement>("#selected-setting-result")!.textContent = "No evaluated scenario";
-    document.querySelector<HTMLElement>("#schedule-summary")!.textContent = "";
-    document.querySelector<HTMLElement>("#assumptions")!.innerHTML = "";
-    for (const id of ["effect-map", "product-map", "setting-map"]) document.querySelector<HTMLElement>(`#${id}`)!.innerHTML = '<p class="empty-plot">No stale figure is shown for invalid state.</p>';
-  }
-
-  function renderPending(message: string): void {
-    outputs = null;
-    setExportAvailability(false);
-    const resultStatus = document.querySelector<HTMLElement>("#result-status")!;
-    resultStatus.className = "result-status pending";
-    delete resultStatus.dataset.modelIdentity;
-    resultStatus.innerHTML = `<strong>RESULT WITHHELD</strong><span>${message} No threshold comparison, figure, summary, or export is shown until this scenario finishes evaluation.</span>`;
-    document.querySelector<HTMLElement>("#summary-cards")!.innerHTML = "";
-    document.querySelector<HTMLElement>("#selected-setting-result")!.textContent = "Scenario changed; result withheld";
-    document.querySelector<HTMLElement>("#schedule-summary")!.textContent = "";
-    document.querySelector<HTMLElement>("#assumptions")!.innerHTML = "";
-    document.querySelector<HTMLElement>("#export-status")!.textContent = "Exports are unavailable until the current scenario is evaluated.";
-    for (const id of ["effect-map", "product-map", "setting-map"]) document.querySelector<HTMLElement>(`#${id}`)!.innerHTML = '<p class="empty-plot">Scenario changed. Result withheld pending evaluation.</p>';
-  }
-
-  function showWarning(message: string): void {
-    warning.hidden = false;
-    warning.textContent = message;
-  }
-
-  function hideWarning(): void {
-    warning.hidden = true;
-    warning.textContent = "";
-  }
-
-  function renderOutputs(result: ModelOutputsV1): void {
-    const metrics = result.metrics;
-    const belowThreshold = passesThreshold(metrics.rLocEnvelopeMax);
-    const envelopeName = isBundledGlobalEnvelope(result.scenario) ? "v1 global envelope" : "selected envelope";
-    const resultStatus = document.querySelector<HTMLElement>("#result-status")!;
-    resultStatus.className = `result-status prototype ${belowThreshold ? "below-threshold" : "at-or-above-threshold"}`;
-    resultStatus.dataset.modelIdentity = result.modelIdentity;
-    const exposureDescription = result.scenario.envelope.linkedExposure
-      ? `${formatMicrograms(result.scenario.envelope.TihMin)}–${formatMicrograms(result.scenario.envelope.TihMax)} linked microgram/exposure`
-      : `Tih ${formatMicrograms(result.scenario.envelope.TihMin)}–${formatMicrograms(result.scenario.envelope.TihMax)} and Ths ${formatMicrograms(result.scenario.envelope.ThsMin)}–${formatMicrograms(result.scenario.envelope.ThsMax)} microgram/exposure`;
-    resultStatus.innerHTML = `<strong>PROTOTYPE POINT-RULE COMPARISON: ${belowThreshold ? "R<sub>loc</sub> is below 1" : "R<sub>loc</sub> is not below 1"}</strong><span>Direct maximum R<sub>loc</sub> = ${format(metrics.rLocEnvelopeMax)} across ${exposureDescription} and ${result.scenario.envelope.NsMin}–${result.scenario.envelope.NsMax} contact ${envelopeName}. Under the v1 sufficiency axiom, this is conditional-plausibility evidence for population-level herd immunity; it is not a calculated complete population R<sub>e</sub> or product-performance claim. Ties within ${FRONTIER_GRID.contour.tieTolerance} of 1 are not below threshold.</span>`;
-    const selectedRLoc = metrics.rLocSelectedSetting ?? metrics.rLocEnvelopeMax;
-    document.querySelector<HTMLElement>("#selected-setting-result")!.textContent = `${result.scenario.setting.id === "global" ? "Prototype envelope maximum" : "Prototype selected-setting probe"} · ${settingLabel(result.scenario.setting.id)} · Rloc ${format(selectedRLoc)}`;
-    document.querySelector<HTMLElement>("#summary-cards")!.innerHTML = summaryCards(result);
-    document.querySelector<HTMLElement>("#assumptions")!.innerHTML = `<h3>Assumptions and uncertainty</h3><p class="prototype-note"><strong>Scientific prototype only.</strong> ${PROTOTYPE_STATUS}. Threshold comparisons shown above and in the maps are not release classifications.</p><ul>${result.assumptions.map((item) => `<li>${item}</li>`).join("")}</ul><p class="uncertainty-note"><strong>Interval status:</strong> ${result.uncertainty.reason}</p>`;
-    document.querySelector<HTMLElement>("#effect-map")!.innerHTML = effectMap(result);
-    document.querySelector<HTMLElement>("#product-map")!.innerHTML = productMap(result);
-    document.querySelector<HTMLElement>("#setting-map")!.innerHTML = settingMap(result);
-    document.querySelector<HTMLElement>("#schedule-summary")!.textContent = `RI days ${result.scenario.schedule.routineDays.join(", ")}${result.scenario.schedule.boosterAgeYears ? `; booster at ${result.scenario.schedule.boosterAgeYears} year${result.scenario.schedule.boosterAgeYears === 1 ? "" : "s"}` : "; no booster"}. Assessment: ${result.metrics.assessmentLagDays} days after last dose (age ${formatDays(result.metrics.assessmentAgeDays)}).`;
+  function renderCommitted(outputs: ModelOutputsV1): void {
+    const presentation = buildPresentation(outputs);
+    const result = byId<HTMLElement>("result-status");
+    result.className = `result-status ${presentation.result.branch}`;
+    result.dataset.modelIdentity = outputs.modelIdentity;
+    delete result.dataset.stale;
+    result.innerHTML = `<p class="result-label">${escapeHtml(presentation.result.statusLabel)} · ${escapeHtml(presentation.result.scopeShortLabel)}</p>
+      <h2>${escapeHtml(presentation.result.headline)}</h2>
+      <p class="result-number"><span>Direct R<sub>loc</sub></span><strong>${formatNumber(presentation.result.value)}</strong><span>${escapeHtml(presentation.result.criterion)}</span></p>
+      <p class="qualification">${escapeHtml(presentation.result.qualification)}</p>`;
+    byId<HTMLElement>("candidate-summary").innerHTML = `<strong>${escapeHtml(presentation.candidate.label)}</strong><span>${escapeHtml(presentation.candidate.schedule)} · assessed ${escapeHtml(presentation.candidate.assessment)}</span>`;
+    byId<HTMLElement>("scope-summary").innerHTML = `<span>Decision scope</span><strong>${escapeHtml(presentation.result.scopeLabel)}</strong>`;
+    byId<HTMLElement>("probe-summary").innerHTML = `<span>Inspection probe</span><strong>${escapeHtml(presentation.probe.label)} · R<sub>loc</sub> ${presentation.probe.value === null ? "—" : formatNumber(presentation.probe.value)}</strong>`;
+    byId<HTMLElement>("setting-map").innerHTML = renderSettingSurface(outputs, view);
+    byId<HTMLElement>("effect-map").innerHTML = renderEffectMap(outputs, view);
+    byId<HTMLElement>("product-map").innerHTML = renderProductMap(outputs, view);
+    byId<HTMLElement>("frontier-summary").innerHTML = `<strong>${escapeHtml(presentation.frontier.message)}</strong><span>The two maps are alternate coordinates for the same ${outputs.frontier.points.length.toLocaleString("en-US")} direct evaluations.</span>`;
+    renderMechanism(outputs);
+    renderAssumptions(outputs);
+    renderLinkedInspection();
     setExportAvailability(true);
-    document.querySelector<HTMLElement>("#export-status")!.textContent = "Exports are ready for this evaluated prototype scenario.";
+    byId<HTMLElement>("export-status").textContent = `Exports are ready for committed model ${shortIdentity(outputs.modelIdentity)}.`;
+    byId<HTMLElement>("transaction-status").className = "transaction-status committed";
+    byId<HTMLElement>("transaction-status").textContent = `Current result committed. ${presentation.result.statusLabel}: direct R_loc ${formatNumber(presentation.result.value)}.`;
+    byId<HTMLElement>("story-results").classList.remove("is-stale");
+  }
+
+  function renderMechanism(outputs: ModelOutputsV1): void {
+    const metrics = outputs.metrics;
+    byId<HTMLElement>("mechanism-values").innerHTML = `<article><span>1 · acquisition</span><strong>${formatPercent(1 - metrics.qAcq)} reduction</strong><p>Residual acquisition multiplier q<sub>acq</sub> = ${formatNumber(metrics.qAcq)}.</p></article>
+      <article><span>2 · breakthrough shedding</span><strong>${formatPercent(1 - metrics.qShed)} reduction</strong><p>Conditional infectious-shedding multiplier q<sub>shed</sub> = ${formatNumber(metrics.qShed)}.</p></article>
+      <article class="diagnostic"><span>3 · diagnostic index</span><strong>q<sub>index</sub> = ${formatNumber(metrics.qIndex)}</strong><p>q<sub>acq</sub> × q<sub>shed</sub>; useful for reading, not the decision rule.</p></article>
+      <article class="authoritative"><span>4 · direct motif result</span><strong>R<sub>loc</sub> = ${formatNumber(metrics.rLocEnvelopeMax)}</strong><p>Distribution-native propagation over the declared decision scope.</p></article>`;
+  }
+
+  function renderAssumptions(outputs: ModelOutputsV1): void {
+    byId<HTMLElement>("assumptions-list").innerHTML = outputs.assumptions.map((item) => `<li>${escapeHtml(item)}</li>`).join("");
+    byId<HTMLElement>("uncertainty-note").innerHTML = `<strong>Evidence gap:</strong> ${escapeHtml(outputs.uncertainty.reason)}`;
+    byId<HTMLElement>("provenance-summary").textContent = `Model ${shortIdentity(outputs.modelIdentity)} · ${outputs.provenance && typeof outputs.provenance === "object" ? "committed source snapshots and deterministic transforms" : "provenance unavailable"}.`;
+  }
+
+  function renderLinkedInspection(): void {
+    if (!committedOutputs) return;
+    document.querySelectorAll<SVGElement>("[data-design-key]").forEach((mark) => {
+      mark.classList.toggle("is-inspected", mark.dataset.designKey === view.inspectedDesignKey);
+      mark.classList.toggle("is-persistent", mark.dataset.designKey === view.persistentDesignKey);
+    });
+    const key = view.inspectedDesignKey ?? view.persistentDesignKey;
+    const point = designPointByKey(committedOutputs, key);
+    const inspector = byId<HTMLElement>("design-inspector");
+    const button = byId<HTMLButtonElement>("use-design");
+    if (!point) {
+      inspector.innerHTML = `<p><strong>Inspect a design.</strong> Hover, tap, or focus either map. Click or press Enter to hold a selection.</p>`;
+      button.disabled = true;
+      button.hidden = true;
+      return;
+    }
+    inspector.innerHTML = `<p class="inspector-label">${key === view.persistentDesignKey ? "Held design" : "Inspection"}</p><dl>
+      <div><dt>Take context</dt><dd>${point.takeContext.toFixed(2)}</dd></div><div><dt>Mean boost</dt><dd>${point.mu0.toFixed(2)} log2</dd></div>
+      <div><dt>Acquisition reduction</dt><dd>${formatPercent(1 - point.qAcq)}</dd></div><div><dt>Shedding reduction</dt><dd>${formatPercent(1 - point.qShed)}</dd></div>
+      <div><dt>Direct R<sub>loc</sub></dt><dd>${formatNumber(point.rLocEnvelopeMax)}</dd></div><div><dt>Criterion</dt><dd>${point.passes ? "meets" : "does not meet"}</dd></div></dl>`;
+    button.hidden = view.persistentDesignKey === null;
+    const alreadySelected = committedOutputs.scenario.vaccine.id === "hypothetical"
+      && committedOutputs.scenario.vaccine.takeContext === point.takeContext
+      && committedOutputs.scenario.vaccine.mu0 === point.mu0;
+    button.disabled = view.persistentDesignKey === null || alreadySelected;
+    button.textContent = alreadySelected ? "Current scientific design" : "Use this design";
+  }
+
+  function renderSurfaceOnly(): void {
+    if (!committedOutputs) return;
+    byId<HTMLElement>("setting-map").innerHTML = renderSettingSurface(committedOutputs, view);
+  }
+
+  function markStale(message: string): void {
+    setExportAvailability(false);
+    byId<HTMLElement>("export-status").textContent = "Exports are unavailable while controls differ from the committed result.";
+    byId<HTMLElement>("compute-status").textContent = "Change pending…";
+    const transaction = byId<HTMLElement>("transaction-status");
+    transaction.className = "transaction-status stale";
+    transaction.textContent = committedOutputs
+      ? `${message} The prior committed result remains visible but is stale until evaluation succeeds.`
+      : `${message} No result is committed yet.`;
+    if (committedOutputs) {
+      byId<HTMLElement>("story-results").classList.add("is-stale");
+      const result = byId<HTMLElement>("result-status");
+      result.dataset.stale = "true";
+    }
+  }
+
+  function renderInvalid(error: unknown): void {
+    setExportAvailability(false);
+    const message = errorMessage(error);
+    showWarning(message, "error");
+    byId<HTMLElement>("compute-status").textContent = "Invalid scientific state; prior commit retained.";
+    const transaction = byId<HTMLElement>("transaction-status");
+    transaction.className = "transaction-status invalid";
+    transaction.textContent = committedOutputs
+      ? "The edited state is invalid. The visible result is the prior commit and cannot be exported as the current controls."
+      : "The edited state is invalid. No result is committed.";
+    if (committedOutputs) byId<HTMLElement>("story-results").classList.add("is-stale");
   }
 
   function setExportAvailability(available: boolean): void {
-    document.querySelectorAll<HTMLButtonElement>("[data-export]").forEach((button) => { button.disabled = !available; });
+    document.querySelectorAll<HTMLButtonElement>("[data-export], #share").forEach((button) => { button.disabled = !available; });
   }
 }
 
 function shell(): string {
-  const productOptions = Object.entries(PRODUCT_LABELS).map(([id, label]) => `<option value="${id}">${label}</option>`).join("");
-  const settingOptions = [
-    ["global", "Any setting: v1 global envelope"],
-    ...SETTING_ANCHORS.map((anchor) => [anchor.id, `${anchor.label}${anchor.kind === "hybrid" ? " (hybrid)" : ""}`]),
-    ["custom", "Custom setting"]
-  ].map(([id, label]) => `<option value="${id}">${label}</option>`).join("");
-  return `<main class="app-shell">
+  const productOptions = Object.entries(PRODUCT_LABELS).map(([id, label]) => `<option value="${id}">${escapeHtml(label)}</option>`).join("");
+  const settingOptions = ([...SETTING_ANCHORS.map((anchor) => [anchor.id, anchor.label] as [string, string]), ["custom", "Custom inspection probe"]] as Array<[string, string]>)
+    .map(([id, label]) => `<option value="${id}">${escapeHtml(label)}</option>`).join("");
+  const scopeOptions = ([...SETTING_ANCHORS.map((anchor) => [anchor.id, `${anchor.label} singleton`] as [string, string]), ["custom", "Custom rectangular scope"]] as Array<[string, string]>)
+    .map(([id, label]) => `<option value="${id}">${escapeHtml(label)}</option>`).join("");
+  return `<a class="skip-link" href="#result-status">Skip to result</a>
+  <header class="site-header"><a class="wordmark" href="#top" aria-label="Polio vaccine target product profile explorer home">TPP / WPV1</a><nav aria-label="Narrative chapters"><a href="#setting">Setting</a><a href="#mechanism">Mechanism</a><a href="#design-space">Design space</a><a href="#measurement">Measurement</a></nav></header>
+  <main id="top" class="app-shell">
     <header class="hero">
-      <p class="eyebrow">WPV1 close-contact model · design contract ${PARAMETERS.designContractVersion}</p>
-      <h1>What vaccine performance is enough?</h1>
-      <p class="lede">Explore acquisition blocking, breakthrough infectiousness, schedule, and close-contact setting assumptions. The authoritative modeled result is the direct R<sub>loc</sub> envelope criterion—not a scalar shedding target and not a complete population R<sub>e</sub>.</p>
+      <p class="eyebrow">WPV1 · close-contact sufficiency model · contract ${PARAMETERS.designContractVersion}</p>
+      <h1>Under what conditions can a vaccine block close-contact transmission?</h1>
+      <p class="lede">Start with a hard empirical anchor, then work backward from the transmission result to the product properties that produce it.</p>
+      <aside class="prototype-banner" role="note"><strong>Scientific prototype · point rule</strong><span>This is a deterministic close-contact sufficiency screen under the v1 axiom—not a complete-population R<sub>e</sub>, outbreak forecast, or probability of product success.</span></aside>
     </header>
-    <aside class="prototype-banner" role="note"><strong>Scientific prototype — point rule only</strong><span>Kernel parity and the named prevalence calibration support this conditional-plausibility close-contact calculation. Under the v1 sufficiency axiom, it informs population-level herd-immunity reasoning; it is not a calculated complete-population result or product-performance claim.</span></aside>
-    <section class="control-panel" aria-labelledby="controls-heading">
-      <div class="section-heading"><div><p class="eyebrow">Scenario</p><h2 id="controls-heading">Product, schedule, and setting</h2></div><button id="reset" class="secondary">Reset versioned defaults</button></div>
-      <div class="controls-grid">
-        <label>Product<select id="product">${productOptions}</select><small>Fixed Sabin 2 and IPV comparators cannot be parameterized.</small></label>
-        <label>Setting<select id="setting">${settingOptions}</select><small>Named/custom results are shown separately; status always uses the declared envelope.</small></label>
-        <label>Booster<select id="booster" data-model-control><option value="0">None</option><option value="1">At 1 year</option><option value="2">At 2 years</option><option value="3">At 3 years</option><option value="4">At 4 years</option></select></label>
-        <label>Assessment lag<select id="lag" data-model-control><option value="28">28 days</option><option value="90">90 days</option></select><small>Applied identically to index, household, and social roles.</small></label>
-        <label>Biological take context <output id="take-output">0.80</output><input id="take" data-model-control type="range" min="0" max="1" step="0.01" value="0.8"><small id="take-help">Productive live-vaccine infection after receipt; receipt itself is fixed at 100%.</small></label>
-        <label>Mean mucosal boost <output id="mu-output">4.0 log2</output><input id="mu" data-model-control type="range" min="0" max="8" step="0.1" value="4"><small id="mu-help">Hypothetical live product; sigma remains fixed at 2.4 log2 units.</small></label>
+
+    <section class="opening" aria-labelledby="opening-heading">
+      <div id="story-results">
+        <div id="result-status" class="result-status pending" aria-live="polite"><p class="result-label">Evaluating</p><h2 id="opening-heading">Calculating the versioned default…</h2></div>
+        <div class="opening-meta"><p id="candidate-summary"></p><p id="scope-summary"></p><p id="probe-summary"></p></div>
       </div>
-      <details><summary>Advanced scientific controls and fixed parameters</summary><div class="controls-grid advanced">
-        <label>Vaccine alpha<input id="alpha" data-model-control type="number" min="0.001" max="5" step="0.001"></label>
-        <label>Vaccine beta (CID50)<input id="beta" data-model-control type="number" min="0.001" max="1000000" step="0.1"></label>
-        <label>Administered dose (log10 TCID50)<input id="dose-log" data-model-control type="number" min="0" max="9" step="0.01"></label>
-        <label>Custom Tih (micrograms/exposure)<input id="custom-tih" data-model-control type="number" min="0" max="1000000" step="0.1"></label>
-        <label>Custom Ths (micrograms/exposure)<input id="custom-ths" data-model-control type="number" min="0" max="1000000" step="0.1"></label>
-        <label>Custom Dih (exposures/person/day)<input id="custom-dih" data-model-control type="number" min="0" max="1000" step="0.01"></label>
-        <label>Custom Dhs (exposures/person/day)<input id="custom-dhs" data-model-control type="number" min="0" max="1000" step="0.01"></label>
-        <label>Custom Ns (close social contacts)<input id="custom-ns" data-model-control type="number" min="0" max="1000" step="1"></label>
-        <label>Envelope T minimum (micrograms/exposure)<input id="envelope-t-min" data-model-control type="number" min="0.000001" max="1000000" step="0.1"></label>
-        <label>Envelope T maximum (micrograms/exposure)<input id="envelope-t-max" data-model-control type="number" min="0.000001" max="1000000" step="1"></label>
-        <label>Envelope Ns minimum<input id="envelope-ns-min" data-model-control type="number" min="0" max="1000" step="1"></label>
-        <label>Envelope Ns maximum<input id="envelope-ns-max" data-model-control type="number" min="0" max="1000" step="1"></label>
-        <label>Envelope Dih maximum<input id="envelope-dih-max" data-model-control type="number" min="0" max="1000" step="0.01"></label>
-        <label>Envelope Dhs maximum<input id="envelope-dhs-max" data-model-control type="number" min="0" max="1000" step="0.01"></label>
-        <label>Index reference exposure (WPV1 dose units)<input id="index-reference" data-model-control type="number" min="0.000001" max="1000000000" step="0.01"></label>
-        <label>Success rule<input value="Point Rloc &lt; 1" disabled></label>
-        <label>Fixed gamma<input id="fixed-gamma" type="number" disabled></label>
-        <label>Fixed boost sigma<input id="fixed-sigma" type="number" disabled></label>
-        <label>Episode horizon (days)<input id="fixed-horizon" type="number" disabled></label>
-      </div></details>
-      <p id="state-warning" class="warning" hidden></p><div class="control-actions"><button id="compute" class="primary">Update now</button><span id="compute-status" class="compute-status" role="status" aria-live="polite"></span></div>
+      <form class="decision-controls" aria-labelledby="controls-heading" onsubmit="return false">
+        <div class="controls-title"><div><p class="eyebrow">Decision controls</p><h2 id="controls-heading">Ask another version</h2></div><button id="reset" type="button" class="text-button">Reset</button></div>
+        <label>Candidate product<select id="product">${productOptions}</select></label>
+        <div class="control-pair"><label>Booster<select id="booster" data-model-control><option value="0">No booster</option><option value="1">At 1 year</option><option value="2">At 2 years</option><option value="3">At 3 years</option><option value="4">At 4 years</option></select></label><label>Assessment<select id="lag" data-model-control><option value="28">28 days after dose</option><option value="90">90 days after dose</option></select></label></div>
+        <label>Inspection probe<select id="probe">${settingOptions}</select><small>Changes the readout, not the decision result or model identity.</small></label>
+        <label>Decision scope<select id="scope">${scopeOptions}</select><small>Directly determines the reported maximum R<sub>loc</sub>.</small></label>
+        <p id="state-warning" class="warning" hidden></p>
+        <div class="control-actions"><button id="compute" class="primary" type="button">Update now</button><span id="compute-status" role="status" aria-live="polite"></span></div>
+      </form>
     </section>
-    <p id="schedule-summary" class="schedule-summary"></p>
-    <section id="result-status" class="result-status" aria-live="polite"></section>
-    <section id="summary-cards" class="summary-cards"></section>
-    <section class="primary-views" aria-labelledby="maps-heading"><div class="section-heading"><div><p class="eyebrow">Prototype threshold maps</p><h2 id="maps-heading">Linked hypothetical-product maps</h2></div><span id="selected-setting-result" class="pill">No evaluated scenario</span></div><div class="map-grid"><figure><div id="effect-map"></div><figcaption><strong>Requirement space — prototype only.</strong> Filled points are below R<sub>loc</sub> = 1 in this prototype calculation; open points are not. The orange path is the prototype minimum-below-threshold set. Fixed products are separate comparator markers.</figcaption></figure><figure><div id="product-map"></div><figcaption><strong>Product space — prototype only.</strong> The same 2,601 hypothetical designs shown as take context versus mean boost. Hatched cells are not below R<sub>loc</sub> = 1 in the prototype calculation. Fixed comparators are never mutated into this family.</figcaption></figure></div></section>
-    <section class="surface-section" aria-labelledby="surface-heading"><p class="eyebrow">Prototype setting surface</p><h2 id="surface-heading">Selected-product setting surface</h2><p class="section-copy">Exposure is in micrograms of stool-equivalent transfer per exposure. Fill reports log<sub>10</sub>(R<sub>loc</sub>); hatching marks R<sub>loc</sub> ≥ 1, and the heavy contour marks the threshold in the unreleased prototype calculation. Named anchors are overlays, not extra model pathways.</p><figure><div id="setting-map"></div></figure></section>
-    <section id="assumptions" class="assumptions"></section>
-    <section class="exports"><h2>Prototype exports</h2><p>Exports include the canonical evaluated scenario, manifest versions, exact grid ordering, fixed comparators, and directly evaluated outputs. They are labeled as prototype output and disabled whenever the controls no longer match an evaluated scenario.</p><button data-export="json" class="secondary" disabled>JSON</button><button data-export="csv" class="secondary" disabled>CSV grids</button><button data-export="svg" class="secondary" disabled>SVG figures</button><span id="export-status" class="export-status" role="status">Exports are unavailable until the current scenario is evaluated.</span></section>
-    <footer><p>Prototype ${APP_VERSION} · design contract ${PARAMETERS.designContractVersion} · parameter manifest ${PARAMETERS.manifestVersion} · setting manifest ${SETTING_MANIFEST_VERSION} · build ${BUILD_IDENTITY}.</p><p>No runtime network dependency or random sampling. <a href="#assumptions">Model assumptions</a> · <a href="https://journals.plos.org/plosbiology/article?id=10.1371/journal.pbio.2002468">Source paper</a> · <a href="https://github.com/famulare/cessationStability">cessationStability</a> · <a href="https://github.com/famulare/india-polio">india-polio</a></p></footer>
-  </main>`;
+    <p id="transaction-status" class="transaction-status" role="status" aria-live="polite"></p>
+
+    <section id="setting" class="chapter surface-chapter" aria-labelledby="setting-heading">
+      <div class="chapter-heading"><p class="chapter-number">01 / Setting pressure</p><div><h2 id="setting-heading">A win at the hardest known modeled anchor is a demanding stress test.</h2><p>UP/Bihar combines unusually intense modeled exposure and close social mixing. Clearing it supports—without proving—likely adequacy under less demanding conditions represented by this mechanism.</p></div></div>
+      <figure class="hero-figure"><div id="setting-map" class="chart-slot" aria-live="off"></div><figcaption><strong>Read from blue through white to red.</strong> White is R<sub>loc</sub> = 1. The diamond is the decision anchor; the ring is the independent inspection probe. Arrow keys traverse all 81 × 20 display cells.</figcaption></figure>
+    </section>
+
+    <section id="mechanism" class="chapter" aria-labelledby="mechanism-heading">
+      <div class="chapter-heading"><p class="chapter-number">02 / Transmission motif</p><div><h2 id="mechanism-heading">One index child, one household link, then close social contacts.</h2><p>The model asks whether this high-strength local motif contracts. It does not reconstruct every connection in a population.</p></div></div>
+      <div class="motif" role="img" aria-label="Index child transmits to a household child, who connects to close social contacts">
+        <article><span>01</span><strong>Index child</strong><p>Breakthrough infection and infectious shedding after the selected schedule.</p></article><i aria-hidden="true">→</i><article><span>02</span><strong>Household child</strong><p>Acquisition is propagated through the full modeled immunity distribution.</p></article><i aria-hidden="true">→</i><article><span>03</span><strong>Close social contacts</strong><p>N<sub>s</sub> family-like child contacts extend the local motif.</p></article>
+      </div>
+      <div id="mechanism-values" class="mechanism-values"></div>
+      <aside class="meaning-note"><strong>Why R<sub>loc</sub> is not R<sub>e</sub></strong><p>R<sub>loc</sub> is the expected tertiary infections generated by this declared motif. The sufficiency axiom treats the motif as a strong local stress test; it does not calculate full network or geographic spread.</p></aside>
+    </section>
+
+    <section id="design-space" class="chapter" aria-labelledby="design-heading">
+      <div class="chapter-heading"><p class="chapter-number">03 / From requirement to product</p><div><h2 id="design-heading">Two views, one set of directly evaluated designs.</h2><p>Outcome space says what combination of acquisition blocking and shedding reduction is sufficient. Product space shows which biological take contexts and latent mucosal boosts produce those outcomes.</p></div></div>
+      <div id="frontier-summary" class="frontier-summary"></div>
+      <div class="linked-maps"><figure><div id="effect-map" class="chart-slot"></div><figcaption><strong>Requirement space.</strong> Axes are modeled outcomes, not independently tunable product specifications. The russet path is the minimum-sufficient Pareto boundary when one exists.</figcaption></figure><figure><div id="product-map" class="chart-slot"></div><figcaption><strong>Product space.</strong> Take is productive biological infection after a received live dose. Mean boost is latent OPV-equivalent mucosal immunity, not serum titer.</figcaption></figure></div>
+      <div class="design-inspection"><div id="design-inspector"><p><strong>Inspect a design.</strong> Hover, tap, or focus either map. Click or press Enter to hold a selection.</p></div><button id="use-design" type="button" class="primary" hidden disabled>Use this design</button></div>
+    </section>
+
+    <section id="measurement" class="chapter" aria-labelledby="measurement-heading">
+      <div class="chapter-heading"><p class="chapter-number">04 / Measurement handshake</p><div><h2 id="measurement-heading">What the controls mean—and what they do not measure.</h2><p>The quantities below connect product assumptions, field setting anchors, inherited model structure, and derived results.</p></div></div>
+      <div class="table-wrap"><table><thead><tr><th>Quantity</th><th>Scientific role</th><th>Measurement interpretation</th><th>Status in v1</th></tr></thead><tbody>
+        <tr><th scope="row">Biological take context</th><td>Product property</td><td>Productive live-vaccine infection after a received dose; not receipt or coverage.</td><td>Scenario input</td></tr>
+        <tr><th scope="row">Mean mucosal boost, μ<sub>0</sub></th><td>Product property</td><td>Latent OPV-equivalent mucosal immunity shift; not measured serum titer.</td><td>Scenario input</td></tr>
+        <tr><th scope="row">Exposure, T<sub>ih</sub> / T<sub>hs</sub></th><td>Setting pressure</td><td>Stool-equivalent mass transferred per exposure, converted at the UI boundary.</td><td>Named anchor or custom input</td></tr>
+        <tr><th scope="row">Contact frequency and N<sub>s</sub></th><td>Motif structure</td><td>Exposures per person-day and family-like close social contacts.</td><td>Calibrated, inherited, or declared</td></tr>
+        <tr><th scope="row">q<sub>acq</sub>, q<sub>shed</sub></th><td>Modeled effects</td><td>Residual acquisition and conditional infectious-shedding multipliers.</td><td>Derived from distributions</td></tr>
+        <tr><th scope="row">R<sub>loc</sub></th><td>Decision result</td><td>Expected tertiary infections in the v1 close-contact motif.</td><td>Direct derived output</td></tr>
+        <tr><th scope="row">Parameter uncertainty</th><td>Decision uncertainty</td><td>Threshold-crossing uncertainty would require a released ensemble.</td><td>Evidence gap in this version</td></tr>
+      </tbody></table></div>
+    </section>
+
+    <section class="chapter controls-and-provenance" aria-labelledby="advanced-heading">
+      <details id="advanced-controls"><summary><span>Advanced scientific controls</span><small>Hypothetical product, custom probe, decision-scope bounds, and fixed v1 assumptions</small></summary>
+        <div class="advanced-body">
+          <fieldset id="hypothetical-controls"><legend>Hypothetical OPV-like product</legend><div class="advanced-grid">
+            <label>Biological take <output id="take-output">0.80</output><input id="take" data-model-control type="range" min="0" max="1" step="0.01"><small id="take-help"></small></label>
+            <label>Latent mean mucosal boost <output id="mu-output">4.0 log2</output><input id="mu" data-model-control type="range" min="0" max="8" step="0.1"><small id="mu-help"></small></label>
+            <label>Vaccine α<input id="alpha" data-model-control type="number" min="0.001" max="5" step="0.001"></label>
+            <label>Vaccine β (CID50)<input id="beta" data-model-control type="number" min="0.001" max="1000000" step="0.1"></label>
+            <label>Administered dose (log10 TCID50)<input id="dose-log" data-model-control type="number" min="0" max="9" step="0.01"></label>
+          </div></fieldset>
+          <p id="catalog-product-note" class="catalog-note" hidden></p>
+          <fieldset id="custom-probe-controls" hidden><legend>Custom inspection probe</legend><div class="advanced-grid">
+            <label>T<sub>ih</sub> (µg/exposure)<input id="custom-tih" data-model-control type="number" min="0" max="1000000" step="0.1"></label><label>T<sub>hs</sub> (µg/exposure)<input id="custom-ths" data-model-control type="number" min="0" max="1000000" step="0.1"></label>
+            <label>d<sub>ih</sub> (exposures/person/day)<input id="custom-dih" data-model-control type="number" min="0" max="1000" step="0.01"></label><label>d<sub>hs</sub> (exposures/person/day)<input id="custom-dhs" data-model-control type="number" min="0" max="1000" step="0.01"></label><label>N<sub>s</sub><input id="custom-ns" data-model-control type="number" min="0" max="1000" step="1"></label>
+          </div></fieldset>
+          <fieldset id="custom-scope-controls" hidden><legend>Custom rectangular decision scope</legend><p>All corners are evaluated directly. The fixed setting surface remains a nonbinding display domain.</p><div class="advanced-grid">
+            <label>Linked T minimum (µg/exposure)<input id="scope-t-min" data-model-control type="number" min="0.000001" max="1000000" step="0.1"></label><label>Linked T maximum (µg/exposure)<input id="scope-t-max" data-model-control type="number" min="0.000001" max="1000000" step="1"></label>
+            <label>N<sub>s</sub> minimum<input id="scope-ns-min" data-model-control type="number" min="0" max="1000" step="1"></label><label>N<sub>s</sub> maximum<input id="scope-ns-max" data-model-control type="number" min="0" max="1000" step="1"></label>
+            <label>d<sub>ih</sub> minimum<input id="scope-dih-min" data-model-control type="number" min="0" max="1000" step="0.01"></label><label>d<sub>ih</sub> maximum<input id="scope-dih-max" data-model-control type="number" min="0" max="1000" step="0.01"></label>
+            <label>d<sub>hs</sub> minimum<input id="scope-dhs-min" data-model-control type="number" min="0" max="1000" step="0.01"></label><label>d<sub>hs</sub> maximum<input id="scope-dhs-max" data-model-control type="number" min="0" max="1000" step="0.01"></label>
+          </div></fieldset>
+          <fieldset><legend>Fixed v1 assumptions</legend><dl class="fixed-values"><div><dt>Success rule</dt><dd>Direct R<sub>loc</sub> &lt; 1</dd></div><div><dt>Boost σ</dt><dd id="fixed-sigma"></dd></div><div><dt>γ</dt><dd id="fixed-gamma"></dd></div><div><dt>Episode horizon</dt><dd id="fixed-horizon"></dd></div><div><dt>Index reference exposure</dt><dd id="fixed-index-reference"></dd></div></dl></fieldset>
+        </div>
+      </details>
+    </section>
+
+    <section id="assumptions" class="chapter closing" aria-labelledby="assumptions-heading">
+      <div class="chapter-heading"><p class="chapter-number">05 / Assumptions and provenance</p><div><h2 id="assumptions-heading">The result is only as broad as its declared model.</h2><p id="provenance-summary"></p></div></div>
+      <ul id="assumptions-list" class="assumptions-list"></ul><p id="uncertainty-note" class="uncertainty-note"></p>
+      <div class="exports"><h3>Export the committed result</h3><p>Scientific changes disable export until a new result commits. SVGs include the candidate, schedule, scope, criterion, qualification, selected state, and interpolation note.</p><div class="export-actions"><button data-export="json" type="button">JSON</button><button data-export="csv" type="button">CSV grids</button><button data-export="setting-svg" type="button">Setting SVG</button><button data-export="effect-svg" type="button">Requirement SVG</button><button data-export="product-svg" type="button">Product SVG</button><button id="share" type="button">Share link</button></div><p id="export-status" role="status" aria-live="polite">Exports are unavailable until evaluation completes.</p></div>
+    </section>
+  </main>
+  <footer class="site-footer"><p>Prototype ${APP_VERSION} · contract ${PARAMETERS.designContractVersion} · parameters ${PARAMETERS.manifestVersion} · settings ${SETTING_MANIFEST_VERSION} · build ${BUILD_IDENTITY}</p><p>No runtime network dependency or random sampling. <a href="https://journals.plos.org/plosbiology/article?id=10.1371/journal.pbio.2002468">Source paper</a> · <a href="https://github.com/famulare/cessationStability">cessationStability</a> · <a href="https://github.com/famulare/india-polio">india-polio</a></p></footer>`;
 }
 
 function scenarioFromHash(): { scenario: ScenarioV1; error?: string } {
   const encoded = window.location.hash.startsWith("#scenario=") ? window.location.hash.slice("#scenario=".length) : "";
   if (!encoded) return { scenario: defaultScenario() };
   try { return { scenario: decodeScenario(encoded) }; }
-  catch (error) { return { scenario: defaultScenario(), error: error instanceof Error ? error.message : String(error) }; }
+  catch (error) { return { scenario: defaultScenario(), error: errorMessage(error) }; }
 }
 
 function syncControls(scenario: ScenarioV1): void {
   setValue("product", scenario.vaccine.id);
-  setValue("setting", scenario.setting.id);
+  setValue("probe", scenario.setting.id);
+  setValue("scope", describeDecisionScope(scenario.envelope).id);
   setValue("booster", scenario.schedule.boosterAgeYears);
   setValue("lag", scenario.schedule.assessmentLagDays);
   setValue("take", scenario.vaccine.takeContext);
@@ -247,255 +479,175 @@ function syncControls(scenario: ScenarioV1): void {
   setValue("custom-dih", scenario.setting.dIh.value);
   setValue("custom-dhs", scenario.setting.dHs.value);
   setValue("custom-ns", scenario.setting.Ns);
-  setValue("envelope-t-min", microgramsFromGrams(scenario.envelope.TihMin));
-  setValue("envelope-t-max", microgramsFromGrams(scenario.envelope.TihMax));
-  setValue("envelope-ns-min", scenario.envelope.NsMin);
-  setValue("envelope-ns-max", scenario.envelope.NsMax);
-  setValue("envelope-dih-max", scenario.envelope.dIhMax);
-  setValue("envelope-dhs-max", scenario.envelope.dHsMax);
-  setValue("index-reference", scenario.indexReferenceExposure);
-  setValue("fixed-gamma", scenario.vaccine.gamma);
-  setValue("fixed-sigma", scenario.vaccine.sigma0);
-  setValue("fixed-horizon", scenario.horizonDays);
-  setProductEditability(scenario.vaccine.id);
+  syncScopeControls(scenario.envelope);
+  byId<HTMLElement>("fixed-gamma").textContent = scenario.vaccine.gamma.toFixed(4);
+  byId<HTMLElement>("fixed-sigma").textContent = `${scenario.vaccine.sigma0.toFixed(1)} log2`;
+  byId<HTMLElement>("fixed-horizon").textContent = `${scenario.horizonDays} days`;
+  byId<HTMLElement>("fixed-index-reference").textContent = scenario.indexReferenceExposure.toFixed(4);
+  syncProductEditability(scenario.vaccine.id);
+  syncProbeVisibility(scenario.setting.id);
+  syncScopeVisibility(describeDecisionScope(scenario.envelope).id);
   updateReadouts();
 }
 
+function syncScopeControls(envelope: EnvelopeV1): void {
+  setValue("scope-t-min", microgramsFromGrams(envelope.TihMin));
+  setValue("scope-t-max", microgramsFromGrams(envelope.TihMax));
+  setValue("scope-ns-min", envelope.NsMin);
+  setValue("scope-ns-max", envelope.NsMax);
+  setValue("scope-dih-min", envelope.dIhMin);
+  setValue("scope-dih-max", envelope.dIhMax);
+  setValue("scope-dhs-min", envelope.dHsMin);
+  setValue("scope-dhs-max", envelope.dHsMax);
+}
+
 function readControls(previous: ScenarioV1): ScenarioV1 {
-  const product = document.querySelector<HTMLSelectElement>("#product")!.value as ScenarioV1["vaccine"]["id"];
-  let scenario = product === previous.vaccine.id ? structuredClone(previous) : scenarioWithProduct(previous, product);
-  const settingId = document.querySelector<HTMLSelectElement>("#setting")!.value as SettingId;
-  scenario = settingId === "custom"
+  const productId = byId<HTMLSelectElement>("product").value as ProductId;
+  let scenario = productId === previous.vaccine.id ? structuredClone(previous) : scenarioWithProduct(previous, productId);
+  const probeId = byId<HTMLSelectElement>("probe").value as SettingId;
+  scenario = probeId === "custom"
     ? { ...scenario, setting: { id: "custom", Tih: unitExposure(gramsFromMicrograms(numberValue("custom-tih"))), Ths: unitExposure(gramsFromMicrograms(numberValue("custom-ths"))), dIh: unitFrequency(numberValue("custom-dih")), dHs: unitFrequency(numberValue("custom-dhs")), Ns: numberValue("custom-ns") } }
-    : scenarioWithSetting(scenario, settingId);
+    : scenarioWithSetting(scenario, probeId);
   scenario.schedule = {
     ...scenario.schedule,
-    boosterAgeYears: Number(document.querySelector<HTMLSelectElement>("#booster")!.value) as ScenarioV1["schedule"]["boosterAgeYears"],
-    assessmentLagDays: Number(document.querySelector<HTMLSelectElement>("#lag")!.value) as 28 | 90
+    boosterAgeYears: Number(byId<HTMLSelectElement>("booster").value) as ScenarioV1["schedule"]["boosterAgeYears"],
+    assessmentLagDays: Number(byId<HTMLSelectElement>("lag").value) as 28 | 90
   };
   if (scenario.vaccine.id === "hypothetical") {
     scenario.vaccine = { ...scenario.vaccine, takeContext: numberValue("take"), mu0: numberValue("mu"), alpha: numberValue("alpha"), beta: numberValue("beta"), dose: 10 ** numberValue("dose-log") };
   }
-  const TihMin = gramsFromMicrograms(numberValue("envelope-t-min"));
-  const TihMax = gramsFromMicrograms(numberValue("envelope-t-max"));
-  scenario.envelope = {
-    ...scenario.envelope,
-    TihMin,
-    TihMax,
-    ThsMin: scenario.envelope.linkedExposure ? TihMin : scenario.envelope.ThsMin,
-    ThsMax: scenario.envelope.linkedExposure ? TihMax : scenario.envelope.ThsMax,
-    NsMin: numberValue("envelope-ns-min"),
-    NsMax: numberValue("envelope-ns-max"),
-    dIhMax: numberValue("envelope-dih-max"),
-    dHsMax: numberValue("envelope-dhs-max")
-  };
-  scenario.indexReferenceExposure = numberValue("index-reference");
+  const scopeId = byId<HTMLSelectElement>("scope").value;
+  if (scopeId === "custom") {
+    const tMin = gramsFromMicrograms(numberValue("scope-t-min"));
+    const tMax = gramsFromMicrograms(numberValue("scope-t-max"));
+    scenario.envelope = {
+      linkedExposure: true,
+      TihMin: tMin,
+      TihMax: tMax,
+      ThsMin: tMin,
+      ThsMax: tMax,
+      NsMin: numberValue("scope-ns-min"),
+      NsMax: numberValue("scope-ns-max"),
+      dIhMin: numberValue("scope-dih-min"),
+      dIhMax: numberValue("scope-dih-max"),
+      dHsMin: numberValue("scope-dhs-min"),
+      dHsMax: numberValue("scope-dhs-max")
+    };
+  } else {
+    scenario = scenarioWithDecisionScope(scenario, scopeId as AnchorSettingId);
+  }
   return scenario;
 }
 
-function updateReadouts(): void {
-  const take = document.querySelector<HTMLInputElement>("#take")!;
-  const mu = document.querySelector<HTMLInputElement>("#mu")!;
-  document.querySelector<HTMLOutputElement>("#take-output")!.value = Number(take.value).toFixed(2);
-  document.querySelector<HTMLOutputElement>("#mu-output")!.value = `${Number(mu.value).toFixed(1)} log2`;
-}
-
-function setProductEditability(productId: ScenarioV1["vaccine"]["id"]): void {
+function syncProductEditability(productId: ProductId): void {
   const editable = productId === "hypothetical";
-  for (const id of ["take", "mu", "alpha", "beta", "dose-log"]) {
-    const input = document.querySelector<HTMLInputElement>(`#${id}`);
-    if (input) input.disabled = !editable;
+  const controls = byId<HTMLFieldSetElement>("hypothetical-controls");
+  controls.hidden = !editable;
+  controls.disabled = !editable;
+  const note = byId<HTMLElement>("catalog-product-note");
+  note.hidden = editable;
+  if (productId === "sabin2") note.textContent = "Sabin 2 is a fixed catalog comparator. Its take and mucosal-boost semantics are evaluated as committed, not exposed as hypothetical sliders.";
+  if (productId === "ipv") note.textContent = "IPV is a fixed non-live comparator. It has no live-vaccine take coordinate; its mucosal effect depends on prior live infection and is not a hypothetical OPV-like design.";
+  byId<HTMLElement>("take-help").textContent = "Productive live-vaccine infection after receipt; receipt itself is fixed at 100%.";
+  byId<HTMLElement>("mu-help").textContent = "Latent OPV-equivalent mucosal immunity; not measured serum titer.";
+}
+
+function syncProbeVisibility(id: SettingId): void { byId<HTMLFieldSetElement>("custom-probe-controls").hidden = id !== "custom"; }
+function syncScopeVisibility(id: string): void { byId<HTMLFieldSetElement>("custom-scope-controls").hidden = id !== "custom"; }
+function updateReadouts(): void {
+  byId<HTMLOutputElement>("take-output").value = numberValue("take").toFixed(2);
+  byId<HTMLOutputElement>("mu-output").value = `${numberValue("mu").toFixed(1)} log2`;
+}
+
+function exportOutput(kind: string, outputs: ModelOutputsV1, view: AppViewState): void {
+  const scope = describeDecisionScope(outputs.scenario.envelope);
+  if (kind === "json") {
+    download("polio-tpp-prototype-model-outputs.json", canonicalJson({
+      exportSchemaVersion: JSON_EXPORT_SCHEMA_VERSION,
+      prototypeStatus: PROTOTYPE_STATUS,
+      buildIdentity: BUILD_IDENTITY,
+      exportIdentity: outputs.modelIdentity,
+      decisionScope: scope,
+      inspectionProbe: outputs.scenario.setting,
+      viewState: { persistentDesignKey: view.persistentDesignKey },
+      outputs
+    }));
+    return;
   }
-  const takeHelp = document.querySelector<HTMLElement>("#take-help")!;
-  const muHelp = document.querySelector<HTMLElement>("#mu-help")!;
-  if (productId === "hypothetical") {
-    takeHelp.textContent = "Productive live-vaccine infection after receipt; receipt itself is fixed at 100%.";
-    muHelp.textContent = "Hypothetical live product; sigma remains fixed at 2.4 log2 units.";
-  } else if (productId === "sabin2") {
-    takeHelp.textContent = "Fixed Sabin 2 catalog take; receipt itself is fixed at 100%.";
-    muHelp.textContent = "Fixed Sabin 2 catalog boost; sigma remains fixed at 2.4 log2 units.";
-  } else {
-    takeHelp.textContent = "IPV has no live-vaccine take parameter; receipt is not modelled as coverage.";
-    muHelp.textContent = "Fixed IPV catalog semantics; serum boosts all recipients and mucosal boost requires prior live infection.";
+  if (kind === "csv") {
+    download("polio-tpp-prototype-evaluated-grids.csv", csvOutputs(outputs), "text/csv");
+    return;
   }
-}
-
-function numberValue(id: string): number { return Number(document.querySelector<HTMLInputElement>(`#${id}`)!.value); }
-function setValue(id: string, value: string | number): void { const element = document.querySelector<HTMLInputElement | HTMLSelectElement>(`#${id}`); if (element) element.value = String(value); }
-function unitExposure(value: number) { return { value, unit: "grams/exposure" as const, basis: "per_exposure" as const }; }
-function unitFrequency(value: number) { return { value, unit: "exposures/person/day", basis: "per_day" as const }; }
-function microgramsFromGrams(grams: number): number { return grams * MICROGRAMS_PER_GRAM; }
-function gramsFromMicrograms(micrograms: number): number { return micrograms / MICROGRAMS_PER_GRAM; }
-
-function summaryCards(result: ModelOutputsV1): string {
-  const m = result.metrics;
-  return [
-    ["Prototype acquisition reduction", percent(1 - m.qAcq), "1 − q_acq"],
-    ["Prototype breakthrough shedding reduction", percent(1 - m.qShed), "1 − q_shed"],
-    ["Derived shedding index", format(m.qIndex), "prototype diagnostic only: q_acq × q_shed"],
-    ["Prototype envelope maximum Rloc", format(m.rLocEnvelopeMax), "threshold comparison only; interval unavailable"],
-    ["Prototype naive envelope maximum", format(m.naiveRLocEnvelopeMax), "same envelope and index reference"],
-    ["Prototype first-dose effective take", percent(m.effectiveFirstDoseTake), "naive recipient; not dose receipt"]
-  ].map(([title, value, detail]) => `<article class="summary-card"><span>${title}</span><strong>${value}</strong><small>${detail}</small></article>`).join("");
-}
-
-function effectMap(result: ModelOutputsV1): string {
-  const width = 560; const height = 350; const margin = { top: 34, right: 24, bottom: 56, left: 64 };
-  const x = scaleLinear().domain([0, 1]).range([margin.left, width - margin.right]);
-  const y = scaleLinear().domain([0, 1]).range([height - margin.bottom, margin.top]);
-  const points = result.frontier.points.map((point) => `<circle cx="${x(1 - point.qAcq)}" cy="${y(1 - point.qShed)}" r="2.1" class="${point.passes ? "pass-point" : "fail-point"}"><title>Prototype hypothetical: take ${point.takeContext.toFixed(2)}, boost ${point.mu0.toFixed(1)}; envelope Rloc ${format(point.rLocEnvelopeMax)}</title></circle>`).join("");
-  const pareto = result.frontier.pareto.map((point) => [1 - point.qAcq, 1 - point.qShed] as [number, number]);
-  const paretoPath = line<[number, number]>().x((d) => x(d[0])).y((d) => y(d[1]))(pareto) ?? "";
-  const selected = result.frontier.selectedDesign ? `<circle class="selected-ring" cx="${x(1 - result.frontier.selectedDesign.qAcq)}" cy="${y(1 - result.frontier.selectedDesign.qShed)}" r="6"><title>Selected hypothetical design</title></circle>` : "";
-  const comparators = result.frontier.comparators.map((point, index) => {
-    const cx = x(1 - point.qAcq); const cy = y(1 - point.qShed); const marker = index === 0
-      ? `<rect x="${cx - 4}" y="${cy - 4}" width="8" height="8" class="comparator-marker"/>`
-      : `<path d="M${cx},${cy - 5}L${cx + 5},${cy}L${cx},${cy + 5}L${cx - 5},${cy}Z" class="comparator-marker"/>`;
-    return `<g class="${point.selected ? "selected-comparator" : ""}">${marker}<title>Prototype ${point.label}; envelope Rloc ${format(point.rLocEnvelopeMax)}</title></g>`;
-  }).join("");
-  return `<svg id="effect-figure" viewBox="0 0 ${width} ${height}" role="img" aria-labelledby="effect-title effect-desc"><title id="effect-title">Prototype acquisition and breakthrough shedding reduction map</title><desc id="effect-desc">In the unreleased prototype calculation, filled hypothetical designs are below Rloc equals one and open designs are not. Sabin 2 is a square and IPV is a diamond. This is not a v1 sufficiency classification.</desc><rect class="plot-bg" x="${margin.left}" y="${margin.top}" width="${width - margin.left - margin.right}" height="${height - margin.top - margin.bottom}"/><line class="grid-line" x1="${x(0)}" x2="${x(1)}" y1="${y(0)}" y2="${y(0)}"/><line class="grid-line" x1="${x(0)}" x2="${x(0)}" y1="${y(0)}" y2="${y(1)}"/>${points}<path class="pareto-line" d="${paretoPath}"/>${selected}${comparators}<text class="axis-label" x="${width / 2}" y="${height - 12}" text-anchor="middle">Acquisition reduction (1 − q_acq)</text><text class="axis-label" transform="translate(16 ${height / 2}) rotate(-90)" text-anchor="middle">Breakthrough shedding reduction (1 − q_shed)</text>${classificationLegend(margin.left + 8, margin.top - 13)}${tickLabels(x, y, height, margin)}</svg>`;
-}
-
-function productMap(result: ModelOutputsV1): string {
-  const width = 560; const height = 350; const margin = { top: 34, right: 24, bottom: 56, left: 64 };
-  const columns = result.frontier.takeValues.length; const rows = result.frontier.mu0Values.length;
-  const x = scaleLinear().domain([result.frontier.takeValues[0] ?? 0, result.frontier.takeValues.at(-1) ?? 1]).range([margin.left, width - margin.right]);
-  const y = scaleLinear().domain([result.frontier.mu0Values[0] ?? 0, result.frontier.mu0Values.at(-1) ?? 8]).range([height - margin.bottom, margin.top]);
-  const values = Array.from({ length: rows * columns }, (_, index) => {
-    const takeIndex = index % columns; const muIndex = Math.floor(index / columns);
-    return result.frontier.points[takeIndex * rows + muIndex]?.rLocEnvelopeMax ?? 0;
-  });
-  const cellWidth = (width - margin.left - margin.right) / columns; const cellHeight = (height - margin.top - margin.bottom) / rows;
-  const cells = result.frontier.points.map((point) => `<rect x="${x(point.takeContext) - cellWidth / 2}" y="${y(point.mu0) - cellHeight / 2}" width="${cellWidth + 0.4}" height="${cellHeight + 0.4}" class="${point.passes ? "pass-cell" : "fail-cell"}"><title>Prototype hypothetical: take ${point.takeContext.toFixed(2)}, boost ${point.mu0.toFixed(1)}; envelope Rloc ${format(point.rLocEnvelopeMax)}</title></rect>`).join("");
-  const contourPaths = thresholdContour(values, columns, rows, (index) => margin.left + index * (width - margin.left - margin.right) / (columns - 1), (index) => height - margin.bottom - index * (height - margin.top - margin.bottom) / (rows - 1));
-  const selectedPoint = result.frontier.selectedDesign;
-  const selected = selectedPoint && selectedPoint.takeContext >= (result.frontier.takeValues[0] ?? 0) && selectedPoint.takeContext <= (result.frontier.takeValues.at(-1) ?? 1)
-    && selectedPoint.mu0 >= (result.frontier.mu0Values[0] ?? 0) && selectedPoint.mu0 <= (result.frontier.mu0Values.at(-1) ?? 8)
-    ? `<circle class="selected-ring" cx="${x(selectedPoint.takeContext)}" cy="${y(selectedPoint.mu0)}" r="6"><title>Exact selected hypothetical design</title></circle>` : "";
-  const sabin = result.frontier.comparators.find((point) => point.productId === "sabin2")!;
-  const sabinMarker = sabin.takeContext !== null && sabin.mu0 !== null ? `<rect x="${x(sabin.takeContext) - 5}" y="${y(sabin.mu0) - 5}" width="10" height="10" class="comparator-marker"><title>Prototype fixed Sabin 2 comparator; envelope Rloc ${format(sabin.rLocEnvelopeMax)}</title></rect>` : "";
-  return `<svg id="product-figure" viewBox="0 0 ${width} ${height}" role="img" aria-labelledby="product-title product-desc"><title id="product-title">Prototype hypothetical product design map</title><desc id="product-desc">In the unreleased prototype calculation, designs below Rloc equals one are solid green. Designs not below the threshold are peach with diagonal hatching. The selected hypothetical design is ringed; Sabin 2 is a square. This is not a v1 sufficiency classification.</desc><defs><pattern id="product-fail-hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" class="hatch-bg"/><line x1="0" y1="0" x2="0" y2="6" class="hatch-line"/></pattern></defs><rect class="plot-bg" x="${margin.left}" y="${margin.top}" width="${width - margin.left - margin.right}" height="${height - margin.top - margin.bottom}"/>${cells}${contourPaths}${selected}${sabinMarker}<text class="axis-label" x="${width / 2}" y="${height - 12}" text-anchor="middle">Biological take context</text><text class="axis-label" transform="translate(16 ${height / 2}) rotate(-90)" text-anchor="middle">Mean mucosal boost (log2 units)</text>${classificationLegend(margin.left + 8, margin.top - 13)}${tickLabels(x, y, height, margin, true)}</svg>`;
-}
-
-function settingMap(result: ModelOutputsV1): string {
-  const width = 960; const height = 420; const margin = { top: 42, right: 28, bottom: 66, left: 72 };
-  const exposureValues = [...new Set(result.settingSurface.map((point) => point.Tih))].sort((a, b) => a - b);
-  const contactValues = [...new Set(result.settingSurface.map((point) => point.Ns))].sort((a, b) => a - b);
-  const columns = exposureValues.length; const rows = contactValues.length;
-  const x = scaleLog().domain([microgramsFromGrams(result.scenario.envelope.TihMin), microgramsFromGrams(result.scenario.envelope.TihMax)]).range([margin.left, width - margin.right]);
-  const yMin = contactValues[0] ?? 0; const yMax = contactValues.at(-1) ?? yMin + 1;
-  const y = scaleLinear().domain(yMin === yMax ? [yMin - 0.5, yMax + 0.5] : [yMin, yMax]).range([height - margin.bottom, margin.top]);
-  const cellWidth = (width - margin.left - margin.right) / columns; const cellHeight = (height - margin.top - margin.bottom) / Math.max(rows, 1);
-  const values = Array.from({ length: rows * columns }, (_, index) => {
-    const exposureIndex = index % columns; const contactIndex = Math.floor(index / columns);
-    return result.settingSurface[exposureIndex * rows + contactIndex]?.rLoc ?? 0;
-  });
-  const cells = result.settingSurface.map((point) => {
-    const px = x(microgramsFromGrams(point.Tih)) - cellWidth / 2; const py = y(point.Ns) - cellHeight / 2;
-    const hatch = point.rLoc >= FRONTIER_GRID.contour.threshold - FRONTIER_GRID.contour.tieTolerance ? `<rect x="${px}" y="${py}" width="${cellWidth + 0.3}" height="${cellHeight + 0.3}" fill="url(#surface-fail-hatch)"/>` : "";
-    return `<g><rect x="${px}" y="${py}" width="${cellWidth + 0.3}" height="${cellHeight + 0.3}" fill="${surfaceColor(point.rLoc)}"><title>Prototype: ${formatMicrograms(point.Tih)} micrograms/exposure, Ns ${point.Ns}; Rloc ${format(point.rLoc)}</title></rect>${hatch}</g>`;
-  }).join("");
-  const contourPaths = thresholdContour(values, columns, rows, (index) => margin.left + index * (width - margin.left - margin.right) / (columns - 1), (index) => height - margin.bottom - index * (height - margin.top - margin.bottom) / Math.max(rows - 1, 1));
-  const anchors = SETTING_ANCHORS.filter((anchor) => anchor.Tih.value >= result.scenario.envelope.TihMin && anchor.Tih.value <= result.scenario.envelope.TihMax && anchor.Ns >= yMin && anchor.Ns <= yMax).map((anchor) => {
-    const offsets: Record<string, [number, number]> = { low: [-4, 17], houston: [7, -8], matlab: [7, 17], "up-bihar": [7, -8] };
-    const [dx, dy] = offsets[anchor.id] ?? [7, -8];
-    const interval = anchor.id === "matlab" && anchor.interval
-      ? `<line class="hybrid-interval" x1="${x(Math.max(anchor.interval.low, microgramsFromGrams(result.scenario.envelope.TihMin)))}" x2="${x(Math.min(anchor.interval.high, microgramsFromGrams(result.scenario.envelope.TihMax)))}" y1="${y(anchor.Ns)}" y2="${y(anchor.Ns)}"/>`
-      : "";
-    return `${interval}<circle class="anchor-point ${anchor.kind === "hybrid" ? "hybrid-anchor" : ""}" cx="${x(microgramsFromGrams(anchor.Tih.value))}" cy="${y(anchor.Ns)}" r="5"><title>${anchor.label}${anchor.tooltip ? `: ${anchor.tooltip}` : ""}</title></circle><text class="anchor-label" x="${x(microgramsFromGrams(anchor.Tih.value)) + dx}" y="${y(anchor.Ns) + dy}">${anchorShortLabel(anchor.id)}</text>`;
-  }).join("");
-  return `<svg id="setting-figure" viewBox="0 0 ${width} ${height}" role="img" aria-labelledby="setting-title setting-desc"><title id="setting-title">Prototype selected-product setting surface</title><desc id="setting-desc">Color reports prototype log10 Rloc. Diagonal hatching marks cells not below one in the unreleased prototype calculation. The heavy line is Rloc equals one. Named setting anchors and the Matlab interval are overlaid. This is not a v1 sufficiency classification.</desc><defs><pattern id="surface-fail-hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" class="surface-hatch-line"/></pattern></defs><rect class="plot-bg" x="${margin.left}" y="${margin.top}" width="${width - margin.left - margin.right}" height="${height - margin.top - margin.bottom}"/>${cells}${contourPaths}${anchors}${surfaceLegend(width - 326, 15)}<text class="axis-label" x="${width / 2}" y="${height - 14}" text-anchor="middle">Stool-equivalent exposure (micrograms/exposure, log scale)</text><text class="axis-label" transform="translate(18 ${height / 2}) rotate(-90)" text-anchor="middle">Close social contacts (Ns)</text>${settingTicks(x, y, result.scenario)}</svg>`;
-}
-
-function thresholdContour(values: number[], columns: number, rows: number, x: (value: number) => number, y: (value: number) => number): string {
-  if (columns < 2 || rows < 2 || Math.min(...values) >= 1 || Math.max(...values) < 1) return "";
-  return contours().size([columns, rows]).thresholds([1])(values).map((shape) => contourPath(shape, x, y)).join("");
-}
-
-function contourPath(shape: { coordinates: number[][][][] }, x: (value: number) => number, y: (value: number) => number): string {
-  return shape.coordinates.flatMap((polygon) => polygon.map((ring) => `<path class="contour-line" d="M${ring.map((point) => `${x(point[0] ?? 0)},${y(point[1] ?? 0)}`).join("L")}Z"/>`)).join("");
-}
-
-function tickLabels(x: (value: number) => number, y: (value: number) => number, height: number, margin: { bottom: number; left: number }, product = false): string {
-  const ticks = product ? { x: [0, 0.5, 1], y: [0, 4, 8] } : { x: [0, 0.5, 1], y: [0, 0.5, 1] };
-  return `${ticks.x.map((tick) => `<text class="tick" x="${x(tick)}" y="${height - margin.bottom + 18}" text-anchor="middle">${tick}</text>`).join("")}${ticks.y.map((tick) => `<text class="tick" x="${margin.left - 8}" y="${y(tick) + 4}" text-anchor="end">${tick}</text>`).join("")}`;
-}
-
-function settingTicks(x: (value: number) => number, y: (value: number) => number, scenario: ScenarioV1): string {
-  const xCandidates = [0.1, 1, 10, 100, 1000, 2000].filter((value) => value >= microgramsFromGrams(scenario.envelope.TihMin) && value <= microgramsFromGrams(scenario.envelope.TihMax));
-  const ySpan = scenario.envelope.NsMax - scenario.envelope.NsMin;
-  const yCandidates = [...new Set([scenario.envelope.NsMin, Math.round(scenario.envelope.NsMin + ySpan / 2), scenario.envelope.NsMax])];
-  return `${xCandidates.map((tick) => `<text class="tick" x="${x(tick)}" y="371" text-anchor="middle">${tick}</text>`).join("")}${yCandidates.map((tick) => `<text class="tick" x="64" y="${y(tick) + 4}" text-anchor="end">${tick}</text>`).join("")}`;
-}
-
-function classificationLegend(x: number, y: number): string {
-  return `<g class="chart-legend"><circle class="pass-point" cx="${x}" cy="${y}" r="4"/><text x="${x + 8}" y="${y + 3}">prototype Rloc &lt; 1</text><circle class="fail-point" cx="${x + 112}" cy="${y}" r="4"/><text x="${x + 120}" y="${y + 3}">not below 1</text><rect class="comparator-marker" x="${x + 202}" y="${y - 4}" width="8" height="8"/><text x="${x + 214}" y="${y + 3}">fixed comparator</text></g>`;
-}
-
-function surfaceLegend(x: number, y: number): string {
-  const values = [-2, -1, 0, 1, 2]; const width = 38;
-  return `<g class="surface-legend"><text x="${x}" y="${y + 10}">log10(Rloc)</text>${values.map((value, index) => `<rect x="${x + 76 + index * width}" y="${y}" width="${width}" height="12" fill="${surfaceColor(10 ** value)}"/><text x="${x + 76 + index * width + width / 2}" y="${y + 25}" text-anchor="middle">${value}</text>`).join("")}</g>`;
-}
-
-function surfaceColor(rLoc: number): string {
-  const z = Math.max(-2, Math.min(2, Math.log10(Math.max(rLoc, 1e-4))));
-  const fraction = (z + 2) / 4;
-  const red = Math.round(34 + 207 * fraction); const green = Math.round(129 - 37 * fraction); const blue = Math.round(166 - 105 * fraction);
-  return `rgb(${red},${green},${blue})`;
-}
-
-function settingLabel(id: string): string {
-  if (id === "global") return "Envelope maximum";
-  return SETTING_ANCHORS.find((anchor) => anchor.id === id)?.label ?? "Custom setting";
-}
-
-function anchorShortLabel(id: string): string {
-  return ({ low: "Low", houston: "Houston", matlab: "Matlab hybrid", "up-bihar": "UP/Bihar" } as Record<string, string>)[id] ?? id;
-}
-
-function isBundledGlobalEnvelope(scenario: ScenarioV1): boolean {
-  return canonicalJson(scenario.envelope) === canonicalJson(ENVELOPE);
-}
-
-function exportOutput(kind: string, outputs: ModelOutputsV1): void {
-  if (kind === "json") download("polio-tpp-prototype-model-outputs.json", canonicalJson({
-    exportSchemaVersion: "PrototypeModelExportV1",
-    prototypeStatus: PROTOTYPE_STATUS,
-    buildIdentity: BUILD_IDENTITY,
-    outputs
-  }));
-  if (kind === "csv") download("polio-tpp-prototype-evaluated-grids.csv", csvOutputs(outputs), "text/csv");
-  if (kind === "svg") download("polio-tpp-prototype-figures.svg", combinedSvgExport(), "image/svg+xml");
+  const chart = kind === "setting-svg" ? "setting" : kind === "effect-svg" ? "effect" : "product";
+  download(`polio-tpp-prototype-${chart}.svg`, standaloneSvgExport(chart, outputs, view), "image/svg+xml");
 }
 
 function csvOutputs(outputs: ModelOutputsV1): string {
-  const header = "record_type,product_id,take_context,mu0,Tih_g_per_exposure,Ths_g_per_exposure,dIh_exposures_per_person_day,dHs_exposures_per_person_day,Ns,q_acq,q_shed,r_loc_envelope_max,r_loc,prototype_r_loc_below_1,prototype_status";
-  const frontier = outputs.frontier.points.map((point) => ["frontier", "hypothetical", point.takeContext, point.mu0, "", "", "", "", "", point.qAcq, point.qShed, point.rLocEnvelopeMax, "", point.passes, csvValue(PROTOTYPE_STATUS)].join(","));
-  const comparators = outputs.frontier.comparators.map((point) => ["comparator", point.productId, point.takeContext ?? "", point.mu0 ?? "", "", "", "", "", "", point.qAcq, point.qShed, point.rLocEnvelopeMax, "", point.passes, csvValue(PROTOTYPE_STATUS)].join(","));
-  const surface = outputs.settingSurface.map((point) => ["surface", outputs.scenario.vaccine.id, "", "", point.Tih, point.Ths, point.dIh, point.dHs, point.Ns, "", "", "", point.rLoc, passesThreshold(point.rLoc), csvValue(PROTOTYPE_STATUS)].join(","));
+  const scope = csvValue(describeDecisionScope(outputs.scenario.envelope).label);
+  const probe = csvValue(outputs.scenario.setting.id);
+  const identity = csvValue(outputs.modelIdentity);
+  const prefix = [CSV_EXPORT_SCHEMA_VERSION, BUILD_IDENTITY];
+  const header = "export_schema_version,build_identity,record_type,product_id,take_context,mu0,Tih_g_per_exposure,Ths_g_per_exposure,dIh_exposures_per_person_day,dHs_exposures_per_person_day,Ns,q_acq,q_shed,r_loc_decision_scope_max,r_loc,meets_direct_r_loc_lt_1,decision_scope,inspection_probe,model_identity";
+  const frontier = outputs.frontier.points.map((point) => [...prefix, "frontier", "hypothetical", point.takeContext, point.mu0, "", "", "", "", "", point.qAcq, point.qShed, point.rLocEnvelopeMax, "", point.passes, scope, probe, identity].join(","));
+  const comparators = outputs.frontier.comparators.map((point) => [...prefix, "comparator", point.productId, point.takeContext ?? "", point.mu0 ?? "", "", "", "", "", "", point.qAcq, point.qShed, point.rLocEnvelopeMax, "", point.passes, scope, probe, identity].join(","));
+  const surface = outputs.settingSurface.map((point) => [...prefix, "surface", outputs.scenario.vaccine.id, "", "", point.Tih, point.Ths, point.dIh, point.dHs, point.Ns, "", "", "", point.rLoc, passesThreshold(point.rLoc), scope, probe, identity].join(","));
   return [header, ...frontier, ...comparators, ...surface].join("\n");
 }
 
-function combinedSvgExport(): string {
-  const effect = document.querySelector<SVGSVGElement>("#effect-figure")?.innerHTML ?? "";
-  const product = document.querySelector<SVGSVGElement>("#product-figure")?.innerHTML ?? "";
-  const setting = document.querySelector<SVGSVGElement>("#setting-figure")?.innerHTML ?? "";
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="830" viewBox="0 0 1120 830" role="img" aria-labelledby="prototype-export-title prototype-export-desc"><title id="prototype-export-title">Scientific prototype figures</title><desc id="prototype-export-desc">${PROTOTYPE_STATUS}. Threshold comparisons are close-contact point-rule results, not complete-population or decision-use classifications.</desc><style>text{font-family:system-ui,sans-serif;fill:#17202a}.plot-bg{fill:#fbfcfd;stroke:#d5dde5}.pass-point{fill:#176b55}.fail-point{fill:#fff;stroke:#9e2a2b}.pass-cell{fill:#61ae8e}.fail-cell{fill:url(#product-fail-hatch)}.pareto-line,.contour-line{fill:none;stroke:#bc4b29;stroke-width:2.5}.selected-ring{fill:none;stroke:#111;stroke-width:2}.comparator-marker{fill:#fff;stroke:#17202a;stroke-width:2}.axis-label{font-size:12px;font-weight:650}.tick,.anchor-label,.chart-legend,.surface-legend{font-size:10px}</style><text x="20" y="20" font-size="13" font-weight="700">SCIENTIFIC PROTOTYPE — POINT RULE ONLY</text><text x="20" y="36" font-size="10">Threshold comparisons are close-contact point-rule results, not complete-population or decision-use classifications.</text><g transform="translate(0 24)">${effect}</g><g transform="translate(560 24)">${product}</g><g transform="translate(80 394)">${setting}</g></svg>`;
+function standaloneSvgExport(chart: "setting" | "effect" | "product", outputs: ModelOutputsV1, view: AppViewState): string {
+  const id = chart === "setting" ? "setting-figure" : chart === "effect" ? "effect-figure" : "product-figure";
+  const source = document.querySelector<SVGSVGElement>(`#${id}`);
+  if (!source) throw new Error(`${chart} figure is not rendered`);
+  const viewBox = source.viewBox.baseVal;
+  const width = viewBox.width;
+  const height = viewBox.height;
+  const presentation = buildPresentation(outputs);
+  const exactSelection = outputs.frontier.selectedDesign ? `Selected exact candidate: take ${outputs.frontier.selectedDesign.takeContext.toFixed(2)}, boost ${outputs.frontier.selectedDesign.mu0.toFixed(2)} log2.` : "Selected candidate is a fixed comparator.";
+  const heldPoint = designPointByKey(outputs, view.persistentDesignKey);
+  const heldSelection = heldPoint ? ` Held inspection design: take ${heldPoint.takeContext.toFixed(2)}, boost ${heldPoint.mu0.toFixed(2)} log2.` : " No inspection design is held.";
+  const selected = `${exactSelection}${heldSelection}`;
+  const metadata = `${PRODUCT_LABELS[outputs.scenario.vaccine.id]}. ${presentation.candidate.schedule}; ${presentation.candidate.assessment}. Decision scope: ${presentation.result.scopeLabel}. Criterion: ${presentation.result.criterion}. ${presentation.result.qualification} ${selected} Direct cell evaluations determine status; contours are interpolated display context.`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height + 166}" viewBox="0 0 ${width} ${height + 166}" role="img" aria-labelledby="export-title export-desc" data-export-schema="${SVG_EXPORT_SCHEMA_VERSION}" data-build-identity="${BUILD_IDENTITY}"><title id="export-title">${escapeXml(chart)} figure · scientific prototype</title><desc id="export-desc">${escapeXml(metadata)}</desc><metadata>${escapeXml(JSON.stringify({ exportSchemaVersion: SVG_EXPORT_SCHEMA_VERSION, buildIdentity: BUILD_IDENTITY, modelIdentity: outputs.modelIdentity, chart, persistentDesignKey: view.persistentDesignKey }))}</metadata><style>${svgStyles()}</style><rect width="100%" height="100%" fill="#f7f7f2"/><text class="export-kicker" x="24" y="26">SCIENTIFIC PROTOTYPE · POINT RULE · ${escapeXml(chart.toUpperCase())}</text><text class="export-title" x="24" y="52">${escapeXml(PRODUCT_LABELS[outputs.scenario.vaccine.id])}</text><text class="export-meta" x="24" y="76">${escapeXml(presentation.candidate.schedule)} · ${escapeXml(presentation.candidate.assessment)}</text><text class="export-meta" x="24" y="96">Decision scope: ${escapeXml(presentation.result.scopeLabel)} · direct R_loc ${formatNumber(presentation.result.value)}</text><text class="export-meta" x="24" y="116">${escapeXml(presentation.result.qualification)}</text><text class="export-meta" x="24" y="136">${escapeXml(exactSelection)} Contours are interpolated display context.</text><text class="export-meta" x="24" y="152">${escapeXml(heldSelection.trim())} ${SVG_EXPORT_SCHEMA_VERSION} · ${BUILD_IDENTITY}</text><g transform="translate(0 166)">${source.innerHTML}</g></svg>`;
+}
+
+function svgStyles(): string {
+  return `text{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;fill:#1d2528}.plot-bg{fill:#f7f7f2}.grid-line{stroke:#1d2528;stroke-opacity:.13}.chart-kicker,.export-kicker{font-size:10px;font-weight:700;letter-spacing:1.5px}.chart-title,.export-title{font-family:Georgia,serif;font-size:19px;font-weight:700}.export-meta{font-size:10px}.axis-label{font-size:11px;font-weight:650}.tick,.anchor-label,.surface-legend,.chart-key{font-size:9px}.threshold-line{fill:none;stroke:#111;stroke-width:2;stroke-dasharray:6 4}.pareto-line{fill:none;stroke:#9a4f37;stroke-width:3}.surface-cell{stroke:none}.surface-cell.is-inspected{stroke:#111;stroke-width:2}.anchor-point{fill:#f7f7f2;stroke:#1d2528;stroke-width:2}.decision-anchor{fill:#1d2528}.probe-ring,.selected-exact{fill:none;stroke:#111;stroke-width:2.5}.decision-scope-boundary{fill:none;stroke:#9a4f37;stroke-width:3}.hybrid-interval{stroke:#9a4f37;stroke-width:4}.effect-point.passes{fill:#1d2528}.effect-point.fails{fill:#f7f7f2;stroke:#1d2528}.comparator-marker{fill:#f7f7f2;stroke:#1d2528;stroke-width:2}.design-cell{stroke:none}.design-cell.is-inspected,.effect-point.is-inspected{stroke:#9a4f37;stroke-width:3}.design-cell.is-persistent,.effect-point.is-persistent{stroke:#111;stroke-width:3}`;
 }
 
 function download(name: string, content: string, type = "application/json"): void {
-  const blob = new Blob([content], { type });
-  const url = URL.createObjectURL(blob);
+  const url = URL.createObjectURL(new Blob([content], { type }));
   const link = document.createElement("a");
-  link.href = url; link.download = name; link.click();
+  link.href = url;
+  link.download = name;
+  link.click();
   window.setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
-function csvValue(value: string): string { return `"${value.replaceAll('"', '""')}"`; }
+function designPointByKey(outputs: ModelOutputsV1, key: string | null): DesignGridPoint | null {
+  if (!key) return null;
+  return outputs.frontier.points.find((point) => designKey(point) === key) ?? null;
+}
 
-function format(value: number): string { return Number.isFinite(value) ? value.toFixed(value < 10 ? 3 : 2) : "—"; }
-function percent(value: number): string { return `${(100 * value).toFixed(1)}%`; }
-function formatMicrograms(grams: number): string { return microgramsFromGrams(grams).toPrecision(3); }
-function formatDays(days: number): string { return `${days.toFixed(0)} days`; }
+function showWarning(message: string, kind: "notice" | "error" = "error"): void {
+  const warning = byId<HTMLElement>("state-warning");
+  warning.hidden = false;
+  warning.className = `warning ${kind}`;
+  warning.textContent = message;
+}
+function hideWarning(): void { const warning = byId<HTMLElement>("state-warning"); warning.hidden = true; warning.textContent = ""; }
+function numberValue(id: string): number { return Number(byId<HTMLInputElement>(id).value); }
+function setValue(id: string, value: string | number): void { const element = document.getElementById(id) as HTMLInputElement | HTMLSelectElement | null; if (element) element.value = String(value); }
+function byId<T extends HTMLElement>(id: string): T { const element = document.getElementById(id); if (!element) throw new Error(`Missing UI element #${id}`); return element as T; }
+function unitExposure(value: number) { return { value, unit: "grams/exposure" as const, basis: "per_exposure" as const }; }
+function unitFrequency(value: number) { return { value, unit: "exposures/person/day", basis: "per_day" as const }; }
+function microgramsFromGrams(value: number): number { return value * MICROGRAMS_PER_GRAM; }
+function gramsFromMicrograms(value: number): number { return value / MICROGRAMS_PER_GRAM; }
+function formatNumber(value: number): string { return Math.abs(value) < .001 && value !== 0 ? value.toExponential(2) : value < 10 ? value.toFixed(3) : value.toFixed(2); }
+function formatPercent(value: number): string { return `${(100 * value).toFixed(1)}%`; }
+function shortIdentity(value: string): string { return `${value.slice(0, 14)}…`; }
+function csvValue(value: string): string { return `"${value.replaceAll('"', '""')}"`; }
+function errorMessage(error: unknown): string { return error instanceof Error ? error.message : String(error); }
+function escapeHtml(value: string): string { return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;"); }
+function escapeXml(value: string): string { return escapeHtml(value).replaceAll("'", "&apos;"); }
 
 document.querySelector<HTMLElement>("#app") && mountApp(document.querySelector<HTMLElement>("#app")!);

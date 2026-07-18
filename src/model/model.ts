@@ -1,12 +1,12 @@
 import rawProvenance from "../data/provenance.json";
 import { buildFrontier } from "./frontier";
-import { anchorById, DEFAULTS, ENVELOPE, FRONTIER_GRID, GLOBAL_SETTING, PARAMETERS, PRODUCT_LABELS, SCIENTIFIC_MANIFEST_ID, SETTING_ANCHORS, SETTING_MANIFEST_VERSION, UNCERTAINTY_ENSEMBLE, vaccineDefaults } from "./parameters";
+import { anchorById, DEFAULTS, DEFAULT_DECISION_SCOPE_ANCHOR_ID, envelopeForAnchor, FRONTIER_GRID, PARAMETERS, PRODUCT_LABELS, SCIENTIFIC_MANIFEST_ID, SETTING_ANCHORS, SETTING_DISPLAY_DOMAIN, SETTING_MANIFEST_VERSION, UNCERTAINTY_ENSEMBLE, vaccineDefaults } from "./parameters";
 import { computePointMetrics } from "./metrics";
 import { buildScheduleState } from "./schedule";
 import { canonicalHash, validateModelOutputs, validateScenario } from "./serialization";
 import { rLocForSetting } from "./transmission";
 import { ROUTINE_DAYS } from "./types";
-import type { EnvelopeV1, ModelOutputsV1, ScenarioV1, SettingV1 } from "./types";
+import type { AnchorSettingId, ModelOutputsV1, ScenarioV1, SettingV1 } from "./types";
 
 const SETTING_SURFACE_CACHE_CAPACITY = 4;
 const settingSurfaceValueCache = new Map<string, Float64Array>();
@@ -19,8 +19,8 @@ export function defaultScenario(): ScenarioV1 {
     comparatorId: DEFAULTS.productId,
     vaccine: product,
     schedule: { routineDays: [...ROUTINE_DAYS], boosterAgeYears: DEFAULTS.boosterAgeYears, assessmentLagDays: DEFAULTS.assessmentLagDays, productId: DEFAULTS.productId },
-    setting: globalSetting(),
-    envelope: { ...ENVELOPE },
+    setting: settingFromAnchor(DEFAULTS.settingId),
+    envelope: envelopeForAnchor(DEFAULT_DECISION_SCOPE_ANCHOR_ID),
     successRule: DEFAULTS.successRule,
     indexReferenceExposure: DEFAULTS.indexReferenceExposure,
     horizonDays: DEFAULTS.horizonDays,
@@ -31,25 +31,13 @@ export function defaultScenario(): ScenarioV1 {
   };
 }
 
-export function globalSetting(): SettingV1 {
-  return structuredClone(GLOBAL_SETTING);
+export function scenarioWithSetting(scenario: ScenarioV1, id: ScenarioV1["setting"]["id"]): ScenarioV1 {
+  if (id === "custom") return { ...scenario, setting: { ...scenario.setting, id: "custom" } };
+  return { ...scenario, setting: settingFromAnchor(id) };
 }
 
-export function scenarioWithSetting(scenario: ScenarioV1, id: ScenarioV1["setting"]["id"]): ScenarioV1 {
-  if (id === "global") return { ...scenario, setting: globalSetting() };
-  if (id === "custom") return { ...scenario, setting: { ...scenario.setting, id: "custom" } };
-  const anchor = anchorById(id);
-  return {
-    ...scenario,
-    setting: {
-      id,
-      Tih: { ...anchor.Tih },
-      Ths: { ...anchor.Ths },
-      dIh: { ...anchor.dIh },
-      dHs: { ...anchor.dHs },
-      Ns: anchor.Ns
-    }
-  };
+export function scenarioWithDecisionScope(scenario: ScenarioV1, id: AnchorSettingId): ScenarioV1 {
+  return { ...scenario, envelope: envelopeForAnchor(id) };
 }
 
 export function scenarioWithProduct(scenario: ScenarioV1, productId: ScenarioV1["vaccine"]["id"]): ScenarioV1 {
@@ -65,7 +53,8 @@ export function evaluateScenario(scenario: ScenarioV1): ModelOutputsV1 {
   const frontier = buildFrontier(canonicalScenario);
   const settingSurface = buildSettingSurface(canonicalScenario, state);
   const assumptions = [
-    "The point-rule close-contact criterion is a conditional-plausibility screen for population-level herd immunity under the v1 sufficiency axiom: the modeled close-contact motif is treated as high strength and remaining connections as mostly weaker. It is not a calculated complete-population R_e.",
+    "The default point-rule result is evaluated directly at the UP/Bihar high anchor. Clearing this hardest known empirical/model-calibrated stress-test supports likely adequacy under less demanding modeled conditions, but does not prove control everywhere.",
+    "The close-contact criterion is a conditional-plausibility screen under the v1 sufficiency axiom: the modeled motif is treated as high strength and remaining connections as mostly weaker. It is not a calculated complete-population R_e.",
     "All scheduled doses are received. take is biological productive live-vaccine infection, not receipt or coverage.",
     "Transmission, susceptibility, and shedding use mucosal immunity only; IPV has no mucosal effect in a live-virus-naive cohort.",
     "The Matlab marker is a hybrid: daily exposure mass is converted to mass per exposure using each link's contact frequency; the social-contact structure is inherited rather than fitted by the Matlab study.",
@@ -79,7 +68,7 @@ export function evaluateScenario(scenario: ScenarioV1): ModelOutputsV1 {
     frontier,
     uncertainty: { available: false, label: "parameter-uncertainty interval is out of scope for this iteration", reason: UNCERTAINTY_ENSEMBLE.provenance, rLocMax: null },
     assumptions,
-    modelIdentity: canonicalHash({ scenario: canonicalScenario, parameters: PARAMETERS, settings: SETTING_ANCHORS, uncertainty: UNCERTAINTY_ENSEMBLE, frontierGrid: FRONTIER_GRID }),
+    modelIdentity: canonicalHash({ scenario: scientificScenario(canonicalScenario), parameters: PARAMETERS, settings: SETTING_ANCHORS, displayDomain: SETTING_DISPLAY_DOMAIN, uncertainty: UNCERTAINTY_ENSEMBLE, frontierGrid: FRONTIER_GRID }),
     provenance: structuredClone(rawProvenance)
   };
   validateModelOutputs(outputs);
@@ -88,16 +77,19 @@ export function evaluateScenario(scenario: ScenarioV1): ModelOutputsV1 {
 
 export function buildSettingSurface(scenario: ScenarioV1, state: ReturnType<typeof buildScheduleState>) {
   const surface = [];
-  const tihMin = scenario.envelope.TihMin;
-  const tihMax = scenario.envelope.TihMax;
-  const thsMin = scenario.envelope.ThsMin;
-  const thsMax = scenario.envelope.ThsMax;
-  const exposureCount = FRONTIER_GRID.settingExposure.count;
-  const contactStep = FRONTIER_GRID.settingContacts.step;
+  const tihMin = SETTING_DISPLAY_DOMAIN.exposure.min;
+  const tihMax = SETTING_DISPLAY_DOMAIN.exposure.max;
+  const thsMin = SETTING_DISPLAY_DOMAIN.exposure.min;
+  const thsMax = SETTING_DISPLAY_DOMAIN.exposure.max;
+  const exposureCount = SETTING_DISPLAY_DOMAIN.exposure.count;
+  const contactStep = SETTING_DISPLAY_DOMAIN.contacts.step;
   const cacheKey = canonicalHash({
     scientificManifest: SCIENTIFIC_MANIFEST_ID,
     gridVersion: FRONTIER_GRID.version,
-    scenario,
+    vaccine: scenario.vaccine,
+    schedule: scenario.schedule,
+    indexReferenceExposure: scenario.indexReferenceExposure,
+    horizonDays: scenario.horizonDays,
     state
   });
   let rLocPerSocialContact = settingSurfaceValueCache.get(cacheKey);
@@ -115,14 +107,14 @@ export function buildSettingSurface(scenario: ScenarioV1, state: ReturnType<type
       id: "custom",
       Tih: { value: Tih, unit: "grams/exposure", basis: "per_exposure" },
       Ths: { value: Ths, unit: "grams/exposure", basis: "per_exposure" },
-      dIh: { value: scenario.envelope.dIhMax, unit: "exposures/person/day", basis: "per_day" },
-      dHs: { value: scenario.envelope.dHsMax, unit: "exposures/person/day", basis: "per_day" },
+      dIh: { ...SETTING_DISPLAY_DOMAIN.dIh },
+      dHs: { ...SETTING_DISPLAY_DOMAIN.dHs },
       Ns: 1
     };
     if (!settingSurfaceValueCache.has(cacheKey)) {
       rLocPerSocialContact[i] = rLocForSetting(state, unitSetting, scenario.indexReferenceExposure, scenario.horizonDays);
     }
-    for (let Ns = scenario.envelope.NsMin; Ns <= scenario.envelope.NsMax; Ns += contactStep) {
+    for (let Ns = SETTING_DISPLAY_DOMAIN.contacts.min; Ns <= SETTING_DISPLAY_DOMAIN.contacts.max; Ns += contactStep) {
       const setting: SettingV1 = {
         ...unitSetting,
         Ns
@@ -143,6 +135,23 @@ export function clearSettingSurfaceCache(): void {
 
 export function settingSurfaceCacheStats(): { entries: number; capacity: number } {
   return { entries: settingSurfaceValueCache.size, capacity: SETTING_SURFACE_CACHE_CAPACITY };
+}
+
+function settingFromAnchor(id: AnchorSettingId): SettingV1 {
+  const anchor = anchorById(id);
+  return {
+    id,
+    Tih: { ...anchor.Tih },
+    Ths: { ...anchor.Ths },
+    dIh: { ...anchor.dIh },
+    dHs: { ...anchor.dHs },
+    Ns: anchor.Ns
+  };
+}
+
+function scientificScenario(scenario: ScenarioV1): Omit<ScenarioV1, "setting"> {
+  const { setting: _probe, ...scientific } = scenario;
+  return scientific;
 }
 
 export { rawProvenance, PRODUCT_LABELS };

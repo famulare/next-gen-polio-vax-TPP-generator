@@ -1,10 +1,8 @@
 {
-  "schemaVersion": "FrontierGridV1",
-  "version": "frontier-grid-1.0.0",
+  "schemaVersion": "FrontierGridV2",
+  "version": "frontier-grid-2.0.0",
   "takeContext": { "count": 51, "min": 0, "max": 1, "scale": "linear" },
   "mu0New": { "count": 51, "min": 0, "max": 8, "scale": "linear", "unit": "log2 units" },
-  "settingExposure": { "count": 81, "scale": "logarithmic" },
-  "settingContacts": { "min": 1, "max": 40, "step": 1 },
   "contour": { "threshold": 1, "tieTolerance": 1e-9 },
   "ordering": "row-major, mu0 increasing within each takeContext row"
 }

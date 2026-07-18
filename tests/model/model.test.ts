@@ -3,8 +3,8 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { applyBoost, buildBoostMatrix, normalizeBins, shiftBins } from "../../src/model/bins";
 import { buildFrontier, gridPointRLocMatchesDirect, passesThreshold } from "../../src/model/frontier";
-import { defaultScenario, evaluateScenario, scenarioWithProduct, scenarioWithSetting } from "../../src/model/model";
-import { FRONTIER_GRID, PARAMETERS, SETTING_ANCHORS, vaccineDefaults } from "../../src/model/parameters";
+import { defaultScenario, evaluateScenario, scenarioWithDecisionScope, scenarioWithProduct, scenarioWithSetting } from "../../src/model/model";
+import { FRONTIER_GRID, PARAMETERS, SETTING_ANCHORS, SETTING_DISPLAY_DOMAIN, vaccineDefaults } from "../../src/model/parameters";
 import { envelopeCorner } from "../../src/model/metrics";
 import { canonicalHash, canonicalJson, decodeScenario, encodeScenario, validateModelOutputs, validateScenario } from "../../src/model/serialization";
 import { applyDose, buildScheduleState, buildStateAtAssessment, initialImmuneState, moveState, scheduleDays } from "../../src/model/schedule";
@@ -850,9 +850,68 @@ test("scenario serialization is canonical and rejects unknown fields", () => {
   const decoded = decodeScenario(encoded);
   assert.equal(canonicalJson(decoded), canonicalJson(scenario));
   assert.throws(() => validateScenario({ ...scenario, unknown: true }));
+  const missing = structuredClone(scenario) as unknown as Record<string, unknown>;
+  delete missing.settingManifestVersion;
+  assert.throws(() => validateScenario(missing), /unknown or missing/);
   assert.throws(() => validateScenario({ ...scenario, vaccine: { ...scenario.vaccine, beta: -1 } }));
+  assert.throws(() => validateScenario({ ...scenario, settingManifestVersion: "settings-1.0.0" }), /does not match/);
+  assert.throws(() => validateScenario({ ...scenario, frontierGridVersion: "frontier-grid-1.0.0" }), /does not match/);
+  assert.throws(() => validateScenario({ ...scenario, setting: { ...scenario.setting, id: "global" } }), /Legacy 'global'/);
   assert.throws(() => decodeScenario("not-a-scenario"), /Invalid scenario URL state/);
   validateScenario(scenarioWithSetting(scenario, "matlab"));
+});
+
+test("URL state round-trips every scientific control family and named/custom scope", () => {
+  const base = defaultScenario();
+  const editedProduct = structuredClone(base);
+  editedProduct.vaccine = {
+    ...editedProduct.vaccine,
+    takeContext: 0.37,
+    mu0: 5.2,
+    alpha: 0.31,
+    beta: 18.4,
+    dose: 10 ** 5.7
+  };
+  editedProduct.schedule = { ...editedProduct.schedule, boosterAgeYears: 3, assessmentLagDays: 90 };
+
+  const customProbe = scenarioWithSetting(base, "custom");
+  customProbe.setting = {
+    ...customProbe.setting,
+    Tih: { ...customProbe.setting.Tih, value: 3.2e-6 },
+    Ths: { ...customProbe.setting.Ths, value: 6.1e-6 },
+    dIh: { ...customProbe.setting.dIh, value: 0.75 },
+    dHs: { ...customProbe.setting.dHs, value: 4.25 },
+    Ns: 7
+  };
+
+  const customScope = structuredClone(base);
+  customScope.envelope = {
+    linkedExposure: true,
+    TihMin: 1e-7,
+    TihMax: 2e-3,
+    ThsMin: 1e-7,
+    ThsMax: 2e-3,
+    NsMin: 1,
+    NsMax: 20,
+    dIhMin: 1,
+    dIhMax: 1,
+    dHsMin: 8.9685,
+    dHsMax: 8.9685
+  };
+
+  const variants = [
+    editedProduct,
+    scenarioWithProduct(base, "sabin2"),
+    scenarioWithProduct(base, "ipv"),
+    ...(["low", "houston", "matlab", "up-bihar"] as const).map((id) => scenarioWithSetting(base, id)),
+    customProbe,
+    ...(["low", "houston", "matlab", "up-bihar"] as const).map((id) => scenarioWithDecisionScope(base, id)),
+    customScope
+  ];
+  for (const scenario of variants) {
+    validateScenario(scenario);
+    assert.equal(canonicalJson(decodeScenario(encodeScenario(scenario))), canonicalJson(scenario));
+  }
 });
 
 test("scenario validation preserves fixed product and named-setting identities", () => {
@@ -886,7 +945,7 @@ test("unsupported envelope state fails closed before model execution", () => {
   assert.throws(() => validateScenario({ ...scenario, envelope: { ...scenario.envelope, TihMin: Number.NaN } }), /finite and positive/);
   assert.throws(() => validateScenario({ ...scenario, envelope: { ...scenario.envelope, TihMax: scenario.envelope.TihMin / 2 } }), /finite and in/);
   assert.throws(() => validateScenario({ ...scenario, envelope: { ...scenario.envelope, ThsMax: scenario.envelope.ThsMin / 2 } }), /finite and in/);
-  assert.throws(() => validateScenario({ ...scenario, envelope: { ...scenario.envelope, linkedExposure: true, ThsMax: scenario.envelope.ThsMax / 2 } }), /identical/);
+  assert.throws(() => validateScenario({ ...scenario, envelope: { ...scenario.envelope, linkedExposure: true, ThsMax: scenario.envelope.ThsMax * 2 } }), /identical/);
   assert.throws(() => validateScenario({ ...scenario, envelope: { ...scenario.envelope, NsMin: scenario.envelope.NsMax + 1 } }), /integer/);
 });
 
@@ -908,6 +967,46 @@ test("selected custom setting is calculated separately from the envelope maximum
   const probed = evaluateScenario(zeroProbe);
   assert.equal(probed.metrics.rLocSelectedSetting, 0);
   assert.equal(probed.metrics.rLocEnvelopeMax, baseline.metrics.rLocEnvelopeMax);
+  assert.equal(probed.modelIdentity, baseline.modelIdentity);
+  assert.deepEqual(probed.frontier, baseline.frontier);
+});
+
+test("default decision scope is direct UP/Bihar and owns the committed frontier result", () => {
+  const scenario = defaultScenario();
+  const outputs = evaluateScenario(scenario);
+  assert.equal(scenario.setting.id, "up-bihar");
+  assert.equal(scenario.envelope.TihMin, scenario.envelope.TihMax);
+  assert.equal(scenario.envelope.ThsMin, scenario.envelope.ThsMax);
+  assert.equal(scenario.envelope.NsMin, 10);
+  assert.equal(scenario.envelope.NsMax, 10);
+  assert.ok(Math.abs(outputs.metrics.rLocEnvelopeMax - 0.9201071208363125) / 0.9201071208363125 < 1e-10);
+  assert.equal(outputs.frontier.selectedDesign?.passes, true);
+  assert.equal(outputs.frontier.points.filter((point) => point.passes).length, 92);
+  assert.equal(outputs.frontier.pareto.length, 8);
+});
+
+test("changing only the setting probe preserves classification and scientific identity", () => {
+  const scenario = defaultScenario();
+  const baseline = evaluateScenario(scenario);
+  for (const id of ["low", "houston", "matlab"] as const) {
+    const probed = evaluateScenario(scenarioWithSetting(scenario, id));
+    assert.notEqual(probed.metrics.rLocSelectedSetting, baseline.metrics.rLocSelectedSetting);
+    assert.equal(probed.metrics.rLocEnvelopeMax, baseline.metrics.rLocEnvelopeMax);
+    assert.equal(probed.frontier.selectedDesign?.passes, baseline.frontier.selectedDesign?.passes);
+    assert.deepEqual(probed.frontier, baseline.frontier);
+    assert.deepEqual(probed.settingSurface, baseline.settingSurface);
+    assert.equal(probed.modelIdentity, baseline.modelIdentity);
+  }
+});
+
+test("changing decision scope invalidates every scope-dependent result", () => {
+  const scenario = defaultScenario();
+  const baseline = evaluateScenario(scenario);
+  const lowScope = evaluateScenario(scenarioWithDecisionScope(scenario, "low"));
+  assert.notEqual(lowScope.metrics.rLocEnvelopeMax, baseline.metrics.rLocEnvelopeMax);
+  assert.notDeepEqual(lowScope.frontier, baseline.frontier);
+  assert.notEqual(lowScope.modelIdentity, baseline.modelIdentity);
+  assert.deepEqual(lowScope.settingSurface, baseline.settingSurface);
 });
 
 test("frontier cells are direct evaluations and classification uses the locked below-threshold rule", () => {
@@ -939,7 +1038,12 @@ test("full outputs expose required grid sizes and explicit uncertainty absence",
   const outputs = evaluateScenario(scenario);
   assert.equal(outputs.schemaVersion, "ModelOutputsV1");
   assert.equal(outputs.frontier.points.length, 2601);
-  assert.equal(outputs.settingSurface.length, 81 * 40);
+  assert.equal(outputs.settingSurface.length, 81 * 20);
+  assert.equal(new Set(outputs.settingSurface.map((point) => point.Tih)).size, 81);
+  assert.equal(new Set(outputs.settingSurface.map((point) => point.Ns)).size, 20);
+  assert.equal(new Set(outputs.settingSurface.map((point) => `${point.Tih}:${point.Ns}`)).size, 81 * 20);
+  assert.equal(Math.max(...outputs.settingSurface.map((point) => point.Ns)), 20);
+  assert.ok(outputs.settingSurface.every((point) => point.Ns <= 20));
   assert.equal(outputs.uncertainty.available, false);
   assert.equal(outputs.uncertainty.rLocMax, null);
   const directEnvelopeMaximum = rLocForSetting(
@@ -948,7 +1052,8 @@ test("full outputs expose required grid sizes and explicit uncertainty absence",
     scenario.indexReferenceExposure,
     scenario.horizonDays
   );
-  assert.ok(Math.abs(Math.max(...outputs.settingSurface.map((point) => point.rLoc)) - directEnvelopeMaximum) <= 1e-10);
+  assert.ok(Math.abs(outputs.metrics.rLocEnvelopeMax - directEnvelopeMaximum) <= 1e-10);
+  assert.notEqual(Math.max(...outputs.settingSurface.map((point) => point.rLoc)), directEnvelopeMaximum);
   assert.deepEqual(evaluateScenario(defaultScenario()), outputs);
   assert.throws(
     () => evaluateScenario({ ...defaultScenario(), successRule: "upper95" as never }),
@@ -974,7 +1079,7 @@ test("the exact selected hypothetical design is not replaced by a display-grid c
   assert.equal(outsideOutputs.frontier.selectedDesign?.mu0, 15);
   assert.equal(outsideOutputs.frontier.selectedDesign?.rLocEnvelopeMax, outsideOutputs.metrics.rLocEnvelopeMax);
   assert.equal(outsideOutputs.frontier.nearestGridPoint?.mu0, 8);
-  assert.notEqual(outsideOutputs.frontier.selectedDesign?.passes, outsideOutputs.frontier.nearestGridPoint?.passes);
+  assert.notEqual(outsideOutputs.frontier.selectedDesign?.rLocEnvelopeMax, outsideOutputs.frontier.nearestGridPoint?.rLocEnvelopeMax);
 });
 
 test("unlinked exposure envelopes use both independent upper bounds", () => {
@@ -1087,7 +1192,11 @@ test("all committed scientific manifests and generated outputs have strict runti
   assert.throws(() => validateParameterManifest({ ...parameters, unknown: true }), /unknown or missing/);
   assert.throws(() => validateParameterManifest({ ...parameters, wpv1: { ...parameters.wpv1, alpha: Number.NaN } }), /finite/);
   assert.throws(() => validateFrontierGridManifest({ ...frontierGrid, takeContext: { ...frontierGrid.takeContext, count: 1 } }), /integer/);
+  assert.throws(() => validateFrontierGridManifest({ ...frontierGrid, version: "frontier-grid-1.0.0" }), /must equal/);
   assert.throws(() => validateSettingManifest({ ...settings, anchors: settings.anchors.slice(1) }), /four anchors/);
+  assert.throws(() => validateSettingManifest({ ...settings, version: "settings-1.0.0" }), /must equal/);
+  assert.throws(() => validateSettingManifest({ ...settings, surfaceDisplayDomain: { ...settings.surfaceDisplayDomain, exposure: { ...settings.surfaceDisplayDomain.exposure, unit: "grams/exposure" } } }), /must equal/);
+  assert.throws(() => validateSettingManifest({ ...settings, surfaceDisplayDomain: { ...settings.surfaceDisplayDomain, contacts: { ...settings.surfaceDisplayDomain.contacts, max: 40 } } }), /does not|must|unknown|integer/);
   assert.throws(() => validateUncertaintyManifest({ ...uncertainty, draws: [1] }), /must be empty/);
 
   const outputs = evaluateScenario(defaultScenario());

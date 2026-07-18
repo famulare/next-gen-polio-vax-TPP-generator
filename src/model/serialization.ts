@@ -1,4 +1,4 @@
-import { FRONTIER_GRID, GLOBAL_SETTING, PARAMETERS, SETTING_ANCHORS, SETTING_MANIFEST_VERSION, UNCERTAINTY_ENSEMBLE, vaccineDefaults } from "./parameters";
+import { FRONTIER_GRID, PARAMETERS, SETTING_ANCHORS, SETTING_MANIFEST_VERSION, UNCERTAINTY_ENSEMBLE, vaccineDefaults } from "./parameters";
 import { ROUTINE_DAYS } from "./types";
 import type { DesignGridPoint, ModelOutputsV1, ScenarioV1, SettingV1, UnitValueV1, VaccineV1 } from "./types";
 import { canonicalHash, canonicalJson } from "./canonical";
@@ -132,15 +132,14 @@ function validateSchedule(value: unknown): void {
 function validateSetting(value: unknown): asserts value is SettingV1 {
   if (!isRecord(value)) throw new Error("Setting must be an object");
   exactKeys(value, ["id", "Tih", "Ths", "dIh", "dHs", "Ns"], "SettingV1");
-  if (!["low", "houston", "matlab", "up-bihar", "global", "custom"].includes(value.id as string)) throw new Error("Invalid setting id");
+  if (value.id === "global") throw new Error("Legacy 'global' setting state is no longer supported; select an explicit probe and decision scope");
+  if (!["low", "houston", "matlab", "up-bihar", "custom"].includes(value.id as string)) throw new Error("Invalid setting id");
   validateUnitValue(value.Tih, "grams/exposure", "per_exposure", "Tih");
   validateUnitValue(value.Ths, "grams/exposure", "per_exposure", "Ths");
   validateUnitValue(value.dIh, "exposures/person/day", "per_day", "dIh");
   validateUnitValue(value.dHs, "exposures/person/day", "per_day", "dHs");
   integerRange(value.Ns, 0, 1000, "Ns");
-  if (value.id === "global") {
-    if (!sameRecord(value, GLOBAL_SETTING)) throw new Error("The global setting record must match its bundled placeholder; the envelope defines the evaluated range");
-  } else if (value.id !== "custom") {
+  if (value.id !== "custom") {
     const anchor = SETTING_ANCHORS.find((candidate) => candidate.id === value.id);
     if (!anchor || !sameRecord(value, pickSetting(anchor))) throw new Error(`${value.id} does not match the bundled named setting`);
   }
