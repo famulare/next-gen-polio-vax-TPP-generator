@@ -21,7 +21,7 @@ export function deterministicBuildIdentity(root = resolve(new URL("..", import.m
 }
 
 function collect(directory) {
-  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+  return readdirSync(directory, { withFileTypes: true }).filter((entry) => !entry.name.startsWith(".")).flatMap((entry) => {
     const path = resolve(directory, entry.name);
     return entry.isDirectory() ? collect(path) : [path];
   });

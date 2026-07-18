@@ -338,9 +338,9 @@ artifact makes no runtime request; and CI-like rebuilds are byte-identical.
 preflight; seven Section 15.1 artifacts; Section 15.2 calibration; performance
 (`1.5/0.5/380.4 ms` selected/surface/frontier); cache memory (`17.0 MiB`
 retained, all capacities respected); deterministic build
-`source-fc5764c276953b89`; expanded Chromium narrative smoke; artifact and
+`source-5a5a1c391bdd14c5`; expanded Chromium narrative smoke; artifact and
 release-negative checks. CI-like builds were byte-identical at SHA-256
-`dc5881193512da4b6bac94e73a51297fd03a04d7a50a058b7d566ee6ead4b875`.
+`5e6549eca5ff313897141889f56d1b510e1fdcfec0157389f00663f505427965`.
 
 ## Suggested commit checkpoints
 

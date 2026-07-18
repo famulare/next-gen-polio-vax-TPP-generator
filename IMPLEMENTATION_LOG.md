@@ -62,7 +62,7 @@ does not replace source provenance, git history, or verification output.
   tests; R fixture-generator preflight; seven Section 15.1 artifacts; Section
   15.2 calibration; performance (`1.5/0.5/380.4 ms`
   selected/surface/frontier); cache memory (`17.0 MiB` retained, every cache at
-  or below capacity); deterministic build `source-fc5764c276953b89`; artifact
+  or below capacity); deterministic build `source-5a5a1c391bdd14c5`; artifact
   integrity; expanded Chromium smoke covering default semantics, probe/scope
   identity, fixed comparators, linked pointer/keyboard/touch inspection,
   transactional stale/invalid state, empty frontiers, all exports, 360 px,
@@ -70,7 +70,23 @@ does not replace source provenance, git history, or verification output.
   focus, legacy URL rejection, file URL, runtime-request absence, and GitHub
   Pages prefix; and stale-artifact/CI-identity negative checks. CI-like builds
   were byte-identical at artifact SHA-256
-  `dc5881193512da4b6bac94e73a51297fd03a04d7a50a058b7d566ee6ead4b875`.
+  `5e6549eca5ff313897141889f56d1b510e1fdcfec0157389f00663f505427965`.
+
+### 2026-07-17 -- filesystem-independent release identity
+
+- **Objective:** repair the GitHub Pages release check without changing model
+  or presentation behavior.
+- **Result:** the release identity now ignores hidden filesystem residue under
+  `src/`. A local ignored `src/.DS_Store` had contaminated the source digest,
+  so a clean CI checkout produced a different build identity and correctly
+  rejected the committed artifact.
+- **Regression check:** the release-negative check creates a temporary hidden
+  source file and verifies that it cannot change the deterministic identity.
+- **Verification:** `npm run verify` passes, including 43/43 tests, source and
+  calibration artifacts, performance and cache limits, Chromium narrative
+  smoke, artifact integrity, and byte-identical CI-like rebuilds. The final
+  build identity is `source-5a5a1c391bdd14c5`; artifact SHA-256 is
+  `5e6549eca5ff313897141889f56d1b510e1fdcfec0157389f00663f505427965`.
 - **Residual uncertainty:** the scientific limitations are unchanged: the
   result is a direct point rule for the declared close-contact motif under the
   v1 sufficiency axiom, not complete-population `R_e`, a universal-setting or

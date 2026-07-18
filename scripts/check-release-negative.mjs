@@ -1,7 +1,8 @@
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { deterministicBuildIdentity } from "./build-identity.mjs";
 
 const root = resolve(new URL("..", import.meta.url).pathname);
 const artifact = resolve(root, "dist/index.html");
@@ -16,6 +17,15 @@ try {
   writeFileSync(artifact, original);
 }
 if (!staleRejected) throw new Error("Artifact checker accepted a deliberately stale artifact");
+
+const hiddenSourceResidue = resolve(root, `src/.build-identity-negative-${process.pid}`);
+const identityWithoutResidue = deterministicBuildIdentity(root);
+try {
+  writeFileSync(hiddenSourceResidue, "ignored filesystem residue\n");
+  if (deterministicBuildIdentity(root) !== identityWithoutResidue) throw new Error("Ignored hidden source residue changed the deterministic build identity");
+} finally {
+  unlinkSync(hiddenSourceResidue);
+}
 
 const hashes = [];
 for (const githubSha of ["1111111111111111111111111111111111111111", "2222222222222222222222222222222222222222"]) {
