@@ -1,7 +1,8 @@
 # Front-end redesign plan
 
-**Status:** interaction/content plan approved by Mike on 2026-07-17 and ready
-for implementation; no front-end implementation has started.
+**Status:** implemented and release-verified on 2026-07-17. The implementation
+record and residual limitations are in `IMPLEMENTATION_LOG.md`; the executable
+checklist is complete in `docs/frontend-redesign-implementation-tasks.md`.
 
 **Decision purpose:** redesign the completed deterministic backend as a
 scientific decision narrative for people well versed in vaccine development who

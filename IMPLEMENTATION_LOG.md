@@ -21,6 +21,65 @@ does not replace source provenance, git history, or verification output.
 
 ## Planning-stage review record
 
+### 2026-07-17 -- frontend redesign execution baseline
+
+- **Objective:** execute `docs/frontend-redesign-implementation-tasks.md`
+  against Design Contract 1.7, preserving the pure-model and scientific
+  identity boundaries while replacing the control-first prototype with the
+  approved decision narrative.
+- **Executor/model version:** Codex direct implementation; no delegation.
+- **Starting state:** clean `main` worktree at
+  `5465cd83cef6b99275e4c195e670853db26954c1`.
+- **Contract sections and source files supplied:** Contract Sections 1--3,
+  10--18; `FRONTEND_REDESIGN_PLAN.md`;
+  `docs/scientific-web-widget-playbook.md`; the complete model, UI, manifest,
+  export, artifact, and browser-test surfaces.
+- **Allowed files or worktree:** this repository only; no new biological
+  equations, outputs, dependencies, runtime services, or uncertainty claims.
+- **Required output and discriminator:** the ordered Tasks 0--8 and their
+  numerical, semantic, interaction, accessibility, deterministic-build, and
+  release gates.
+- **Content-block classification and rationale:** not applicable; direct
+  bounded scientific-software implementation.
+- **Reframe/retry status:** not applicable at baseline.
+- **Result disposition:** accepted. The default decision scope is now the
+  UP/Bihar singleton; inspection probes and the fixed 81 x 20 setting-surface
+  display domain are independent. The control-first dashboard is replaced by
+  the approved decision narrative, linked setting/requirement/product views,
+  mechanism and measurement explanations, transactional state, advanced
+  scientific controls, and versioned URL/JSON/CSV/SVG reconstruction paths.
+- **Primary review:** baseline `npm run verify` passed at starting commit
+  `5465cd83cef6b99275e4c195e670853db26954c1`. Baseline desktop and 360 px review
+  confirmed the recorded control-wall, peer-card, hard-edge/color, unlabeled
+  Matlab segment, and empty-frontier presentation problems. Final desktop,
+  tablet, and mobile renders were reviewed directly. The fatal-defect audit
+  found none; the playbook quality rubric scored 32/32. The most likely harmful
+  over-interpretation--that clearing UP/Bihar guarantees control everywhere--is
+  blocked adjacent to the authoritative result and in every standalone SVG.
+  Direct decision-scope `R_loc`, not raster color, interpolation, `q_index`, a
+  probe, or the nearest grid point, remains authoritative.
+- **Verification run:** `npm run verify` passed on 2026-07-17: typecheck; 43/43
+  tests; R fixture-generator preflight; seven Section 15.1 artifacts; Section
+  15.2 calibration; performance (`1.5/0.5/380.4 ms`
+  selected/surface/frontier); cache memory (`17.0 MiB` retained, every cache at
+  or below capacity); deterministic build `source-fc5764c276953b89`; artifact
+  integrity; expanded Chromium smoke covering default semantics, probe/scope
+  identity, fixed comparators, linked pointer/keyboard/touch inspection,
+  transactional stale/invalid state, empty frontiers, all exports, 360 px,
+  200%-equivalent reflow, grayscale, forced colors, print, reduced motion,
+  focus, legacy URL rejection, file URL, runtime-request absence, and GitHub
+  Pages prefix; and stale-artifact/CI-identity negative checks. CI-like builds
+  were byte-identical at artifact SHA-256
+  `dc5881193512da4b6bac94e73a51297fd03a04d7a50a058b7d566ee6ead4b875`.
+- **Residual uncertainty:** the scientific limitations are unchanged: the
+  result is a direct point rule for the declared close-contact motif under the
+  v1 sufficiency axiom, not complete-population `R_e`, a universal-setting or
+  clinical-performance guarantee, or a probability of threshold crossing.
+  Parameter uncertainty remains unavailable. Firefox and WebKit are
+  recommended but are not v1 release blockers and were not run. One-dimensional
+  parameter slices remain deliberately deferred pending evidence that the
+  measurement map is insufficient.
+
 ### 2026-07-17 -- backend review completion
 
 - **Objective:** complete every handoff item in `BACKEND_REVIEW_PARTIAL.md`,

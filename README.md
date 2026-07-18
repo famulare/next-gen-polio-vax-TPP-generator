@@ -1,8 +1,9 @@
 # Next-gen polio vaccine TPP generator
 
-We are making an interactive TPP generator to help people reason about the
-question: **how much shedding reduction is required of a successful new
-vaccine?** The generator is based on the model in [this paper](https://journals.plos.org/plosbiology/article?id=10.1371/journal.pbio.2002468).
+This interactive TPP generator helps vaccine-development experts reason about
+the question: **under what conditions can an OPV-like vaccine block the modeled
+close-contact transmission motif?** The generator is based on the model in
+[this paper](https://journals.plos.org/plosbiology/article?id=10.1371/journal.pbio.2002468).
 
 Explore the related [data explorer](https://famulare.github.io/cessationStability/onlineVisualization/).
 
@@ -15,6 +16,16 @@ connections as mostly weaker. Its point-rule threshold comparisons do not
 calculate a complete population `R_e` or establish clinical product
 performance. Section 15.1 direct-port grids and the Section 15.2 prevalence
 calibration are the approved hybrid-equivalence evidence for this iteration.
+
+The default decision is a direct point comparison at the UP/Bihar high anchor,
+the hardest known empirical/model-calibrated stress-test in the committed
+setting catalog. The default hypothetical product has direct `R_loc =
+0.9201071208363125` there and therefore meets the strict `R_loc < 1` criterion.
+Clearing that anchor supports likely adequacy under less demanding conditions
+represented by this mechanism, but does not prove control everywhere. The
+blue-white-red setting surface is a fixed, nonbinding interpretation domain
+(`0.1-2,000` micrograms/exposure and `1-20` close contacts), not a global
+decision envelope.
 
 ## Run locally
 
@@ -43,8 +54,20 @@ runtime network dependency.
 - Distribution-native index conditioning and index -> household -> social
   transmission with fractional daily contact frequency and the declared
   `R_loc` endpoint.
-- Linked requirement/product maps, setting surface with low, Houston/Louisiana,
-  Matlab hybrid, and UP/Bihar anchors, URL state, and JSON/CSV/SVG exports.
+- An authored decision narrative: hardest-known-anchor result and setting
+  surface; close-contact motif; linked requirement/product maps; mechanistic
+  reading sequence; measurement handshake; assumptions and provenance.
+- A blue-white-red setting surface centered at `R_loc = 1`, with independent
+  decision-scope and inspection-probe controls and low, Houston/Louisiana,
+  Matlab hybrid, and UP/Bihar anchors.
+- The same 2,601 directly evaluated hypothetical designs in linked requirement
+  and product coordinates, including keyboard, pointer, and touch inspection,
+  explicit empty-frontier behavior, and fixed Sabin 2/IPV comparator semantics.
+- Transactional scientific updates that retain but mark the prior result stale,
+  fail invalid state closed, and disable export until all dependent outputs
+  commit atomically.
+- Canonical URL state plus versioned JSON, CSV, and standalone SVG exports with
+  scenario, scope, probe, model, build, qualification, and selection context.
 
 The locked [design contract](./DESIGN_CONTRACT.md) remains canonical. This
 iteration has **one point success rule**: `R_loc_max < 1`. Parameter-uncertainty
