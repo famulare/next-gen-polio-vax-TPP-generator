@@ -2,9 +2,11 @@
 
 **Status:** LOCKED FOR IMPLEMENTATION
 
-**Contract version:** 1.7
+**Contract version:** 1.8
 
-**Locked:** 2026-07-15
+**Locked:** 2026-07-21
+
+**Base locked version:** 1.7 (2026-07-15)
 
 **Process amendments:** 2026-07-15; supervised-agent/content-block fallback and
 primary false-positive judgment. Scientific amendment 2026-07-16: retain the
@@ -41,6 +43,17 @@ setting surface is nonbinding context for the product-specific shape and margin
 of that result. Its versioned display domain is `T = 0.1-2,000
 micrograms/exposure`, `N_s = 1-20`; the prior source-code exploration maximum
 of 40 contacts is not a v1 default.
+
+**Interaction and teaching amendment 2026-07-21:** replace the
+result-first, setting-surface-first page order with a teaching-first narrative.
+It begins at the UP/Bihar anchor, develops the immunity -> acquisition ->
+shedding -> transmission chain, transitions from a naive reference cohort to
+the selected vaccinated cohort, then presents the direct `R_loc` result and
+setting surface. The measurement/provenance map precedes the linked
+requirement and product-design maps. The amendment adds deterministic,
+read-only within-host diagnostics and a schedule-derived immunity-distribution
+view. It changes neither equations, parameters, defaults, units, comparators,
+success rule, uncertainty semantics, nor the meaning of `R_loc`.
 
 **Primary audience:** people well versed in vaccine development who do not yet
 have a clean mechanistic mental model analogous to this mathematical model
@@ -83,14 +96,23 @@ effects:
 The authoritative decision output is the direct `R_loc_max` result under the
 selected product, schedule, point success rule, and declared decision scope.
 The versioned default scope is the singleton UP/Bihar high anchor, so its
-maximum is the direct `R_loc` value at that point.
-The opening setting surface shows where that candidate crosses `R_loc = 1` as
-exposure and close-social-contact conditions vary. The linked effect-space
-requirement and product-design maps then show which combinations are sufficient
-for the selected scope. If no evaluated design passes, the absence of a Pareto
-frontier is an explicit result rather than a reason to draw a substitute line.
-A scalar shedding index may be displayed as a derived diagnostic, never as the
-sole definition of product success.
+maximum is the direct `R_loc` value at that point. The teaching sequence begins
+at that anchor but does not lead with the verdict: it first explains the
+within-host and close-contact calculations that make the verdict meaningful.
+The setting surface then shows where the selected candidate crosses `R_loc = 1`
+as exposure and close-social-contact conditions vary. The linked effect-space
+requirement and product-design maps follow the measurement/provenance map and
+show which combinations are sufficient for the selected scope. If no evaluated
+design passes, the absence of a Pareto frontier is an explicit result rather
+than a reason to draw a substitute line.
+
+The source-paper-style shedding index is the expected total amount shed after
+a specified oral challenge: probability of acquisition multiplied by the
+integrated infectious-shedding burden conditional on acquisition. In this app,
+`q_index = q_acq * q_shed` is its relative WPV analogue at the one-WPV-HID50
+reference challenge. `q_shed` alone is the conditional breakthrough-shedding
+ratio. These diagnostics may be displayed, but neither is the sole definition
+of product success.
 
 The tool is a model explorer and TPP reasoning aid. It is not a clinical-trial
 calculator, a forecast of outbreak size, or a substitute for a full population
@@ -795,10 +817,16 @@ at that anchor. The broader setting-surface display domain is not `S` and does
 not enter classification unless a user explicitly selects it as a custom
 decision envelope.
 
-The one-HID50 reference exposure is used for `q_acq` and index conditioning.
-`q_shed` integrates the joint survival-intensity expectation. These ratios
+The one-WPV-HID50 reference exposure is used for `q_acq` and index
+conditioning. `q_shed` integrates the joint survival-intensity expectation
+after conditioning on a breakthrough infection. Consequently, `q_index` is the
+relative expected total infectious shedding after that specified reference
+challenge: the browser must calculate the acquisition probability and the
+breakthrough-conditioned joint burden distribution-natively before displaying
+their product. It is analogous to, but not numerically identical with, the
+source paper's shedding index under its mOPV challenge convention. These ratios
 describe a product outcome; neither is substituted for the full transmission
-chain. `q_index` is a useful summary card but never determines pass/fail.
+chain. `q_index` is a useful summary diagnostic but never determines pass/fail.
 
 ### 11.3 Outcome-space requirement frontier
 
@@ -901,13 +929,114 @@ drawn marginal confidence intervals. No runtime random sampling is allowed.
 
 ## 13. Interaction and visual design
 
-The application should answer four questions in order: **under what conditions
-can this candidate block the modeled close-contact motif; what product
-performance is enough for the declared decision scope; why; and what is
-measured, calibrated, fixed, derived, or unavailable?** The opening result must
-precede the detailed control surface.
+The application should teach one causal story before asking the user to
+interpret a product verdict: **how pre-exposure immunity changes WPV
+acquisition and infectious shedding; how an OPV-like product changes that
+immunity; how shedding becomes exposure along a close-contact motif; under
+what setting conditions the motif contracts; and what product performance is
+sufficient for the declared scope.** The resulting `R_loc` decision remains
+authoritative, but it is not the first thing shown.
 
-### 13.1 Visual 1 -- setting surface (required, opening and dominant)
+The page is a single, scroll-led scientific narrative. A progressive reveal may
+hold the active explanatory graphic in view while its text changes, but the
+same information must be fully available in DOM order, without animation, by
+keyboard, and in print. Scrolling or animation must never be required to expose
+a scientific conclusion.
+
+### 13.1 Opening -- a WPV challenge in the UP/Bihar reference setting
+
+The opening fixes the initial setting at the named UP/Bihar high anchor and
+introduces a reference child with all mass in immunity bin 0. It makes clear
+that UP/Bihar supplies the fecal-oral exposure and close-contact context used
+later in the motif; it does **not** alter the WPV biological dose-response
+equation. The opening does not yet report whether the candidate passes.
+
+It then introduces the selected product and schedule as a transition from the
+reference cohort to a schedule-derived vaccinated cohort at the selected
+assessment age. The display may compare the two cohorts directly, but it must
+never call either a representative or average person. The underlying model
+continues to propagate all 16 immunity bins.
+
+### 13.2 Required within-host teaching sequence
+
+One coherent four-panel figure, revealed in causal order, is required. It is a
+read-only explanation of existing model kernels, not a new endpoint or a
+free-form parameter laboratory.
+
+1. **WPV acquisition after oral challenge.** Plot cohort acquisition
+   probability against WPV dose in CID50 on a logarithmic axis, comparing the
+   naive reference and selected vaccinated cohort. Mark the one-WPV-HID50
+   reference challenge used for `q_acq` and index-breakthrough conditioning.
+   Later motif panels, not this curve, convert source stool concentration and
+   setting-specific stool exposure into realized daily doses.
+2. **Duration among infections.** Plot `P(still shedding at day t | WPV
+   acquisition)` for the reference infection and the vaccinated
+   breakthrough-conditioned cohort. This is a survival probability, not vaccine
+   take and not the probability of acquiring WPV.
+3. **Concentration among shedders.** Plot expected stool concentration in
+   `TCID50/g` conditional on still shedding at day `t`, with the same
+   conditioning as panel 2. State age and the assay floor beside the panel.
+4. **Shedding index.** Show the expected daily infectious-shedding burden and
+   its integral. For a challenge dose `d`, the displayed source-paper-style
+   index is `P(acquisition | d) * B`, where `B` is the integrated joint
+   survival-intensity burden conditional on acquisition. Show the relative
+   one-WPV-HID50 value as `q_index = q_acq * q_shed`, and visibly distinguish
+   it from `q_shed`, the conditional breakthrough-shedding ratio.
+
+For every panel, cohort quantities are calculated over the actual immunity
+distribution. In particular, the conditional concentration in panel 3 and the
+burden in panel 4 use the joint survival-intensity expectation. The UI must not
+construct them by multiplying separately averaged duration and concentration,
+or by evaluating kernels at a mean-immunity state.
+
+### 13.3 Product mechanism -- from received dose to pre-WPV immunity
+
+Before the application treats take or mean boost as product controls, it must
+show their role in the schedule calculation:
+
+```text
+received live dose -> immunity-dependent vaccine take -> take/no-take split
+-> boosted take mass + unboosted no-take mass -> waning -> next dose
+-> assessment-age immunity distribution
+```
+
+The product explanation exposes the minimum necessary parameters at their
+point of use: vaccine dose-response (`alpha_vax`, `beta_vax`, fixed
+`gamma_vax`), administered dose, setting-specific biological `take_context`,
+and mean boost `mu0_new` with fixed variance. It must state that vaccine take
+is productive infection after a received vaccine dose; core receipt is fixed
+at 100% and take is not coverage. The schedule-derived distribution is a
+derived diagnostic, not a serum-titer distribution or a new trial endpoint.
+
+The reference-to-vaccinated transition in Section 13.2 must be visibly linked
+to this distribution. A fixed comparator remains its catalog product; its
+parameters are not reinterpreted as hypothetical controls.
+
+### 13.4 Transmission -- from shed virus to a local reproduction number
+
+Only after the within-host and product sequences are established does the page
+assemble the close-contact calculation:
+
+```text
+infected index -> household child -> close social contacts in other households
+```
+
+For each link, explain that source survival and stool concentration, multiplied
+by grams of stool per exposure, determine recipient dose; recipient immunity
+then determines daily acquisition; repeated daily exposures compose through
+cumulative escape. The UP/Bihar anchor's exposure and contact parameters are
+introduced here, with units and bases. The index is conditioned on actual
+one-WPV-HID50 breakthrough, so it is not a random sample of vaccinated people.
+
+`R_loc = N_s * P(one close social contact is infected)` is then shown as the
+expected number of social contacts infected along this declared motif. It is
+not a complete-population `R_e`, an outbreak forecast, or a claim that every
+transmission route has been modeled.
+
+### 13.5 Visual 1 -- setting surface (required decision visual)
+
+After Section 13.4, present the direct UP/Bihar decision result and the
+dominant setting surface:
 
 - x-axis: fecal-oral exposure/sanitation, log scale;
 - y-axis: number of close social contacts;
@@ -930,7 +1059,22 @@ not the display-domain corner or an interpolated raster value; the interface
 and exports state that distinction. The surface is contextual evidence about
 the product-specific shape and margin of the result.
 
-### 13.2 Visual 2 -- linked TPP maps (required together)
+### 13.6 Measurement and provenance map
+
+The setting surface is followed by a full parameter/measurement map before
+Pareto analysis. It labels every displayed quantity as directly measured,
+scenario input, product property, calibrated or inherited model parameter,
+fixed v1 assumption, derived model output, or unavailable evidence. The table
+must include the conditioning and units for acquisition, duration,
+concentration, conditional burden, `q_shed`, `q_index`, and `R_loc`.
+
+The map must prevent users from reading a common shedding-index value as
+evidence of a common mechanism, `take_context` as dose receipt, or
+OPV-equivalent mucosal immunity as a measured serum titer. It must also make
+clear that parameter uncertainty and a threshold-crossing probability are
+unavailable in v1.
+
+### 13.7 Visual 2 -- linked TPP maps (required together, after the model map)
 
 Two panels are simultaneously visible and linked:
 
@@ -942,33 +1086,10 @@ the passing side, selected candidate, and applicable comparators. Selection,
 hover, focus, and keyboard traversal resolve to the same design in both views.
 If `frontier.pareto` is empty, the interface states that no evaluated design
 passes the selected scope and draws no Pareto line. The adjacent summary shows
-the derived shedding index as a diagnostic and the direct `R_loc_max` as the
-authoritative result.
+the decomposed `q_acq`, `q_shed`, and `q_index` diagnostics and the direct
+`R_loc_max` as the authoritative result.
 
-### 13.3 Mechanistic and measurement explanation (required core)
-
-A compact explanatory sequence shows:
-
-- the index -> household member -> close-social-contact motif;
-- WPV acquisition probability;
-- conditional breakthrough infectious-shedding burden;
-- the derived shedding index; and
-- the direct `R_loc` decision result.
-
-It is paired with a parameter/measurement map that labels each displayed
-quantity as directly measured, scenario input, calibrated, fixed assumption,
-derived model output, or unavailable evidence. This explanation must prevent
-users from reading a common shedding-index value as evidence of a common
-mechanism, `take_context` as dose receipt, or OPV-equivalent mucosal immunity as
-a measured serum titer.
-
-Interactive one-dimensional parameter slices are deferred. They may be added
-only after review shows that users still cannot explain how take, boost,
-exposure, and contacts affect the result. A schedule-derived immunity-
-distribution visualization remains deferred because the current model-output
-schema does not expose that distribution.
-
-### 13.4 Controls
+### 13.8 Controls
 
 The interface must distinguish three objects in state, labels, prose, and
 exports:
@@ -983,22 +1104,11 @@ single-setting and custom-envelope scope presets are allowed; selecting one
 intentionally changes classification, and editing a defining value changes the
 preset label to Custom.
 
-The opening control surface must stay small:
-
-- RI plus booster choice and 28/90-day assessment lag;
-- candidate product;
-- selected setting probe; and
-- UP/Bihar high, another named single-setting, or custom decision scope.
-
-Setting-specific take and immune boost strength appear contextually with the
-product-design explanation. Vaccine dose and the Sabin-2-like/custom dose-
-response preset appear in a compact candidate editor after their meanings have
-been introduced. The fixed point success rule is visible but not presented as
-an editable scientific choice.
-
-The linked map pair also exposes a target crosshair/readout so a user can vary
-the desired acquisition or shedding reduction and see where `R_loc` remains
-uncontrolled. The official pass threshold remains `R_loc < 1`.
+Controls are disclosed where their semantics have been taught. Product and
+schedule controls enter with Section 13.3; setting probe and explicit decision
+scope enter with Sections 13.4-13.5; target inspection enters with the linked
+maps. The fixed point success rule is visible but is not presented as an
+editable scientific choice.
 
 Advanced controls contain:
 
@@ -1009,20 +1119,23 @@ Advanced controls contain:
 - visible fixed parameters as labeled assumptions rather than a disabled-form
   dump.
 
-### 13.5 Usability requirements
+### 13.9 Usability requirements
 
 - Every scientific control shows units and a plain-language definition.
 - Status labels and tooltips distinguish direct measurements, scenario inputs,
   calibrated parameters, fixed assumptions, derived outputs, and evidence
   gaps.
-- The default result and its adjacent sufficiency qualification are legible
-  before the detailed control surface.
+- The first viewport identifies the UP/Bihar teaching setting and the current
+  reference-to-vaccinated comparison without implying a verdict. The direct
+  result and sufficiency qualification are legible at the setting-surface step.
 - A reset button restores the versioned default scenario.
 - Current state is serialized in the URL hash for sharing without a server.
 - The app supports keyboard operation and does not use color alone for pass/fail.
 - The layout remains usable at 360 CSS pixels wide.
 - Required exports are SVG for figures, JSON for the canonical scenario and
-  outputs, and CSV for evaluated grids. PNG is optional. No backend is used.
+  outputs, and CSV for evaluated grids. The within-host diagnostic grids and
+  their schema version are represented in JSON and figure exports. PNG is
+  optional. No backend is used.
 
 ---
 
@@ -1080,6 +1193,7 @@ src/
     schedule.ts
     transmission.ts
     metrics.ts
+    diagnostics.ts
     frontier.ts
   ui/
     state.ts
@@ -1087,10 +1201,12 @@ src/
     frontier-chart.ts
     setting-chart.ts
     decomposition-chart.ts
+    within-host-teaching-chart.ts
   data/
     parameters.json
     setting-anchors.json
     frontier-grid.json
+    diagnostic-grid.json
     uncertainty-ensemble.json
     provenance.json
 scripts/
@@ -1130,7 +1246,8 @@ Ownership is binding:
 | committed data/manifests | parameters, grids, draws, provenance | undocumented copied constants |
 
 Versioned schemas are required for `ScenarioV1`, `ScheduleV1`, `SettingV1`,
-`VaccineV1`, `ParameterManifestV1`, `FrontierGridV1`, and `ModelOutputsV1`.
+`VaccineV1`, `ParameterManifestV1`, `FrontierGridV1`, `DiagnosticGridV1`,
+`WithinHostDiagnosticsV1`, and `ModelOutputsV1`.
 Fields include explicit units/bases, target/comparator ids, schedule days,
 assessment lag, setting or envelope bounds, product parameters, success rule,
 schema version, and manifest hashes. Objects reject unknown fields on imported
@@ -1143,10 +1260,18 @@ separately stores the nonbinding setting-surface display domain. These objects
 must not be collapsed merely because the current implementation originally used
 one envelope for both.
 
+`WithinHostDiagnosticsV1` is a pure, read-only output for the reference and
+selected schedule-derived cohorts. It contains the fixed-grid acquisition,
+survival, conditional-concentration, daily joint-burden, integrated-burden,
+and schedule-distribution values needed for Section 13. It records challenge
+dose, age, conditioning, units, source/diagnostic schema versions, and model
+identity. It must be computed by `src/model/`; no UI chart may reimplement a
+kernel or reconstruct a cohort average.
+
 Canonical serialization uses sorted keys, finite JSON numbers, and no `NaN` or
 `Infinity`. The cache/export identity is a hash of canonical scenario,
-parameter-manifest, uncertainty-ensemble, and frontier-grid content. Cache
-invalidation and URL/export round trips require tests.
+parameter-manifest, uncertainty-ensemble, frontier-grid, and diagnostic-grid
+content. Cache invalidation and URL/export round trips require tests.
 
 ### 14.4 Performance
 
@@ -1381,6 +1506,14 @@ Tests must establish over the declared domain:
 - zero exposure or zero contacts gives `R_loc = 0`;
 - identical product and schedule inputs give identical outputs;
 - repeated doses use conditioned distributions, not repeated scalar efficacy;
+- within-host diagnostics agree with the production dose-response, schedule,
+  shedding-survival, and joint-intensity kernels on every committed display
+  grid;
+- `q_index = q_acq * q_shed` within numerical tolerance, with `q_shed`
+  conditioned on breakthrough and the displayed conditional concentration
+  derived from the same joint expectation;
+- changing a teaching view or diagnostic reveal cannot change `R_loc`,
+  classification, canonical scenario, or export identity;
 - the frontier pass region agrees with direct `R_loc` evaluation;
 - the rectangular setting maximum agrees with direct grid search;
 - displayed contours do not change evaluated-point classifications.
@@ -1423,6 +1556,16 @@ Default-scenario tests additionally require direct UP/Bihar `R_loc =
 points on the committed `51 x 51` product grid, a passing selected design, and a
 setting-surface display domain with 81 exposure columns and 20 contact rows.
 The former 40-contact envelope result must not control or label default status.
+
+Within-host diagnostic tests must additionally establish: bin mass conservation
+for the displayed schedule distribution; naive-reference mass wholly in bin 0;
+acquisition, survival, and expected conditional concentration decrease or do
+not increase with immunity under their stated conditioning; diagnostic curves
+agree with direct bin-weighted kernel evaluation; and their fixed grids are
+serialized identically in browser and Node. A browser test must verify the
+teaching order, the reference-to-vaccinated transition, correct panel labels
+and conditioning, the UP/Bihar setting explanation, and no early pass/fail
+verdict before the `R_loc` step.
 
 The release build must pass:
 
@@ -1481,27 +1624,35 @@ Implementation is complete only when all of the following are true:
    assessment 28 or 90 days after the last dose for every role.
 6. Users can vary take, boost, dose-response, setting, contacts, sanitation, and
    schedule.
-7. The setting surface is the opening and visually dominant result; the linked
-   requirement and product-design maps are simultaneously visible in the next
-   explanatory step. No scalar shedding target is the primary result.
-8. Acquisition blocking and breakthrough shedding are shown separately.
-9. The setting surface includes low, Houston/Louisiana, Matlab, and UP/Bihar.
-10. The point `R_loc_max < 1` rule is explicit, with UP/Bihar high as the
-    default singleton decision scope. Parameter uncertainty and an upper-95
-    rule are explicitly out of scope for this iteration.
-11. The app identifies UP/Bihar as the hardest known anchor and qualifies the
-    inference beyond it; it never reports universal adequacy without the v1
-    sufficiency axiom and decision-scope qualification.
-12. All parity, calibration-gate, invariant, schema, frontier, browser, and
-    artifact tests pass.
-13. The README explains the question, limitations, development commands, and
-    Pages deployment prerequisite/URL.
-14. Versioned JSON/CSV/SVG exports and manifests reproduce every displayed
-    result.
-15. All audit inputs and the self-contained artifact are committed, and a clean
-    CI rebuild produces no diff.
-16. Every delegated or fallback task is dispositioned and verified in
-    `IMPLEMENTATION_LOG.md`; no unreviewed agent output remains in the release.
+7. The teaching-first sequence begins at UP/Bihar; it develops the
+   reference-to-vaccinated within-host transition, then the close-contact
+   motif, then the visually dominant setting surface and direct result. No
+   scalar shedding target is the primary result.
+8. Acquisition, conditional shedding duration, concentration among shedders,
+   conditional integrated burden, and the relative acquisition-adjusted
+   shedding index are shown with their conditioning and units.
+9. The schedule-derived immunity distribution and fixed-grid within-host
+   diagnostics are produced by the pure model boundary, serialized, and tested;
+   they do not alter any transmission calculation.
+10. The setting surface includes low, Houston/Louisiana, Matlab, and UP/Bihar.
+11. The point `R_loc_max < 1` rule is explicit, with UP/Bihar high as the
+   default singleton decision scope. Parameter uncertainty and an upper-95
+   rule are explicitly out of scope for this iteration.
+12. The app identifies UP/Bihar as the hardest known anchor and qualifies the
+   inference beyond it; it never reports universal adequacy without the v1
+   sufficiency axiom and decision-scope qualification.
+13. The measurement/provenance map precedes the linked requirement and
+   product-design maps, which remain simultaneously visible and linked.
+14. All parity, calibration-gate, invariant, schema, frontier, browser, and
+   artifact tests pass.
+15. The README explains the question, limitations, development commands, and
+   Pages deployment prerequisite/URL.
+16. Versioned JSON/CSV/SVG exports and manifests reproduce every displayed
+   result.
+17. All audit inputs and the self-contained artifact are committed, and a clean
+   CI rebuild produces no diff.
+18. Every delegated or fallback task is dispositioned and verified in
+   `IMPLEMENTATION_LOG.md`; no unreviewed agent output remains in the release.
 
 ---
 
@@ -1527,9 +1678,12 @@ The following decisions are binding for v1:
 9. Index breakthrough is conditioned on one WPV HID50.
 10. Point `R_loc_max < 1` is the sole criterion for this iteration; parameter
     uncertainty and an upper central 95% rule are deferred.
-11. The setting surface is opening and visually dominant. Both the effect-space
-    and product-design frontier views are simultaneously visible and linked in
-    the next explanatory step; shedding index is a summary, not a pass axis.
+11. The teaching-first narrative begins in the UP/Bihar setting and progresses
+    from within-host response through the close-contact motif to the visually
+    dominant setting surface and direct decision result. Both the effect-space
+    and product-design frontier views are simultaneously visible and linked
+    after the measurement/provenance map; shedding index is a summary, not a
+    pass axis.
 12. Everything needed for auditability and reproducibility, including the built
     HTML artifact, is committed.
 13. The primary model is distribution-native through index, household, and
@@ -1548,7 +1702,10 @@ The following decisions are binding for v1:
     or custom envelope changes classification only through an explicit labeled
     selection.
 18. The measurement/provenance map is part of the core explanatory design.
-    One-dimensional parameter slices are deferred pending usability review.
+    The fixed-grid, read-only within-host teaching diagnostics and
+    schedule-derived immunity-distribution view are part of the core
+    explanatory design. A free-form parameter-slice laboratory remains
+    deferred pending usability review.
 19. UP/Bihar is described as the hardest known empirical/model-calibrated
     anchor. Clearing it supports likely adequacy under less demanding conditions
     represented by the model, but is not presented as proof for every place or
@@ -1580,6 +1737,10 @@ Potential v2 work, explicitly not required for the first implementation:
 - schedule optimization under dose, visit, stock, and delivery constraints;
 - formal probabilistic calibration of product success; and
 - all-retained-draw and other robust decision rules.
+
+The fixed-grid teaching diagnostics in Section 13 are not a deferred extension.
+Unbounded one-dimensional parameter slicing or an exploratory laboratory beyond
+those diagnostics remains deferred.
 
 ---
 

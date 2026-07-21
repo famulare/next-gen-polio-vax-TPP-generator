@@ -1,8 +1,10 @@
 # Front-end redesign plan
 
-**Status:** implemented and release-verified on 2026-07-17. The implementation
-record and residual limitations are in `IMPLEMENTATION_LOG.md`; the executable
-checklist is complete in `docs/frontend-redesign-implementation-tasks.md`.
+**Status:** historical implementation record for the release verified on
+2026-07-17. It is superseded for future frontend work by the teaching-first
+amendment in `DESIGN_CONTRACT.md` version 1.8. The implementation
+record and residual limitations are in `IMPLEMENTATION_LOG.md`; the prior
+executable checklist is complete in `docs/frontend-redesign-implementation-tasks.md`.
 
 **Decision purpose:** redesign the completed deterministic backend as a
 scientific decision narrative for people well versed in vaccine development who
@@ -11,15 +13,12 @@ model. The artifact should help them reason about when an OPV-like vaccine can
 block the modeled close-contact transmission motif, what product performance
 would be sufficient, why, and where that conclusion holds.
 
-**Canonical scientific authority:** `DESIGN_CONTRACT.md` version 1.7. This plan
-does not change model equations, units, comparators, the point `R_loc < 1`
-criterion, or uncertainty semantics. Mike approved setting-surface-first visual
-order, the stated vaccine-development audience, and a core measurement map with
-parameter slices deferred pending review. He subsequently set the UP/Bihar high
-anchor as the default decision scope and capped the nonbinding setting-surface
-exploration domain at 20 close social contacts. Those two changes require a
-bounded default/manifest amendment, but no biological-model or
-`ModelOutputsV1` expansion.
+**Canonical scientific authority:** `DESIGN_CONTRACT.md` version 1.7 was the
+authority for the completed release. Version 1.8 retains the equations,
+units, comparators, point `R_loc < 1` criterion, and uncertainty semantics but
+replaces this document's setting-surface-first order with a teaching-first
+narrative and adds a reviewed diagnostic-output contract. This plan remains an
+audit record, not an execution plan for that amendment.
 
 ## 1. Evidence used for this plan
 

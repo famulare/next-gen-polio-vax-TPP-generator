@@ -1,6 +1,9 @@
 # Frontend redesign implementation tasks
 
-**Status:** complete and release-verified on 2026-07-17.
+**Status:** complete and release-verified on 2026-07-17. This is a historical
+checklist for the deployed setting-surface-first narrative. It must not be
+reused for the teaching-first amendment in `DESIGN_CONTRACT.md` version
+1.8; a new task list follows under the locked amended contract.
 
 **Decision purpose:** turn the deterministic WPV1 TPP model into an authored
 scientific decision narrative for vaccine-development experts. The default
