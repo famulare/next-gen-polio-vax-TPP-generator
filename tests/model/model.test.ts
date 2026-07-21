@@ -4,7 +4,7 @@ import test from "node:test";
 import { applyBoost, buildBoostMatrix, normalizeBins, shiftBins } from "../../src/model/bins";
 import { buildFrontier, gridPointRLocMatchesDirect, passesThreshold } from "../../src/model/frontier";
 import { defaultScenario, evaluateScenario, scenarioWithDecisionScope, scenarioWithProduct, scenarioWithSetting } from "../../src/model/model";
-import { FRONTIER_GRID, PARAMETERS, SETTING_ANCHORS, SETTING_DISPLAY_DOMAIN, vaccineDefaults } from "../../src/model/parameters";
+import { DIAGNOSTIC_GRID, FRONTIER_GRID, PARAMETERS, SETTING_ANCHORS, SETTING_DISPLAY_DOMAIN, vaccineDefaults } from "../../src/model/parameters";
 import { envelopeCorner } from "../../src/model/metrics";
 import { canonicalHash, canonicalJson, decodeScenario, encodeScenario, validateModelOutputs, validateScenario } from "../../src/model/serialization";
 import { applyDose, buildScheduleState, buildStateAtAssessment, initialImmuneState, moveState, scheduleDays } from "../../src/model/schedule";
@@ -15,7 +15,7 @@ import { waneMucosal, waningDeltaMonths } from "../../src/model/waning";
 import { evaluateMatlabFixedTiterMotif } from "../../src/model/matlab-compat";
 import { sha256Hex } from "../../src/model/canonical";
 import { deriveCalibrationVarianceConstraint, evaluatePrevalenceMotif, gaussianCalibrationStateForMean, immunityMoments } from "../../src/model/calibration";
-import { validateFrontierGridManifest, validateParameterManifest, validateSettingManifest, validateUncertaintyManifest } from "../../src/model/manifest-validation";
+import { validateDiagnosticGridManifest, validateFrontierGridManifest, validateParameterManifest, validateSettingManifest, validateUncertaintyManifest } from "../../src/model/manifest-validation";
 import type { ProductId, ScenarioV1, ScheduleV1, SettingV1, VaccineV1 } from "../../src/model/types";
 
 const sourceKernelFixture = JSON.parse(
@@ -1061,6 +1061,38 @@ test("full outputs expose required grid sizes and explicit uncertainty absence",
   );
 });
 
+test("within-host teaching diagnostics preserve the production kernels and metric ratios", () => {
+  const outputs = evaluateScenario(defaultScenario());
+  const { diagnostics, metrics } = outputs;
+
+  assert.equal(diagnostics.schemaVersion, "WithinHostDiagnosticsV1");
+  assert.equal(diagnostics.gridVersion, DIAGNOSTIC_GRID.version);
+  assert.equal(diagnostics.challengeUnit, "CID50");
+  assert.equal(diagnostics.sheddingCondition, "conditioned on WPV acquisition");
+  assert.equal(diagnostics.reference.acquisitionByDose.length, 41);
+  assert.equal(diagnostics.vaccinated.acquisitionByDose.length, 41);
+  assert.equal(diagnostics.reference.sheddingByDay.length, 120);
+  assert.equal(diagnostics.vaccinated.sheddingByDay.length, 120);
+  assert.deepEqual(diagnostics.reference.immunityBins, [1, ...Array<number>(PARAMETERS.immunity.bins - 1).fill(0)]);
+
+  for (const cohort of [diagnostics.reference, diagnostics.vaccinated]) {
+    assert.ok(Math.abs(cohort.immunityBins.reduce((sum, mass) => sum + mass, 0) - 1) <= 1e-12);
+    assert.ok(cohort.acquisitionByDose.every((point, index, values) =>
+      index === 0 || (point.doseCID50 > values[index - 1]!.doseCID50 && point.probability >= values[index - 1]!.probability)
+    ));
+    const burden = cohort.sheddingByDay.reduce((sum, point) => {
+      assert.ok(Math.abs(point.expectedInfectiousConcentrationTCID50PerGram - point.survivalProbability * point.conditionalConcentrationTCID50PerGram) <= 1e-8);
+      return sum + point.expectedInfectiousConcentrationTCID50PerGram;
+    }, 0);
+    assert.ok(Math.abs(cohort.integratedConditionalBurdenTCID50DaysPerGram - burden) <= 1e-6);
+  }
+
+  assert.ok(Math.abs(diagnostics.qAcq - metrics.qAcq) <= 1e-12);
+  assert.ok(Math.abs(diagnostics.qShed - metrics.qShed) <= 1e-12);
+  assert.ok(Math.abs(diagnostics.qIndex - metrics.qIndex) <= 1e-12);
+  assert.equal(diagnostics.qIndex, diagnostics.qAcq * diagnostics.qShed);
+});
+
 test("canonical identities use SHA-256", () => {
   assert.equal(sha256Hex("abc"), "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
   assert.match(evaluateScenario(defaultScenario()).modelIdentity, /^sha256-[0-9a-f]{64}$/);
@@ -1183,16 +1215,19 @@ test("transmission caches remain explicitly bounded across distinct valid settin
 test("all committed scientific manifests and generated outputs have strict runtime schemas", () => {
   const parameters = JSON.parse(readFileSync(new URL("../../src/data/parameters.json", import.meta.url), "utf8"));
   const frontierGrid = JSON.parse(readFileSync(new URL("../../src/data/frontier-grid.json", import.meta.url), "utf8"));
+  const diagnosticGrid = JSON.parse(readFileSync(new URL("../../src/data/diagnostic-grid.json", import.meta.url), "utf8"));
   const settings = JSON.parse(readFileSync(new URL("../../src/data/setting-anchors.json", import.meta.url), "utf8"));
   const uncertainty = JSON.parse(readFileSync(new URL("../../src/data/uncertainty-ensemble.json", import.meta.url), "utf8"));
   validateParameterManifest(parameters);
   validateFrontierGridManifest(frontierGrid);
+  validateDiagnosticGridManifest(diagnosticGrid);
   validateSettingManifest(settings);
   validateUncertaintyManifest(uncertainty);
   assert.throws(() => validateParameterManifest({ ...parameters, unknown: true }), /unknown or missing/);
   assert.throws(() => validateParameterManifest({ ...parameters, wpv1: { ...parameters.wpv1, alpha: Number.NaN } }), /finite/);
   assert.throws(() => validateFrontierGridManifest({ ...frontierGrid, takeContext: { ...frontierGrid.takeContext, count: 1 } }), /integer/);
   assert.throws(() => validateFrontierGridManifest({ ...frontierGrid, version: "frontier-grid-1.0.0" }), /must equal/);
+  assert.throws(() => validateDiagnosticGridManifest({ ...diagnosticGrid, challengeDose: { ...diagnosticGrid.challengeDose, count: 40 } }), /committed/);
   assert.throws(() => validateSettingManifest({ ...settings, anchors: settings.anchors.slice(1) }), /four anchors/);
   assert.throws(() => validateSettingManifest({ ...settings, version: "settings-1.0.0" }), /must equal/);
   assert.throws(() => validateSettingManifest({ ...settings, surfaceDisplayDomain: { ...settings.surfaceDisplayDomain, exposure: { ...settings.surfaceDisplayDomain.exposure, unit: "grams/exposure" } } }), /must equal/);
@@ -1204,6 +1239,8 @@ test("all committed scientific manifests and generated outputs have strict runti
   assert.throws(() => validateModelOutputs({ ...outputs, unknown: true }), /unknown or missing/);
   assert.throws(() => validateModelOutputs({ ...outputs, metrics: { ...outputs.metrics, qAcq: Number.NaN } }), /finite/);
   assert.throws(() => validateModelOutputs({ ...outputs, settingSurface: [{ ...outputs.settingSurface[0], rLoc: -1 }] }), /in \[0/);
+  assert.throws(() => validateModelOutputs({ ...outputs, diagnostics: { ...outputs.diagnostics, qIndex: 0 } }), /qIndex/);
+  assert.throws(() => validateModelOutputs({ ...outputs, diagnostics: { ...outputs.diagnostics, vaccinated: { ...outputs.diagnostics.vaccinated, sheddingByDay: [{ ...outputs.diagnostics.vaccinated.sheddingByDay[0], expectedInfectiousConcentrationTCID50PerGram: 0 }, ...outputs.diagnostics.vaccinated.sheddingByDay.slice(1)] } } }), /joint expectation/);
   assert.throws(() => validateModelOutputs({ ...outputs, provenance: undefined }), /must be an object/);
   assert.throws(() => validateModelOutputs({ ...outputs, modelIdentity: "fnv1a-deadbeef" }), /SHA-256/);
 });

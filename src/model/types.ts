@@ -205,6 +205,7 @@ export interface ModelOutputsV1 {
   metrics: PointMetrics;
   settingSurface: SettingResult[];
   frontier: FrontierResult;
+  diagnostics: WithinHostDiagnosticsV1;
   uncertainty: {
     available: false;
     label: "parameter-uncertainty interval is out of scope for this iteration";
@@ -245,4 +246,47 @@ export interface FrontierGridManifestV2 {
   mu0New: { count: number; min: number; max: number; scale: "linear"; unit: string };
   contour: { threshold: number; tieTolerance: number };
   ordering: string;
+}
+
+export interface DiagnosticGridV1 {
+  schemaVersion: "DiagnosticGridV1";
+  version: string;
+  challengeDose: { count: number; min: number; max: number; scale: "logarithmic"; unit: "CID50" };
+  timeDays: { min: number; max: number; step: number; unit: "days" };
+}
+
+export interface DiagnosticAcquisitionPointV1 {
+  doseCID50: number;
+  probability: number;
+}
+
+export interface DiagnosticSheddingPointV1 {
+  day: number;
+  survivalProbability: number;
+  conditionalConcentrationTCID50PerGram: number;
+  expectedInfectiousConcentrationTCID50PerGram: number;
+}
+
+export interface WithinHostCohortDiagnosticsV1 {
+  id: "naive-reference" | "selected-vaccinated";
+  label: string;
+  immunityBins: number[];
+  acquisitionByDose: DiagnosticAcquisitionPointV1[];
+  acquisitionAtReference: number;
+  sheddingByDay: DiagnosticSheddingPointV1[];
+  integratedConditionalBurdenTCID50DaysPerGram: number;
+}
+
+export interface WithinHostDiagnosticsV1 {
+  schemaVersion: "WithinHostDiagnosticsV1";
+  gridVersion: string;
+  challengeUnit: "CID50";
+  referenceChallengeDoseCID50: number;
+  assessmentAgeDays: number;
+  sheddingCondition: "conditioned on WPV acquisition";
+  reference: WithinHostCohortDiagnosticsV1;
+  vaccinated: WithinHostCohortDiagnosticsV1;
+  qAcq: number;
+  qShed: number;
+  qIndex: number;
 }

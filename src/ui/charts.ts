@@ -14,6 +14,189 @@ export interface ChartViewState {
 const BLUE = "#2166ac";
 const WHITE = "#f7f7f2";
 const RED = "#b2182b";
+const REFERENCE = "#667074";
+const CANDIDATE = "#9a4f37";
+
+/**
+ * Four read-only projections of the exact production kernels. The curves are
+ * intentionally separated from the transmission surface: their conditioning
+ * is acquisition by the index child, not a population-average shortcut.
+ */
+export function renderWithinHostTeaching(outputs: ModelOutputsV1): string {
+  return `${withinHostFigure(outputs, false)}${withinHostFigure(outputs, true)}`;
+}
+
+function withinHostFigure(outputs: ModelOutputsV1, mobile: boolean): string {
+  const diagnostics = outputs.diagnostics;
+  const width = mobile ? 360 : 1200;
+  const height = mobile ? 1336 : 690;
+  const panels = mobile
+    ? [
+        { x: 12, y: 92, width: 336, height: 258 },
+        { x: 12, y: 394, width: 336, height: 258 },
+        { x: 12, y: 696, width: 336, height: 258 },
+        { x: 12, y: 998, width: 336, height: 258 }
+      ]
+    : [
+        { x: 58, y: 82, width: 490, height: 206 },
+        { x: 654, y: 82, width: 490, height: 206 },
+        { x: 58, y: 410, width: 490, height: 206 },
+        { x: 654, y: 410, width: 490, height: 206 }
+      ];
+  const acquisition = curvePanel(
+    panels[0]!,
+    diagnostics.reference.acquisitionByDose.map((point) => ({ x: point.doseCID50, y: point.probability })),
+    diagnostics.vaccinated.acquisitionByDose.map((point) => ({ x: point.doseCID50, y: point.probability })),
+    "log-dose",
+    "WPV acquisition probability",
+    "CID50 challenge dose (log scale)",
+    "Probability of productive WPV acquisition",
+    [1, 100, 10_000, 1_000_000],
+    [0, .25, .5, .75, 1]
+  );
+  const survival = curvePanel(
+    panels[1]!,
+    diagnostics.reference.sheddingByDay.map((point) => ({ x: point.day, y: point.survivalProbability })),
+    diagnostics.vaccinated.sheddingByDay.map((point) => ({ x: point.day, y: point.survivalProbability })),
+    "linear",
+    "Still shedding after acquisition",
+    "Days after WPV acquisition",
+    "P(still shedding | WPV acquisition)",
+    [1, 30, 60, 90, 120],
+    [0, .25, .5, .75, 1]
+  );
+  const concentration = curvePanel(
+    panels[2]!,
+    diagnostics.reference.sheddingByDay.map((point) => ({ x: point.day, y: point.conditionalConcentrationTCID50PerGram })),
+    diagnostics.vaccinated.sheddingByDay.map((point) => ({ x: point.day, y: point.conditionalConcentrationTCID50PerGram })),
+    "log-y",
+    "Concentration while still shedding",
+    "Days after WPV acquisition",
+    "Expected TCID50/g | still shedding",
+    [1, 30, 60, 90, 120],
+    [1e2, 1e4, 1e6, 1e8]
+  );
+  const burden = curvePanel(
+    panels[3]!,
+    diagnostics.reference.sheddingByDay.map((point) => ({ x: point.day, y: point.expectedInfectiousConcentrationTCID50PerGram })),
+    diagnostics.vaccinated.sheddingByDay.map((point) => ({ x: point.day, y: point.expectedInfectiousConcentrationTCID50PerGram })),
+    "log-y",
+    "Daily infectious burden after acquisition",
+    "Days after WPV acquisition",
+    "E[TCID50/g | WPV acquisition]",
+    [1, 30, 60, 90, 120],
+    [1e2, 1e4, 1e6, 1e8]
+  );
+  const id = mobile ? "within-host-mobile-figure" : "within-host-figure";
+  const titleId = mobile ? "within-host-mobile-title" : "within-host-title";
+  const descId = mobile ? "within-host-mobile-desc" : "within-host-desc";
+  const headline = mobile
+    ? `<text class="chart-title" x="12" y="47">How a WPV exposure becomes</text><text class="chart-title" x="12" y="69">infectious shedding—or not</text>`
+    : `<text class="chart-title" x="58" y="54">How a WPV exposure becomes—or fails to become—infectious shedding</text>`;
+  const legend = mobile
+    ? `<g class="teaching-legend" transform="translate(12 ${height - 42})"><line x1="0" x2="28" y1="0" y2="0" class="teaching-reference"/><text x="36" y="4">Naive reference</text><line x1="160" x2="188" y1="0" y2="0" class="teaching-candidate"/><text x="196" y="4">Selected cohort</text><text x="0" y="23">Each curve carries its named conditioning; the full cohort state stays in the calculation.</text></g>`
+    : `<g class="teaching-legend" transform="translate(58 661)"><line x1="0" x2="28" y1="0" y2="0" class="teaching-reference"/><text x="36" y="4">Naive reference</text><line x1="165" x2="193" y1="0" y2="0" class="teaching-candidate"/><text x="201" y="4">Selected vaccinated cohort</text><text x="440" y="4">Curves are conditioned as named; full immunity distributions remain in the calculation.</text></g>`;
+  return `<svg id="${id}" class="scientific-chart teaching-chart${mobile ? " teaching-chart-mobile" : ""}" role="img" aria-labelledby="${titleId} ${descId}" viewBox="0 0 ${width} ${height}">
+    <title id="${titleId}">Within-host components of the WPV transmission model</title>
+    <desc id="${descId}">Four panels compare a naive reference cohort with the selected vaccinated cohort at the same assessment age. They show WPV acquisition by challenge dose, probability of still shedding after acquisition, expected concentration conditional on still shedding, and the daily joint infectious burden. The final quantity is the product of survival and conditional concentration, not an average-person approximation.</desc>
+    <text class="chart-kicker" x="${mobile ? 12 : 58}" y="25">ONE REFERENCE SETTING · TWO COHORTS · NO DECISION RULE YET</text>
+    ${headline}
+    ${acquisition}${survival}${concentration}${burden}
+    ${legend}
+  </svg>`;
+}
+
+export function renderImmunityDistribution(outputs: ModelOutputsV1): string {
+  return `${immunityDistributionFigure(outputs, false)}${immunityDistributionFigure(outputs, true)}`;
+}
+
+function immunityDistributionFigure(outputs: ModelOutputsV1, mobile: boolean): string {
+  const width = mobile ? 360 : 920;
+  const height = mobile ? 410 : 300;
+  const margin = mobile ? { top: 92, right: 15, bottom: 62, left: 48 } : { top: 63, right: 30, bottom: 62, left: 60 };
+  const plotWidth = width - margin.left - margin.right;
+  const plotHeight = height - margin.top - margin.bottom;
+  const reference = outputs.diagnostics.reference.immunityBins;
+  const vaccinated = outputs.diagnostics.vaccinated.immunityBins;
+  const maxValue = Math.max(.1, ...reference, ...vaccinated);
+  const x = scaleLinear().domain([0, reference.length]).range([margin.left, margin.left + plotWidth]);
+  const y = scaleLinear().domain([0, maxValue]).nice().range([margin.top + plotHeight, margin.top]);
+  const bars = reference.map((value, bin) => {
+    const band = plotWidth / reference.length;
+    const left = x(bin) + band * .12;
+    const pairWidth = band * .34;
+    const selected = vaccinated[bin] ?? 0;
+    return `<rect class="immunity-reference" fill="${REFERENCE}" x="${left}" y="${y(value)}" width="${pairWidth}" height="${Math.max(0, y(0) - y(value))}"><title>Naive reference: log2 mucosal-immunity bin ${bin}; probability ${formatPercent(value)}</title></rect><rect class="immunity-candidate" fill="${CANDIDATE}" x="${left + pairWidth + band * .08}" y="${y(selected)}" width="${pairWidth}" height="${Math.max(0, y(0) - y(selected))}"><title>Selected vaccinated cohort: log2 mucosal-immunity bin ${bin}; probability ${formatPercent(selected)}</title></rect>`;
+  }).join("");
+  const yTicks = y.ticks(4).map((value) => `<g><line class="grid-line" x1="${margin.left}" x2="${margin.left + plotWidth}" y1="${y(value)}" y2="${y(value)}"/><text class="tick" x="${margin.left - 10}" y="${y(value) + 3}" text-anchor="end">${formatPercent(value)}</text></g>`).join("");
+  const xTicks = reference.map((_, bin) => `<text class="tick" x="${x(bin + .5)}" y="${margin.top + plotHeight + 18}" text-anchor="middle">${bin}</text>`).join("");
+  const id = mobile ? "immunity-distribution-mobile-figure" : "immunity-distribution-figure";
+  const titleId = mobile ? "immunity-distribution-mobile-title" : "immunity-distribution-title";
+  const descId = mobile ? "immunity-distribution-mobile-desc" : "immunity-distribution-desc";
+  const title = mobile
+    ? `<text class="chart-title" x="${margin.left}" y="48">The selected schedule creates</text><text class="chart-title" x="${margin.left}" y="70">a distribution—not an average child</text>`
+    : `<text class="chart-title" x="${margin.left}" y="49">The selected schedule creates a distribution, not one average immune child</text>`;
+  const legend = mobile
+    ? `<g class="teaching-legend" transform="translate(${margin.left} 83)"><rect class="immunity-reference" x="0" y="-8" width="13" height="13"/><text x="20" y="3">Naive</text><rect class="immunity-candidate" x="85" y="-8" width="13" height="13"/><text x="105" y="3">Selected</text></g>`
+    : `<g class="teaching-legend" transform="translate(${margin.left + plotWidth - 234} 26)"><rect class="immunity-reference" x="0" y="-8" width="13" height="13"/><text x="20" y="3">Naive reference</text><rect class="immunity-candidate" x="116" y="-8" width="13" height="13"/><text x="136" y="3">Selected</text></g>`;
+  return `<svg id="${id}" class="scientific-chart immunity-chart${mobile ? " immunity-chart-mobile" : ""}" role="img" aria-labelledby="${titleId} ${descId}" viewBox="0 0 ${width} ${height}">
+    <title id="${titleId}">Schedule-derived mucosal immunity distribution</title>
+    <desc id="${descId}">Paired bars compare the naive reference distribution and the selected vaccinated cohort's marginal mucosal immunity distribution before WPV exposure. The production calculation retains take history and dose conditioning rather than using this marginal display as an average person.</desc>
+    <text class="chart-kicker" x="${margin.left}" y="23">SCHEDULE OUTPUT BEFORE WPV EXPOSURE</text>${title}
+    <rect class="plot-bg" x="${margin.left}" y="${margin.top}" width="${plotWidth}" height="${plotHeight}"/>${yTicks}${bars}${xTicks}
+    <text class="axis-label" x="${margin.left + plotWidth / 2}" y="${height - 14}" text-anchor="middle">Mucosal-immunity bin (log2 NAb-equivalent)</text><text class="axis-label" transform="translate(17 ${margin.top + plotHeight / 2}) rotate(-90)" text-anchor="middle">Cohort probability</text>
+    ${legend}
+  </svg>`;
+}
+
+interface TeachingPoint { x: number; y: number; }
+
+function curvePanel(
+  panel: { x: number; y: number; width: number; height: number },
+  reference: TeachingPoint[],
+  candidate: TeachingPoint[],
+  scale: "linear" | "log-dose" | "log-y",
+  title: string,
+  xLabel: string,
+  yLabel: string,
+  xTicks: number[],
+  yTicks: number[]
+): string {
+  const titleY = panel.y;
+  const plot = { x: panel.x + 58, y: panel.y + 31, width: panel.width - 70, height: panel.height - 66 };
+  const all = [...reference, ...candidate];
+  const xDomain: [number, number] = scale === "log-dose"
+    ? [Math.min(...all.map((point) => point.x)), Math.max(...all.map((point) => point.x))]
+    : [Math.min(...all.map((point) => point.x)), Math.max(...all.map((point) => point.x))];
+  const xScale = scale === "log-dose"
+    ? scaleLog().domain(xDomain).range([plot.x, plot.x + plot.width])
+    : scaleLinear().domain(xDomain).range([plot.x, plot.x + plot.width]);
+  const values = all.map((point) => point.y);
+  const yScale = scale === "log-y"
+    ? scaleLog().domain(logDomain(values)).range([plot.y + plot.height, plot.y])
+    : scaleLinear().domain([0, 1]).range([plot.y + plot.height, plot.y]);
+  const path = (points: TeachingPoint[]) => line<TeachingPoint>()
+    .x((point) => xScale(point.x))
+    .y((point) => yScale(Math.max(point.y, Number.MIN_VALUE)))(points) ?? "";
+  const displayedYTicks = scale === "log-y"
+    ? yTicks.filter((value) => value >= logDomain(values)[0] && value <= logDomain(values)[1])
+    : yTicks;
+  const horizontal = displayedYTicks.map((value) => `<g><line class="grid-line" x1="${plot.x}" x2="${plot.x + plot.width}" y1="${yScale(value)}" y2="${yScale(value)}"/><text class="tick" x="${plot.x - 9}" y="${yScale(value) + 3}" text-anchor="end">${scale === "log-y" ? powerLabel(value) : formatPercent(value)}</text></g>`).join("");
+  const vertical = xTicks.map((value) => `<g><line class="grid-line" x1="${xScale(value)}" x2="${xScale(value)}" y1="${plot.y}" y2="${plot.y + plot.height}"/><text class="tick" x="${xScale(value)}" y="${plot.y + plot.height + 18}" text-anchor="middle">${scale === "log-dose" ? powerLabel(value) : value}</text></g>`).join("");
+  return `<g class="teaching-panel"><text class="teaching-panel-title" x="${panel.x}" y="${titleY}">${escapeXml(title)}</text><rect class="plot-bg teaching-panel-bg" x="${plot.x}" y="${plot.y}" width="${plot.width}" height="${plot.height}"/>${horizontal}${vertical}<path class="teaching-reference" fill="none" stroke="${REFERENCE}" stroke-width="2.5" d="${path(reference)}"/><path class="teaching-candidate" fill="none" stroke="${CANDIDATE}" stroke-width="2.5" d="${path(candidate)}"/><text class="axis-label" x="${plot.x + plot.width / 2}" y="${panel.y + panel.height - 1}" text-anchor="middle">${escapeXml(xLabel)}</text><text class="teaching-y-label" transform="translate(${panel.x + 12} ${plot.y + plot.height / 2}) rotate(-90)" text-anchor="middle">${escapeXml(yLabel)}</text></g>`;
+}
+
+function logDomain(values: number[]): [number, number] {
+  const positive = values.filter((value) => value > 0);
+  const min = Math.min(...positive);
+  const max = Math.max(...positive);
+  return [10 ** Math.floor(Math.log10(min)), 10 ** Math.ceil(Math.log10(max))];
+}
+
+function powerLabel(value: number): string {
+  const exponent = Math.round(Math.log10(value));
+  return exponent === 0 ? "1" : `10^${exponent}`;
+}
 
 export function renderSettingSurface(outputs: ModelOutputsV1, view: ChartViewState): string {
   const width = 900;

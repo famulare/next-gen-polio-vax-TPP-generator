@@ -54,9 +54,17 @@ runtime network dependency.
 - Distribution-native index conditioning and index -> household -> social
   transmission with fractional daily contact frequency and the declared
   `R_loc` endpoint.
-- An authored decision narrative: hardest-known-anchor result and setting
-  surface; close-contact motif; linked requirement/product maps; mechanistic
-  reading sequence; measurement handshake; assumptions and provenance.
+- A teaching-first model narrative: dose-dependent WPV acquisition,
+  breakthrough-conditioned shedding duration and concentration, daily joint
+  infectious burden, and a one-WPV-HID50 relative analogue to the source
+  paper's shedding-index idea;
+  schedule-derived immunity distribution; close-contact motif; only then the
+  direct UP/Bihar result, setting surface, measurement handshake, and linked
+  outcome/product maps.
+- Versioned `WithinHostDiagnosticsV1` outputs on a committed 41-dose CID50 and
+  1-120 day grid. These are deterministic projections of the production
+  schedule, dose-response, and joint shedding kernels; they are explanatory
+  diagnostics, not new decision rules or measured endpoints.
 - A blue-white-red setting surface centered at `R_loc = 1`, with independent
   decision-scope and inspection-probe controls and low, Houston/Louisiana,
   Matlab hybrid, and UP/Bihar anchors.
@@ -66,8 +74,9 @@ runtime network dependency.
 - Transactional scientific updates that retain but mark the prior result stale,
   fail invalid state closed, and disable export until all dependent outputs
   commit atomically.
-- Canonical URL state plus versioned JSON, CSV, and standalone SVG exports with
-  scenario, scope, probe, model, build, qualification, and selection context.
+- Canonical URL state plus versioned JSON, stable CSV grids, and standalone SVG
+  exports (including the within-host teaching figure) with scenario, scope,
+  probe, model, build, qualification, conditioning, and selection context.
 
 The locked [design contract](./DESIGN_CONTRACT.md) remains canonical. This
 iteration has **one point success rule**: `R_loc_max < 1`. Parameter-uncertainty

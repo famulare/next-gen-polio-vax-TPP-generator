@@ -1,19 +1,22 @@
 import rawParameters from "../data/parameters.json";
 import rawAnchors from "../data/setting-anchors.json";
 import rawFrontierGrid from "../data/frontier-grid.json";
+import rawDiagnosticGrid from "../data/diagnostic-grid.json";
 import rawEnsemble from "../data/uncertainty-ensemble.json";
 import { MICROGRAMS_PER_GRAM } from "./types";
-import type { AnchorSettingId, EnvelopeV1, FrontierGridManifestV2, ParameterManifestV1, ProductId, SettingAnchorRecord, SettingManifestV2, SettingV1 } from "./types";
+import type { AnchorSettingId, DiagnosticGridV1, EnvelopeV1, FrontierGridManifestV2, ParameterManifestV1, ProductId, SettingAnchorRecord, SettingManifestV2, SettingV1 } from "./types";
 import { canonicalHash } from "./canonical";
-import { deepFreeze, validateFrontierGridManifest, validateParameterManifest, validateSettingManifest, validateUncertaintyManifest } from "./manifest-validation";
+import { deepFreeze, validateDiagnosticGridManifest, validateFrontierGridManifest, validateParameterManifest, validateSettingManifest, validateUncertaintyManifest } from "./manifest-validation";
 
 validateParameterManifest(rawParameters);
 validateFrontierGridManifest(rawFrontierGrid);
+validateDiagnosticGridManifest(rawDiagnosticGrid);
 validateSettingManifest(rawAnchors);
 validateUncertaintyManifest(rawEnsemble);
 
 export const PARAMETERS = deepFreeze(structuredClone(rawParameters)) as ParameterManifestV1;
 export const FRONTIER_GRID = deepFreeze(structuredClone(rawFrontierGrid)) as FrontierGridManifestV2;
+export const DIAGNOSTIC_GRID = deepFreeze(structuredClone(rawDiagnosticGrid)) as DiagnosticGridV1;
 export const SETTING_MANIFEST = deepFreeze(structuredClone(rawAnchors)) as SettingManifestV2;
 export const UNCERTAINTY_ENSEMBLE = deepFreeze(structuredClone(rawEnsemble)) as {
   schemaVersion: "UncertaintyEnsembleV1";
@@ -103,6 +106,7 @@ export const SCIENTIFIC_MANIFEST_ID = canonicalHash({
   parameters: PARAMETERS,
   settings: rawAnchors,
   frontierGrid: FRONTIER_GRID,
+  diagnosticGrid: DIAGNOSTIC_GRID,
   uncertainty: UNCERTAINTY_ENSEMBLE
 });
 

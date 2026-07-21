@@ -50,7 +50,17 @@ try {
   if (!defaultResult.includes("not a complete-population R_e")) throw new Error("Result blurs R_loc and complete-population R_e");
   if (await page.locator("#scope").inputValue() !== "up-bihar") throw new Error("UP/Bihar is not the default decision scope");
   if (await page.locator("#probe").inputValue() !== "up-bihar") throw new Error("UP/Bihar is not the default inspection probe");
-  if (!(await page.locator("#effect-figure").count()) || !(await page.locator("#product-figure").count()) || !(await page.locator("#setting-figure").count())) throw new Error("One or more narrative figures did not render");
+  const narrativeOrder = await page.evaluate(() => ["within-host", "product-pathway", "transmission", "decision", "measurement", "design-space"].map((id) => [...document.querySelectorAll("section")].indexOf(document.getElementById(id))));
+  if (narrativeOrder.some((index, position) => position > 0 && index <= narrativeOrder[position - 1])) throw new Error("Teaching chapters are not in within-host, product, transmission, decision, measurement, design order");
+  const resultAfterTransmission = await page.evaluate(() => {
+    const sections = [...document.querySelectorAll("section")];
+    return sections.indexOf(document.getElementById("decision")) > sections.indexOf(document.getElementById("transmission"));
+  });
+  if (!resultAfterTransmission) throw new Error("Direct verdict appears before the transmission lesson");
+  if (!(await page.locator("#within-host-figure").count()) || await page.locator("#within-host-figure .teaching-panel").count() !== 4) throw new Error("Four within-host teaching panels did not render");
+  if (!(await page.locator("#within-host-figure").getAttribute("aria-labelledby")) || !(await page.locator("#within-host-readout").textContent())?.includes("qindex")) throw new Error("Within-host teaching panels lack explicit accessible or diagnostic context");
+  if (!(await page.locator("#immunity-distribution-figure").count())) throw new Error("Schedule-derived immunity distribution did not render");
+  if (!(await page.locator("#effect-figure").count()) || !(await page.locator("#product-figure").count()) || !(await page.locator("#setting-figure").count())) throw new Error("One or more decision or design figures did not render");
   if (await page.locator("#setting-figure [data-surface-column]").count() !== 1620) throw new Error("Setting surface is not 81 × 20");
   if (await page.locator("#setting-figure").getAttribute("data-columns") !== "81" || await page.locator("#setting-figure").getAttribute("data-rows") !== "20") throw new Error("Setting surface dimensions are not declared");
   if (await page.locator("#product-figure [data-design-key]").count() !== 2601 || await page.locator("#effect-figure [data-design-key]").count() !== 2601) throw new Error("Linked maps do not render the same 2,601 designs");
@@ -171,6 +181,7 @@ try {
   if (exportedJson.buildIdentity !== expectedBuildIdentity || exportedJson.exportIdentity !== committedIdentity) throw new Error("JSON export identities do not match visible committed state");
   if (exportedJson.decisionScope?.id !== "up-bihar" || exportedJson.inspectionProbe?.id !== "up-bihar") throw new Error("JSON export blurs decision scope and inspection probe");
   if (exportedJson.viewState?.persistentDesignKey !== exportHeldKey) throw new Error("JSON export omitted the held view selection");
+  if (exportedJson.outputs?.diagnostics?.schemaVersion !== "WithinHostDiagnosticsV1" || exportedJson.outputs?.diagnostics?.gridVersion !== "diagnostic-grid-1.0.0") throw new Error("JSON export omitted versioned within-host diagnostics");
 
   const [csvDownload] = await Promise.all([page.waitForEvent("download"), page.locator('[data-export="csv"]').click()]);
   const csvPath = await csvDownload.path();
@@ -180,12 +191,15 @@ try {
   if (!csv.includes(`PrototypeGridExportV2,${expectedBuildIdentity},`)) throw new Error("CSV export schema or build identity is stale");
   if (!csv.includes("decision_scope,inspection_probe,model_identity")) throw new Error("CSV export omitted scope, probe, or identity");
 
-  for (const kind of ["setting", "effect", "product"]) {
+  for (const kind of ["within-host", "setting", "effect", "product"]) {
     const [svgDownload] = await Promise.all([page.waitForEvent("download"), page.locator(`[data-export="${kind}-svg"]`).click()]);
     const svgPath = await svgDownload.path();
     if (!svgPath) throw new Error(`${kind} SVG export did not provide local content`);
     const svg = readFileSync(svgPath, "utf8");
-    for (const phrase of ["PrototypeFigureExportV2", expectedBuildIdentity, "SCIENTIFIC PROTOTYPE", "UP/Bihar", "does not prove control everywhere", "Contours are interpolated display context", "Held inspection design"]) {
+    const requiredContext = ["PrototypeFigureExportV2", expectedBuildIdentity, "SCIENTIFIC PROTOTYPE", "UP/Bihar", "does not prove control everywhere", "Held inspection design"];
+    if (kind === "within-host") requiredContext.push("Teaching grid: diagnostic-grid-1.0.0", "conditioned on WPV acquisition", "Within-host components");
+    else requiredContext.push("Contours are interpolated display context");
+    for (const phrase of requiredContext) {
       if (!svg.includes(phrase)) throw new Error(`Standalone ${kind} SVG omitted required context: ${phrase}`);
     }
     if (kind === "setting" && !["0.01", "R_loc = 1", "100"].every((phrase) => svg.includes(phrase))) throw new Error("Standalone setting SVG omitted its fixed scale");
@@ -219,7 +233,7 @@ try {
   if (!(await page.evaluate(() => matchMedia("(forced-colors: active)").matches))) throw new Error("Forced-colors mode was not activated");
   if (!(await page.locator("#result-status").isVisible()) || !(await page.locator("#setting-figure").isVisible())) throw new Error("High-contrast mode hid the authoritative result or setting figure");
   await page.emulateMedia({ media: "print", reducedMotion: "reduce", forcedColors: "none" });
-  if (!(await page.locator("#result-status").isVisible()) || !(await page.locator("#setting-figure").isVisible()) || await page.locator(".decision-controls").isVisible()) throw new Error("Print mode omitted results or retained interactive controls");
+  if (!(await page.locator("#result-status").isVisible()) || !(await page.locator("#setting-figure").isVisible()) || await page.locator(".narrative-controls").first().isVisible()) throw new Error("Print mode omitted results or retained interactive controls");
   await page.emulateMedia({ media: "screen", reducedMotion: "no-preference", forcedColors: "none" });
 
   const touchContext = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });

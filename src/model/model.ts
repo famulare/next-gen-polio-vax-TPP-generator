@@ -1,6 +1,7 @@
 import rawProvenance from "../data/provenance.json";
 import { buildFrontier } from "./frontier";
-import { anchorById, DEFAULTS, DEFAULT_DECISION_SCOPE_ANCHOR_ID, envelopeForAnchor, FRONTIER_GRID, PARAMETERS, PRODUCT_LABELS, SCIENTIFIC_MANIFEST_ID, SETTING_ANCHORS, SETTING_DISPLAY_DOMAIN, SETTING_MANIFEST_VERSION, UNCERTAINTY_ENSEMBLE, vaccineDefaults } from "./parameters";
+import { anchorById, DEFAULTS, DEFAULT_DECISION_SCOPE_ANCHOR_ID, DIAGNOSTIC_GRID, envelopeForAnchor, FRONTIER_GRID, PARAMETERS, PRODUCT_LABELS, SCIENTIFIC_MANIFEST_ID, SETTING_ANCHORS, SETTING_DISPLAY_DOMAIN, SETTING_MANIFEST_VERSION, UNCERTAINTY_ENSEMBLE, vaccineDefaults } from "./parameters";
+import { buildWithinHostDiagnostics } from "./diagnostics";
 import { computePointMetrics } from "./metrics";
 import { buildScheduleState } from "./schedule";
 import { canonicalHash, validateModelOutputs, validateScenario } from "./serialization";
@@ -50,6 +51,7 @@ export function evaluateScenario(scenario: ScenarioV1): ModelOutputsV1 {
   validateScenario(canonicalScenario);
   const state = buildScheduleState(canonicalScenario.vaccine, canonicalScenario.schedule);
   const metrics = computePointMetrics(canonicalScenario, state);
+  const diagnostics = buildWithinHostDiagnostics(canonicalScenario, state);
   const frontier = buildFrontier(canonicalScenario);
   const settingSurface = buildSettingSurface(canonicalScenario, state);
   const assumptions = [
@@ -66,9 +68,10 @@ export function evaluateScenario(scenario: ScenarioV1): ModelOutputsV1 {
     metrics,
     settingSurface,
     frontier,
+    diagnostics,
     uncertainty: { available: false, label: "parameter-uncertainty interval is out of scope for this iteration", reason: UNCERTAINTY_ENSEMBLE.provenance, rLocMax: null },
     assumptions,
-    modelIdentity: canonicalHash({ scenario: scientificScenario(canonicalScenario), parameters: PARAMETERS, settings: SETTING_ANCHORS, displayDomain: SETTING_DISPLAY_DOMAIN, uncertainty: UNCERTAINTY_ENSEMBLE, frontierGrid: FRONTIER_GRID }),
+    modelIdentity: canonicalHash({ scenario: scientificScenario(canonicalScenario), parameters: PARAMETERS, settings: SETTING_ANCHORS, displayDomain: SETTING_DISPLAY_DOMAIN, uncertainty: UNCERTAINTY_ENSEMBLE, frontierGrid: FRONTIER_GRID, diagnosticGrid: DIAGNOSTIC_GRID }),
     provenance: structuredClone(rawProvenance)
   };
   validateModelOutputs(outputs);

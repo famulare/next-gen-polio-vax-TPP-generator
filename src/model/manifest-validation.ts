@@ -1,4 +1,4 @@
-import type { FrontierGridManifestV2, ParameterManifestV1 } from "./types";
+import type { DiagnosticGridV1, FrontierGridManifestV2, ParameterManifestV1 } from "./types";
 
 type RecordValue = Record<string, unknown>;
 
@@ -66,6 +66,30 @@ export function validateFrontierGridManifest(value: unknown): asserts value is F
   const take = record(root.takeContext, "takeContext"); exact(take, ["count", "min", "max", "scale"], "takeContext"); integer(take.count, 2, 1000, "takeContext.count"); finite(take.min, "takeContext.min"); finite(take.max, "takeContext.max"); literal(take.scale, "linear", "takeContext.scale");
   const mu = record(root.mu0New, "mu0New"); exact(mu, ["count", "min", "max", "scale", "unit"], "mu0New"); integer(mu.count, 2, 1000, "mu0New.count"); finite(mu.min, "mu0New.min"); finite(mu.max, "mu0New.max"); literal(mu.scale, "linear", "mu0New.scale"); string(mu.unit, "mu0New.unit");
   positiveObject(root.contour, ["threshold", "tieTolerance"], "contour");
+}
+
+export function validateDiagnosticGridManifest(value: unknown): asserts value is DiagnosticGridV1 {
+  const root = record(value, "DiagnosticGridV1");
+  exact(root, ["schemaVersion", "version", "challengeDose", "timeDays"], "DiagnosticGridV1");
+  literal(root.schemaVersion, "DiagnosticGridV1", "diagnostic schemaVersion");
+  literal(root.version, "diagnostic-grid-1.0.0", "diagnostic version");
+  const dose = record(root.challengeDose, "DiagnosticGridV1.challengeDose");
+  exact(dose, ["count", "min", "max", "scale", "unit"], "DiagnosticGridV1.challengeDose");
+  integer(dose.count, 2, 1000, "diagnostic dose count");
+  positive(dose.min, "diagnostic dose min");
+  positive(dose.max, "diagnostic dose max");
+  if ((dose.max as number) <= (dose.min as number)) throw new Error("diagnostic dose maximum must exceed minimum");
+  literal(dose.scale, "logarithmic", "diagnostic dose scale");
+  literal(dose.unit, "CID50", "diagnostic dose unit");
+  const time = record(root.timeDays, "DiagnosticGridV1.timeDays");
+  exact(time, ["min", "max", "step", "unit"], "DiagnosticGridV1.timeDays");
+  integer(time.min, 1, 1000, "diagnostic time min");
+  integer(time.max, time.min as number, 1000, "diagnostic time max");
+  integer(time.step, 1, 1000, "diagnostic time step");
+  literal(time.unit, "days", "diagnostic time unit");
+  if (dose.count !== 41 || dose.min !== 1 || dose.max !== 10_000_000 || time.min !== 1 || time.max !== 120 || time.step !== 1) {
+    throw new Error("diagnostic grid must be the committed 41-dose 1-10^7 CID50 and 1-120 day grid");
+  }
 }
 
 export function validateSettingManifest(value: unknown): void {

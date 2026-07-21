@@ -1,6 +1,6 @@
 {
   "schemaVersion": "ProvenanceV1",
-  "designContract": "1.7",
+  "designContract": "1.8",
   "generatedAt": "2026-07-15",
   "sourceFiles": [
     "/Users/famulare/git/famulare/india-polio/model/R/mixture.R",
@@ -23,6 +23,7 @@
     "Production uses exact Cessation shedding-duration constants, including b2 = ln(1.164); rounded India schema constants remain source diagnostics.",
     "Each motif link receives an independent 120-day post-infection horizon; 120 days passes the doubled-horizon relative-tail discriminator at every acceptance anchor.",
     "The reduced transmission layer is distribution-native and retains contact frequency outside the dose-response kernel.",
-    "Parameter-uncertainty intervals and the upper-95 rule are out of scope for this point-rule iteration."
+    "Parameter-uncertainty intervals and the upper-95 rule are out of scope for this point-rule iteration.",
+    "Teaching diagnostics are deterministic projections of the production schedule, dose-response, and joint shedding kernels; they do not alter the transmission calculation."
   ]
 }

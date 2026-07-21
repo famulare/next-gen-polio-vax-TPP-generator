@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "DiagnosticGridV1",
+  "version": "diagnostic-grid-1.0.0",
+  "challengeDose": {
+    "count": 41,
+    "min": 1,
+    "max": 10000000,
+    "scale": "logarithmic",
+    "unit": "CID50"
+  },
+  "timeDays": {
+    "min": 1,
+    "max": 120,
+    "step": 1,
+    "unit": "days"
+  }
+}

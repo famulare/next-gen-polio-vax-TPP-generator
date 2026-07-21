@@ -30,42 +30,42 @@ biological endpoint, alternate success rule, or population-spread model.
 
 ## Task 1 -- add the diagnostic model contract
 
-- [ ] Version the design-contract identity and add a committed diagnostic grid.
-- [ ] Add strict `DiagnosticGridV1` and `WithinHostDiagnosticsV1` types.
-- [ ] Compute naive-reference and selected vaccinated-cohort acquisition curves.
-- [ ] Compute breakthrough-conditioned shedding survival, conditional
+- [x] Version the design-contract identity and add a committed diagnostic grid.
+- [x] Add strict `DiagnosticGridV1` and `WithinHostDiagnosticsV1` types.
+- [x] Compute naive-reference and selected vaccinated-cohort acquisition curves.
+- [x] Compute breakthrough-conditioned shedding survival, conditional
   concentration, daily joint burden, integrated burden, and immunity
   distributions through the pure-model boundary.
-- [ ] Serialize and validate every diagnostic field with explicit units,
+- [x] Serialize and validate every diagnostic field with explicit units,
   conditioning, grids, and identities.
-- [ ] Add kernel-agreement, mass, monotonicity, conditioning, and identity tests.
+- [x] Add kernel-agreement, mass, monotonicity, conditioning, and identity tests.
 
 **Gate:** focused typecheck/model/schema tests pass; existing direct `R_loc`,
 frontier, anchor, and comparator fixtures are unchanged.
 
 ## Task 2 -- build the teaching-first narrative shell
 
-- [ ] Replace the opening verdict with the UP/Bihar reference setting and
+- [x] Replace the opening verdict with the UP/Bihar reference setting and
   reference-to-vaccinated cohort transition.
-- [ ] Implement the four causal panels: acquisition, duration, concentration,
+- [x] Implement the four causal panels: acquisition, duration, concentration,
   and shedding-index synthesis.
-- [ ] Add the product take/boost/schedule sequence and schedule-derived immunity
+- [x] Add the product take/boost/schedule sequence and schedule-derived immunity
   distribution before exposing its controls.
-- [ ] Build the transmission sequence through index, household, and social
+- [x] Build the transmission sequence through index, household, and social
   contacts before defining `R_loc`.
-- [ ] Move the direct result and setting surface after the transmission lesson.
-- [ ] Move the measurement/provenance map before the linked Pareto maps.
+- [x] Move the direct result and setting surface after the transmission lesson.
+- [x] Move the measurement/provenance map before the linked Pareto maps.
 
 **Gate:** static DOM order alone teaches the model correctly; no pass/fail
 verdict appears before the `R_loc` step; 360 px and print remain coherent.
 
 ## Task 3 -- connect controls and transaction state
 
-- [ ] Reveal controls only after their semantics are introduced.
-- [ ] Keep product/schedule, setting probe, and decision scope separate.
-- [ ] Recompute all diagnostics atomically with the existing scientific state.
-- [ ] Keep reveal/scroll/focus/hover state out of scientific and export identity.
-- [ ] Preserve stale/invalid fail-closed behavior and explicit promotion of a
+- [x] Reveal controls only after their semantics are introduced.
+- [x] Keep product/schedule, setting probe, and decision scope separate.
+- [x] Recompute all diagnostics atomically with the existing scientific state.
+- [x] Keep reveal/scroll/focus/hover state out of scientific and export identity.
+- [x] Preserve stale/invalid fail-closed behavior and explicit promotion of a
   held product design.
 
 **Gate:** URL/cache invalidation and transaction tests pass for every scientific
@@ -73,13 +73,13 @@ control; view-only actions do not change model or export identity.
 
 ## Task 4 -- update accessibility and exports
 
-- [ ] Give every panel an accessible text alternative, exact readout, units,
+- [x] Give every panel an accessible text alternative, exact readout, units,
   conditioning, and reference/candidate labels.
-- [ ] Support keyboard, focus, hover, touch, reduced motion, and no-animation
+- [x] Support keyboard, focus, hover, touch, reduced motion, and no-animation
   reading in the same narrative order.
-- [ ] Include diagnostic schema/grid identities and values in JSON and
+- [x] Include diagnostic schema/grid identities and values in JSON and
   standalone teaching-figure SVG exports.
-- [ ] Keep CSV scientific grids stable unless a separately labeled diagnostic
+- [x] Keep CSV scientific grids stable unless a separately labeled diagnostic
   record family is required and reviewed.
 
 **Gate:** browser smoke covers DOM order, labels, interactions, exports,
@@ -87,12 +87,12 @@ responsive layout, print, contrast, and the absence of runtime requests.
 
 ## Task 5 -- release verification
 
-- [ ] Update README and `IMPLEMENTATION_LOG.md` with the new narrative and
+- [x] Update README and `IMPLEMENTATION_LOG.md` with the new narrative and
   scientific distinctions.
-- [ ] Run focused checks after each layer and final `npm run verify`.
-- [ ] Build twice and confirm byte-identical output and a clean generated diff.
-- [ ] Review the live artifact visually before replacing the deployed version.
-- [ ] Record final build identity and artifact hash.
+- [x] Run focused checks after each layer and final `npm run verify`.
+- [x] Build twice and confirm byte-identical output and a clean generated diff.
+- [x] Review the live artifact visually before replacing the deployed version.
+- [x] Record final build identity and artifact hash.
 
 **Release gate:** every amended Section 17 item passes; no diagnostic is
 misrepresented as a measurement or decision rule; the committed artifact is

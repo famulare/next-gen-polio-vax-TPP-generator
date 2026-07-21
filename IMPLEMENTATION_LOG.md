@@ -209,6 +209,60 @@ does not replace source provenance, git history, or verification output.
 
 ## Implementation status
 
+### 2026-07-21 -- teaching-first frontend and deterministic within-host diagnostics
+
+- **Objective:** implement the approved Contract 1.8 teaching-first frontend:
+  show how a schedule produces a full cohort distribution; how a WPV challenge
+  produces acquisition and, conditional on acquisition, shedding; then how the
+  close-contact motif yields the authoritative direct `R_loc` result.
+- **Executor/model version:** Codex direct implementation; no delegation.
+- **Contract sections and source files supplied:** Contract 1.8 Sections 1--3,
+  6--7, 9, 11, 13, 14.3--14.5, 15.3, 15.6, 17, and 18;
+  `docs/frontend-teaching-first-implementation-tasks.md`; model kernels,
+  serialization, manifests, UI, exports, and browser smoke.
+- **Allowed files or worktree:** this repository only; no new dependency,
+  biological equation, endpoint, uncertainty claim, free-form parameter lab,
+  or population-spread model.
+- **Required output and discriminator:** strict diagnostic-grid/output schemas;
+  exact agreement between diagnostic ratios and production metrics; no direct
+  pass/fail verdict in the DOM before the transmission lesson; retained
+  atomic/stale behavior; responsive accessible figures; and versioned exports.
+- **Content-block classification and rationale:** not applicable; direct,
+  bounded scientific-software implementation.
+- **Reframe/retry status:** not applicable.
+- **Result disposition:** accepted.
+  `WithinHostDiagnosticsV1` is built from the existing schedule,
+  dose-response, breakthrough-conditioning, and joint shedding kernels on the
+  committed 41-dose CID50 / 1--120 day grid. Its `q_acq`, `q_shed`, and
+  `q_index` agree with production point metrics within the locked numerical
+  tolerance. It does not feed back into `R_loc`, frontiers, or scenario state.
+  The application now orders its explanation as within-host exposure;
+  received-dose/take/boost/waning/schedule distribution; index-household-social
+  motif; direct UP/Bihar decision and setting surface; measurement handshake;
+  and linked outcome/product maps.
+- **Primary review:** desktop and 360 px render inspection confirmed that the
+  four teaching panels switch to an independently legible vertical layout on
+  narrow screens, while the desktop figure remains a connected two-by-two
+  comparison. The blue-white-red setting figure remains centered at `R_loc =
+  1`; its caption now names the dashed display-only threshold path so it cannot
+  be mistaken for an extra decision rule. The calculation remains
+  distribution-native: the displayed marginal immunity distribution is
+  explicitly not substituted for an average child.
+- **Verification run:** `npm run verify` passed: typecheck; 44/44 model tests;
+  fixture-generator preflight; seven Section 15.1 artifacts; calibration;
+  performance (`1.6/0.5/411.5 ms` selected/surface/frontier); cache-memory
+  bound (`17.0 MiB` retained); deterministic build; artifact/browser smoke;
+  and stale-artifact/CI-identity negative checks. The desktop and 360 px
+  artifact were visually reviewed directly. Two fresh builds were byte
+  identical; final build identity is `source-c4790b295b868670` and artifact
+  SHA-256 is
+  `cd6534a452f4678dd6780fe8343a024d9bd03c52b29c1dcbbd31e8ca585a103b`.
+- **Residual uncertainty:** unchanged scientific limits: the direct point rule
+  is a close-contact sufficiency screen under the v1 axiom, not complete
+  population `R_e`, a universal guarantee, clinical-performance evidence, or a
+  threshold-crossing probability. The teaching diagnostics are model
+  projections, not measurements.
+
 ### 2026-07-17 -- hybrid-equivalence amendment, direct-port expansion, and Pages enablement
 
 - **Objective:** complete the approved Section 15.1 direct-port increment,
