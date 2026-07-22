@@ -67,6 +67,23 @@ does not replace source provenance, git history, or verification output.
   and typography, not a Foundation partnership or endorsement. The existing
   v1 source-parity and uncertainty release blockers remain unaffected.
 
+### 2026-07-22 -- deployment artifact identity repair
+
+- **Objective:** restore GitHub Actions artifact determinism after the font
+  license and provenance files were normalized for the committed whitespace
+  check after the previous artifact had already been generated.
+- **Result:** rebuild from the committed source produces build identity
+  `source-7012bcfc025d884e` and SHA-256
+  `04114285058e3b1a56c1514ee32d048edc1be66834143da051b251d4effb5d07`.
+  This exactly matches the failed CI rebuild, confirming the mismatch was the
+  stale embedded identity rather than platform-specific output.
+- **Scope and scientific discriminator:** generated `dist/index.html` and its
+  recorded hash only; no model, presentation, schema, export, or decision-rule
+  behavior changed.
+- **Verification:** local `npm run verify` passes, including CI-like
+  byte-identical rebuild checks at the recorded hash. CI and Pages deployment
+  remain pending this repair commit.
+
 ### 2026-07-17 -- frontend redesign execution baseline
 
 - **Objective:** execute `docs/frontend-redesign-implementation-tasks.md`
