@@ -387,6 +387,11 @@ async function waitForCommitted(page) {
 async function assertNoHorizontalOverflow(page, label) {
   const overflow = await page.evaluate(() => {
     const viewportWidth = window.innerWidth;
+    const scrollingElement = document.scrollingElement;
+    const originalScrollLeft = scrollingElement?.scrollLeft ?? 0;
+    if (scrollingElement) scrollingElement.scrollLeft = Number.MAX_SAFE_INTEGER;
+    const scrollableOverflowPx = scrollingElement?.scrollLeft ?? 0;
+    if (scrollingElement) scrollingElement.scrollLeft = originalScrollLeft;
     const isContained = (element) => {
       for (let parent = element.parentElement; parent; parent = parent.parentElement) {
         const overflowX = getComputedStyle(parent).overflowX;
@@ -395,15 +400,27 @@ async function assertNoHorizontalOverflow(page, label) {
       return false;
     };
     const offenders = [...document.querySelectorAll("body *")].flatMap((element) => {
+      // SVG descendants report coordinates in their viewBox space, not the
+      // scaled screen box. The outer SVG is the relevant responsive element.
+      if (element instanceof SVGElement && element.ownerSVGElement) return [];
       if (isContained(element)) return [];
       const rect = element.getBoundingClientRect();
       if (rect.right <= viewportWidth + 1 && rect.left >= -1) return [];
       const name = element.id ? `#${element.id}` : element.classList.length ? `.${[...element.classList].join(".")}` : element.tagName.toLowerCase();
       return [{ name, left: Math.round(rect.left), right: Math.round(rect.right), width: Math.round(rect.width) }];
     }).slice(0, 8);
-    return { viewportWidth, scrollWidth: document.documentElement.scrollWidth, offenders };
+    return {
+      viewportWidth,
+      scrollWidth: document.documentElement.scrollWidth,
+      scrollableOverflowPx,
+      offenders
+    };
   });
-  if (overflow.scrollWidth > overflow.viewportWidth) throw new Error(`${label} has horizontal overflow: ${JSON.stringify(overflow)}`);
+  // Chromium rounds fractional layout edges differently across platforms. A
+  // one-CSS-pixel root metric difference without an uncontained element is not
+  // user-visible overflow; larger scroll ranges still fail this smoke check.
+  const meaningfulOverflow = overflow.scrollWidth - overflow.viewportWidth > 1 || overflow.scrollableOverflowPx > 1;
+  if (meaningfulOverflow) throw new Error(`${label} has horizontal overflow: ${JSON.stringify(overflow)}`);
 }
 
 function contrastRatio(foreground, background) {

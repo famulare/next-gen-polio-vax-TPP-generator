@@ -102,6 +102,23 @@ does not replace source provenance, git history, or verification output.
   release-negative CI-like deterministic rebuild checks. CI and Pages remain
   pending this repair commit.
 
+### 2026-07-22 -- cross-platform narrow-layout smoke repair
+
+- **Objective:** resolve the remaining GitHub Linux Chromium false-positive
+  narrow-layout failure after it reported `scrollWidth: 361` for a 360 px
+  viewport with no uncontained element.
+- **Implementation:** browser smoke now records both the root scroll range and
+  uncontained non-SVG element bounds. It permits only a one-CSS-pixel platform
+  rounding difference, while failing a greater scroll range; SVG descendant
+  coordinates remain diagnostic-only because they use their viewBox space.
+- **Scientific discriminator:** test instrumentation only; no model,
+  presentation, scientific chart, export, schema, or decision behavior changed.
+- **Verification:** `npm run verify` passes: typecheck, 49 tests, fixture,
+  calibration, performance, cache-memory, build, artifact/browser smoke, and
+  release-negative CI-like deterministic rebuild checks at SHA-256
+  `59bf5dd77c3c7b297ae7b7db268586c22cd17965fd1cb365d4d211a294187558`.
+  CI and Pages remain pending the repair commit.
+
 ### 2026-07-17 -- frontend redesign execution baseline
 
 - **Objective:** execute `docs/frontend-redesign-implementation-tasks.md`
