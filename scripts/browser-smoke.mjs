@@ -1,15 +1,39 @@
 import { chromium } from "playwright";
+import assert from "node:assert/strict";
 import { deterministicBuildIdentity } from "./build-identity.mjs";
 import { readFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { resolve } from "node:path";
+import { spawnSync } from "node:child_process";
 
 const root = resolve(new URL("..", import.meta.url).pathname);
 const artifact = resolve(new URL("../dist/index.html", import.meta.url).pathname);
 const pagesPath = "/next-gen-polio-vax-TPP-generator/";
 const artifactHtml = readFileSync(artifact, "utf8");
-const { designContractVersion } = JSON.parse(readFileSync(new URL("../src/data/parameters.json", import.meta.url), "utf8"));
+const parameters = JSON.parse(readFileSync(new URL("../src/data/parameters.json", import.meta.url), "utf8"));
+const { designContractVersion } = parameters;
+const settingManifest = JSON.parse(readFileSync(new URL("../src/data/setting-anchors.json", import.meta.url), "utf8"));
+const upBihar = settingManifest.anchors.find((anchor) => anchor.id === "up-bihar");
+if (!upBihar) throw new Error("UP/Bihar teaching anchor is absent from the setting manifest");
 const expectedBuildIdentity = deterministicBuildIdentity(root);
+const palette = {
+  parchment: "#F5F3ED",
+  slate: "#313A44",
+  saffron: "#EBCB00",
+  white: "#FFFFFF",
+  orange: "#F85C02",
+  magenta: "#6C1446",
+  turquoise: "#295958",
+  darkBlue: "#12236D",
+  darkOrange: "#9B320D",
+  surfaceBlue: "#2166AC",
+  surfaceWhite: "#F7F7F2",
+  surfaceRed: "#B2182B"
+};
+assert.match(artifactHtml, /font-src data:/, "Artifact CSP must permit only inline data fonts");
+const nodeDiagnosticRun = spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e", "import { defaultScenario, evaluateScenario } from './src/model/model.ts'; process.stdout.write(JSON.stringify(evaluateScenario(defaultScenario()).diagnostics));"], { cwd: root, encoding: "utf8" });
+if (nodeDiagnosticRun.status !== 0) throw new Error(`Node diagnostic evaluation failed: ${nodeDiagnosticRun.stderr}`);
+const nodeDiagnostics = JSON.parse(nodeDiagnosticRun.stdout);
 const server = createServer((request, response) => {
   if (request.url === pagesPath) {
     response.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
@@ -36,14 +60,67 @@ try {
   const externalRequests = [];
   page.on("pageerror", (error) => errors.push(`pageerror: ${error.message}`));
   page.on("console", (message) => { if (message.type() === "error") errors.push(`console: ${message.text()}`); });
-  page.on("request", (request) => { if (!request.url().startsWith("file:")) externalRequests.push(request.url()); });
+  page.on("request", (request) => { if (!request.url().startsWith("file:") && !request.url().startsWith("data:")) externalRequests.push(request.url()); });
   await page.goto(`file://${artifact}`, { waitUntil: "load" });
   await waitForCommitted(page);
   console.log("Browser smoke: default narrative committed");
 
+  const visualSystem = await page.evaluate(async () => {
+    await document.fonts.ready;
+    const root = getComputedStyle(document.documentElement);
+    const reference = document.querySelector("#within-host-figure .teaching-reference");
+    const candidate = document.querySelector("#within-host-figure .teaching-candidate");
+    const pareto = document.querySelector("#effect-figure .pareto-line");
+    return {
+      tokens: {
+        paper: root.getPropertyValue("--paper").trim(), ink: root.getPropertyValue("--ink").trim(),
+        saffron: root.getPropertyValue("--accent").trim(), white: root.getPropertyValue("--paper-deep").trim(),
+        focus: root.getPropertyValue("--focus").trim()
+      },
+      header: getComputedStyle(document.querySelector(".site-header")).backgroundColor,
+      headlineFont: getComputedStyle(document.querySelector("h1")).fontFamily,
+      controlFont: getComputedStyle(document.querySelector("label")).fontFamily,
+      fonts: {
+        style: document.getElementById("brand-font-faces")?.textContent ?? "",
+        sans: document.fonts.check('400 16px "Noto Sans"'),
+        serif: document.fonts.check('600 16px "Noto Serif"')
+      },
+      lines: {
+        reference: getComputedStyle(reference).stroke,
+        referenceDash: getComputedStyle(reference).strokeDasharray,
+        candidate: getComputedStyle(candidate).stroke,
+        pareto: getComputedStyle(pareto).stroke
+      },
+      surfaceStops: [...document.querySelectorAll("#setting-figure #surface-scale stop")].map((stop) => stop.getAttribute("stop-color"))
+    };
+  });
+  assert.deepEqual(visualSystem.tokens, { paper: palette.parchment, ink: palette.slate, saffron: palette.saffron, white: palette.white, focus: palette.darkBlue }, "Core visual tokens changed");
+  assert.equal(visualSystem.header, "rgb(235, 203, 0)", "Independent header must use Saffron");
+  if (!visualSystem.headlineFont.includes("Noto Serif") || !visualSystem.controlFont.includes("Noto Sans")) throw new Error("Narrative and control typography do not use the Noto system");
+  if (!visualSystem.fonts.style.includes("data:font/woff2;base64,") || !visualSystem.fonts.sans || !visualSystem.fonts.serif) throw new Error("Noto faces did not load from inline WOFF2 data");
+  assert.equal(visualSystem.lines.reference, "rgb(248, 92, 2)", "Reference line color changed");
+  if (visualSystem.lines.referenceDash === "none") throw new Error("Reference line lost its dash discriminator");
+  assert.equal(visualSystem.lines.candidate, "rgb(108, 20, 70)", "Selected cohort color changed");
+  assert.equal(visualSystem.lines.pareto, "rgb(41, 89, 88)", "Pareto boundary color changed");
+  assert.deepEqual(visualSystem.surfaceStops, [palette.surfaceBlue, palette.surfaceWhite, palette.surfaceRed], "R_loc scientific surface endpoints changed");
+  for (const [foreground, background, threshold, label] of [
+    [palette.slate, palette.parchment, 4.5, "Slate narrative text"],
+    [palette.darkBlue, palette.parchment, 4.5, "Dark Blue focus text"],
+    [palette.orange, palette.white, 3, "Orange reference line"],
+    [palette.magenta, palette.white, 3, "Magenta selected line"],
+    [palette.turquoise, palette.white, 3, "Turquoise Pareto line"],
+    [palette.darkOrange, palette.white, 3, "Dark Orange hybrid interval"]
+  ]) {
+    if (contrastRatio(foreground, background) < threshold) throw new Error(`${label} does not meet its contrast threshold`);
+  }
+  const visibleArtifactText = await page.locator("body").innerText();
+  if (/gates foundation|gate device|foundation affiliation/i.test(visibleArtifactText)) throw new Error("Artifact introduces a Foundation identity or affiliation claim");
+
   if (!(await page.locator(".prototype-banner").count())) throw new Error("Prototype release-status note did not render");
   if (!(await page.locator(".hero .eyebrow").textContent())?.includes(`contract ${designContractVersion}`)) throw new Error("Opening does not identify the design-contract version");
   if (!(await page.locator("h1").textContent())?.includes("block close-contact transmission")) throw new Error("Opening question is missing");
+  const openingComparison = await page.locator("#opening-comparison").textContent();
+  if (!openingComparison?.includes("Naive child") || !openingComparison.includes("Hypothetical OPV-like vaccine") || !openingComparison.includes("assessed 28 days")) throw new Error("First viewport does not identify the current reference-to-vaccinated comparison");
   const defaultResult = await page.locator("#result-status").textContent();
   if (!defaultResult?.includes("clears the hardest known modeled anchor")) throw new Error("Default result does not lead with the hardest-known anchor");
   if (!defaultResult.includes("Direct Rloc0.920") || !defaultResult.includes("does not prove control everywhere")) throw new Error("Default result or adjacent qualification is wrong");
@@ -57,14 +134,28 @@ try {
     return sections.indexOf(document.getElementById("decision")) > sections.indexOf(document.getElementById("transmission"));
   });
   if (!resultAfterTransmission) throw new Error("Direct verdict appears before the transmission lesson");
+  const prematureVerdict = await page.evaluate(() => [...document.querySelectorAll("section")]
+    .filter((section) => section.id !== "decision" && section.compareDocumentPosition(document.getElementById("decision")) & Node.DOCUMENT_POSITION_FOLLOWING)
+    .some((section) => /clears the hardest known|does not meet|meets the direct criterion/i.test(section.textContent ?? "")));
+  if (prematureVerdict) throw new Error("A pass/fail verdict appears before the R_loc setting step");
   if (!(await page.locator("#within-host-figure").count()) || await page.locator("#within-host-figure .teaching-panel").count() !== 4) throw new Error("Four within-host teaching panels did not render");
-  if (!(await page.locator("#within-host-figure").getAttribute("aria-labelledby")) || !(await page.locator("#within-host-readout").textContent())?.includes("qindex")) throw new Error("Within-host teaching panels lack explicit accessible or diagnostic context");
+  const withinHostText = await page.locator("#within-host").textContent();
+  if (!(await page.locator("#within-host-figure").getAttribute("aria-labelledby")) || !(await page.locator("#within-host-figure .teaching-reference-dose").count()) || !withinHostText?.includes("assay floor") || !withinHostText.includes("P(acquisition | one WPV HID50) × B") || !withinHostText.includes("qindex")) throw new Error("Within-host teaching panels lack the required reference, conditioning, or shedding-index context");
+  if (!(await page.locator("#product-pathway #hypothetical-controls").count()) || !(await page.locator("#product-pathway").textContent())?.includes("Fixed γvax")) throw new Error("Product parameters are not disclosed at their point of use");
+  if (await page.locator("#print-product-summary").isVisible()) throw new Error("Print-only product summary leaked into the interactive narrative");
+  const transmissionText = await page.locator("#transmission").textContent();
+  const expectedIndexLink = `${upBihar.T_ih.value} µg stool-equivalent/exposure × ${upBihar.dIh.value} exposure/person/day`;
+  const expectedSocialLink = `${upBihar.T_hs.value} µg stool-equivalent/exposure × ${upBihar.dHs.value} exposures/person/day`;
+  if (!transmissionText?.includes("cumulative escape") || !transmissionText.includes(expectedIndexLink) || !transmissionText.includes(expectedSocialLink) || !transmissionText.includes(`Ns = ${upBihar.Ns}`) || !transmissionText.includes("one WPV HID50")) throw new Error("Transmission lesson omits manifest-derived dose composition or UP/Bihar link semantics");
+  const measurementText = await page.locator("#measurement").textContent();
+  for (const phrase of ["P(acquisition | d)", "P(still shedding at day t | WPV acquisition)", "TCID50-days/g", "qindex", `assay floor 10${Math.log10(parameters.shedding.titerFloor).toFixed(1)}`, `${parameters.transmission.horizonDays}-day integral`]) if (!measurementText?.includes(phrase)) throw new Error(`Measurement map omits ${phrase}`);
   if (!(await page.locator("#immunity-distribution-figure").count())) throw new Error("Schedule-derived immunity distribution did not render");
   if (!(await page.locator("#effect-figure").count()) || !(await page.locator("#product-figure").count()) || !(await page.locator("#setting-figure").count())) throw new Error("One or more decision or design figures did not render");
   if (await page.locator("#setting-figure [data-surface-column]").count() !== 1620) throw new Error("Setting surface is not 81 × 20");
   if (await page.locator("#setting-figure").getAttribute("data-columns") !== "81" || await page.locator("#setting-figure").getAttribute("data-rows") !== "20") throw new Error("Setting surface dimensions are not declared");
   if (await page.locator("#product-figure [data-design-key]").count() !== 2601 || await page.locator("#effect-figure [data-design-key]").count() !== 2601) throw new Error("Linked maps do not render the same 2,601 designs");
   if (!(await page.locator("#frontier-summary").textContent())?.includes("92 of 2,601") || !(await page.locator("#frontier-summary").textContent())?.includes("8 lie")) throw new Error("Default frontier summary is wrong");
+  if (!(await page.locator("#frontier-summary").textContent())?.includes("qindex") || !(await page.locator("#frontier-summary").textContent())?.includes("direct Rloc,max")) throw new Error("Linked-map summary omits the selected diagnostic decomposition or direct result");
   if (await page.locator("[data-export]").first().isDisabled()) throw new Error("Exports were not enabled for the committed default");
   if (await page.locator("#transaction-status").getAttribute("aria-live") !== "polite") throw new Error("Committed results lack a concise live announcement");
 
@@ -182,6 +273,7 @@ try {
   if (exportedJson.decisionScope?.id !== "up-bihar" || exportedJson.inspectionProbe?.id !== "up-bihar") throw new Error("JSON export blurs decision scope and inspection probe");
   if (exportedJson.viewState?.persistentDesignKey !== exportHeldKey) throw new Error("JSON export omitted the held view selection");
   if (exportedJson.outputs?.diagnostics?.schemaVersion !== "WithinHostDiagnosticsV1" || exportedJson.outputs?.diagnostics?.gridVersion !== "diagnostic-grid-1.0.0") throw new Error("JSON export omitted versioned within-host diagnostics");
+  assert.deepEqual(exportedJson.outputs?.diagnostics, nodeDiagnostics, "Browser JSON export diagnostics do not exactly match the Node projection on fixed grids");
 
   const [csvDownload] = await Promise.all([page.waitForEvent("download"), page.locator('[data-export="csv"]').click()]);
   const csvPath = await csvDownload.path();
@@ -197,12 +289,14 @@ try {
     if (!svgPath) throw new Error(`${kind} SVG export did not provide local content`);
     const svg = readFileSync(svgPath, "utf8");
     const requiredContext = ["PrototypeFigureExportV2", expectedBuildIdentity, "SCIENTIFIC PROTOTYPE", "UP/Bihar", "does not prove control everywhere", "Held inspection design"];
-    if (kind === "within-host") requiredContext.push("Teaching grid: diagnostic-grid-1.0.0", "conditioned on WPV acquisition", "Within-host components");
+    if (kind === "within-host") requiredContext.push("Teaching grid: diagnostic-grid-1.0.0", "conditioned on WPV acquisition", "Within-host components", "sheddingIndexAtReferenceTCID50DaysPerGram", "data-diagnostic-schema=\"WithinHostDiagnosticsV1\"");
     else requiredContext.push("Contours are interpolated display context");
     for (const phrase of requiredContext) {
       if (!svg.includes(phrase)) throw new Error(`Standalone ${kind} SVG omitted required context: ${phrase}`);
     }
-    if (kind === "setting" && !["0.01", "R_loc = 1", "100"].every((phrase) => svg.includes(phrase))) throw new Error("Standalone setting SVG omitted its fixed scale");
+    if (!svg.includes("Noto Sans") || !svg.includes("Noto Serif") || !svg.includes("data:font/woff2;base64,")) throw new Error(`Standalone ${kind} SVG did not embed the screen typography`);
+    if (!svg.includes(palette.orange) || !svg.includes(palette.magenta) || !svg.includes(palette.darkBlue) || !svg.includes(palette.darkOrange) || !svg.includes(palette.turquoise)) throw new Error(`Standalone ${kind} SVG does not share the screen data palette`);
+    if (kind === "setting" && !["0.01", "R_loc = 1", "100", palette.surfaceBlue, palette.surfaceWhite, palette.surfaceRed].every((phrase) => svg.includes(phrase))) throw new Error("Standalone setting SVG omitted its fixed scientific scale");
   }
   await page.locator("#share").click();
   await page.waitForFunction(() => document.getElementById("export-status")?.textContent?.includes("Canonical scenario link"));
@@ -233,7 +327,8 @@ try {
   if (!(await page.evaluate(() => matchMedia("(forced-colors: active)").matches))) throw new Error("Forced-colors mode was not activated");
   if (!(await page.locator("#result-status").isVisible()) || !(await page.locator("#setting-figure").isVisible())) throw new Error("High-contrast mode hid the authoritative result or setting figure");
   await page.emulateMedia({ media: "print", reducedMotion: "reduce", forcedColors: "none" });
-  if (!(await page.locator("#result-status").isVisible()) || !(await page.locator("#setting-figure").isVisible()) || await page.locator(".narrative-controls").first().isVisible()) throw new Error("Print mode omitted results or retained interactive controls");
+  const printProductSummary = page.locator("#print-product-summary");
+  if (!(await page.locator("#result-status").isVisible()) || !(await page.locator("#setting-figure").isVisible()) || await page.locator(".narrative-controls").first().isVisible() || !(await printProductSummary.isVisible()) || !(await printProductSummary.textContent())?.includes("productive live-vaccine infection after a received dose")) throw new Error("Print mode omitted results, retained interactive controls, or hid selected product semantics");
   await page.emulateMedia({ media: "screen", reducedMotion: "no-preference", forcedColors: "none" });
 
   const touchContext = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
@@ -263,7 +358,7 @@ try {
   const pagesPage = await browser.newPage({ viewport: { width: 900, height: 900 } });
   const pagesRequests = [];
   const pagesErrors = [];
-  pagesPage.on("request", (request) => { if (!request.url().startsWith(pagesOrigin)) pagesRequests.push(request.url()); });
+  pagesPage.on("request", (request) => { if (!request.url().startsWith(pagesOrigin) && !request.url().startsWith("data:")) pagesRequests.push(request.url()); });
   pagesPage.on("pageerror", (error) => pagesErrors.push(error.message));
   await pagesPage.goto(`${pagesOrigin}${pagesPath}`, { waitUntil: "load" });
   await waitForCommitted(pagesPage);
@@ -287,4 +382,13 @@ async function waitForStale(page) {
 async function waitForCommitted(page) {
   await page.locator("#transaction-status.committed").waitFor({ state: "visible", timeout: 30_000 });
   await page.locator("#result-status[data-model-identity]").waitFor({ state: "visible", timeout: 30_000 });
+}
+
+function contrastRatio(foreground, background) {
+  const luminance = (hex) => {
+    const channels = hex.slice(1).match(/../g).map((value) => Number.parseInt(value, 16) / 255).map((value) => value <= .04045 ? value / 12.92 : ((value + .055) / 1.055) ** 2.4);
+    return .2126 * channels[0] + .7152 * channels[1] + .0722 * channels[2];
+  };
+  const [first, second] = [luminance(foreground), luminance(background)];
+  return (Math.max(first, second) + .05) / (Math.min(first, second) + .05);
 }

@@ -49,9 +49,10 @@ export function scenarioWithProduct(scenario: ScenarioV1, productId: ScenarioV1[
 export function evaluateScenario(scenario: ScenarioV1): ModelOutputsV1 {
   const canonicalScenario = structuredClone(scenario);
   validateScenario(canonicalScenario);
+  const modelIdentity = canonicalHash({ scenario: scientificScenario(canonicalScenario), parameters: PARAMETERS, settings: SETTING_ANCHORS, displayDomain: SETTING_DISPLAY_DOMAIN, uncertainty: UNCERTAINTY_ENSEMBLE, frontierGrid: FRONTIER_GRID, diagnosticGrid: DIAGNOSTIC_GRID });
   const state = buildScheduleState(canonicalScenario.vaccine, canonicalScenario.schedule);
   const metrics = computePointMetrics(canonicalScenario, state);
-  const diagnostics = buildWithinHostDiagnostics(canonicalScenario, state);
+  const diagnostics = buildWithinHostDiagnostics(canonicalScenario, state, modelIdentity);
   const frontier = buildFrontier(canonicalScenario);
   const settingSurface = buildSettingSurface(canonicalScenario, state);
   const assumptions = [
@@ -71,7 +72,7 @@ export function evaluateScenario(scenario: ScenarioV1): ModelOutputsV1 {
     diagnostics,
     uncertainty: { available: false, label: "parameter-uncertainty interval is out of scope for this iteration", reason: UNCERTAINTY_ENSEMBLE.provenance, rLocMax: null },
     assumptions,
-    modelIdentity: canonicalHash({ scenario: scientificScenario(canonicalScenario), parameters: PARAMETERS, settings: SETTING_ANCHORS, displayDomain: SETTING_DISPLAY_DOMAIN, uncertainty: UNCERTAINTY_ENSEMBLE, frontierGrid: FRONTIER_GRID, diagnosticGrid: DIAGNOSTIC_GRID }),
+    modelIdentity,
     provenance: structuredClone(rawProvenance)
   };
   validateModelOutputs(outputs);

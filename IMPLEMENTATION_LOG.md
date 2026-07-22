@@ -21,6 +21,52 @@ does not replace source provenance, git history, or verification output.
 
 ## Planning-stage review record
 
+### 2026-07-21 -- Gates-aligned independent visual revision
+
+- **Objective:** revise the teaching-first browser presentation around the
+  Gates visual guidelines while retaining an independent product identity and
+  every locked v1 scientific behavior.
+- **Executor/model version:** Codex direct implementation; application version
+  `0.5.0-prototype`; design-contract version unchanged.
+- **Contract surface and allowed files:** presentation, export, artifact, and
+  direct-implementation-record surfaces only: `src/styles.css`, chart and app
+  rendering, local font assets, build, browser smoke, focused UI tests, and
+  generated artifact/hash. No model, manifest, URL, equation, schema, default,
+  decision rule, or scientific-language edit is permitted by this task.
+- **Scientific discriminator:** the `R_loc` display scale remains exactly
+  `#2166AC -> #F7F7F2 -> #B2182B`, with the midpoint fixed at `R_loc = 1`.
+  It is a scientific-contract exception to the brand data palette. Reference
+  and selected series remain distinguishable through dash/solid style, labels,
+  position, and marks in addition to color.
+- **Presentation decision:** Parchment, Weathered Slate, Blooming Saffron,
+  White, and Dark Blue provide the interface roles. Medium Orange is the
+  dashed naive/reference series; Dark Magenta the solid selected cohort; Dark
+  Turquoise the directly labeled Pareto boundary; Dark Blue the reference-dose
+  and held-selection marks; and Dark Orange the annotated hybrid interval.
+  Noto Sans and Noto Serif WOFF2 assets are local data URLs on screen and in
+  standalone SVGs under the bundled SIL Open Font License.
+- **Independence boundary:** no Gates logo, monogram, Gate device, photography,
+  or Foundation-affiliation claim is introduced. `TPP / WPV1`, existing tool
+  navigation, narrative order, and editorial non-dashboard composition remain.
+- **Content-block classification and rationale:** not applicable; direct,
+  bounded interface implementation.
+- **Reframe/retry status:** not applicable.
+- **Result disposition:** accepted locally as a deterministic prototype
+  presentation revision.
+- **Primary review:** visual changes are isolated from the model boundary; the
+  focused tests assert fixed surface endpoints, palette roles, and data URL
+  font-face generation.
+- **Verification run:** `npm run verify` passes: typecheck; 49 tests,
+  including palette, scientific-scale, and font-face checks; fixture,
+  calibration, performance, and cache-memory checks; build; artifact integrity;
+  Chromium screen/export, inline-font, contrast, grayscale, narrow/reflow,
+  focus, forced-colors, touch, and print smoke; and release-negative checks.
+  Two consecutive builds and CI-like builds are byte-identical at SHA-256
+  `56729893c923e9ab428d1e96038920c71829d3d07b58f46a01741c6c63cae266`.
+- **Residual uncertainty:** this is visual alignment using published palette
+  and typography, not a Foundation partnership or endorsement. The existing
+  v1 source-parity and uncertainty release blockers remain unaffected.
+
 ### 2026-07-17 -- frontend redesign execution baseline
 
 - **Objective:** execute `docs/frontend-redesign-implementation-tasks.md`
@@ -71,6 +117,45 @@ does not replace source provenance, git history, or verification output.
   Pages prefix; and stale-artifact/CI-identity negative checks. CI-like builds
   were byte-identical at artifact SHA-256
   `5e6549eca5ff313897141889f56d1b510e1fdcfec0157389f00663f505427965`.
+
+### 2026-07-21 -- frontend teaching follow-up review fixes
+
+- **Objective:** correct the two remaining frontend review findings without
+  changing the computational model: remove copied teaching constants from the
+  narrative and retain selected-product semantics in print.
+- **Executor/model version:** Codex direct implementation; no delegation.
+- **Contract sections and source files supplied:** Sections 13, 14.3, and 16;
+  `src/app.ts`, `src/ui/charts.ts`, `src/styles.css`, the parameter and setting
+  manifests, and Chromium browser smoke.
+- **Allowed files or worktree:** presentation, generated artifact, and
+  regression checks only; no equation, product default, setting anchor,
+  schedule, success rule, or uncertainty change.
+- **Required output and discriminator:** UP/Bihar link values, assay floor,
+  and diagnostic horizon render from committed manifest/model state; print
+  exposes a read-only selected-product mechanism summary while interactive
+  controls remain hidden; browser smoke fails if either invariant regresses.
+- **Content-block classification and rationale:** not applicable; direct,
+  bounded frontend remediation.
+- **Reframe/retry status:** not applicable.
+- **Result disposition:** accepted. The teaching transmission strip now
+  derives its exposure, contact-frequency, and motif values from the settings
+  manifest; assay-floor and horizon prose derive from the parameter manifest
+  or committed scenario/diagnostic grid. A print-only, committed-output
+  summary preserves hypothetical-product mechanism semantics and describes
+  fixed catalog comparators without reopening interactive controls.
+- **Primary review:** this closes the data-ownership and print-completeness
+  concerns identified in the frontend review. The product summary renders from
+  the committed scenario, so it cannot claim values from a stale edit.
+- **Verification run:** `npm run typecheck`, `npm test` (46/46), `npm run
+  build`, `npm run record:artifact-hash`, and `npm run check:artifact` passed.
+  Chromium smoke covers default and changed controls, manifest-derived
+  teaching text, print visibility/semantics, exports, responsive layouts,
+  touch, and Pages-path loading. Build identity:
+  `source-c808604c0fcc038d`; artifact SHA-256:
+  `3f71636b2b86e196817b839ad67ca91ba09e5e3f28852f0c6c30386e4849c4de`.
+- **Residual uncertainty:** scientific limitations are unchanged. This remains
+  a deterministic close-contact point-rule screen, not a complete-population
+  `R_e`, universal-control guarantee, or uncertainty-qualified result.
 
 ### 2026-07-17 -- filesystem-independent release identity
 
@@ -262,6 +347,55 @@ does not replace source provenance, git history, or verification output.
   population `R_e`, a universal guarantee, clinical-performance evidence, or a
   threshold-crossing probability. The teaching diagnostics are model
   projections, not measurements.
+
+### 2026-07-21 -- teaching-first contract-completion hardening
+
+- **Objective:** close the Contract 1.8 gaps found in post-implementation
+  review without changing WPV, vaccine, shedding, transmission, calibration,
+  comparator, or decision equations.
+- **Executor/model version:** Codex direct implementation; no delegation.
+- **Contract sections and source files supplied:** Sections 13.1--13.9,
+  14.3, 15.6, and 17; the diagnostic model/schema, narrative UI, standalone
+  SVG export, model tests, and Chromium smoke.
+- **Allowed files or worktree:** this repository only; read-only diagnostic
+  projections and presentation/export/test changes only.
+- **Required output and discriminator:** one-WPV-HID50 marker; age and assay
+  floor; conditional burden and absolute reference-dose shedding index;
+  point-of-use product controls; explicit UP/Bihar transmission handshake and
+  complete measurement map; fail-closed diagnostic metadata/grid validation;
+  identical browser/Node diagnostic serialization; and self-contained SVG
+  diagnostics.
+- **Content-block classification and rationale:** not applicable; direct,
+  bounded scientific-software implementation.
+- **Reframe/retry status:** not applicable.
+- **Result disposition:** accepted. The teaching grids remain read-only model
+  projections. They now carry source and diagnostic schema versions, parameter
+  manifest version, model identity, explicit units and conditioning, and an
+  absolute reference-dose index. Grid coordinates, reference challenge, age,
+  and identity fail closed when stale or mismatched. A 15-significant-digit
+  diagnostic serialization boundary removes cross-runtime one-ULP libm drift;
+  it does not alter any kernel, metric, calibration, or displayed precision.
+- **Primary review:** desktop, 360 px, and standalone SVG renders were checked
+  directly. The first viewport identifies the UP/Bihar teaching setting and
+  current reference-to-vaccinated comparison without a verdict. The central
+  figure marks one WPV HID50, names each conditioning statement, states age and
+  assay floor, and separates conditional `q_shed` from the absolute
+  `P(acquisition | d) * B` index and its relative `q_index`. The transmission
+  section gives source-to-dose-to-recipient-to-cumulative-escape semantics and
+  declared UP/Bihar units/bases before the direct result. Standalone SVGs carry
+  the full within-host diagnostic payload and the required teaching styles.
+- **Verification run:** `npm run verify` passed: 46/46 model tests; source
+  fixture preflight; reference-fixture and calibration gates; performance
+  (`1.7/0.5/416.4 ms` selected/surface/frontier); cache bound (`17.0 MiB`);
+  deterministic build; expanded Chromium smoke including exact browser/Node
+  diagnostic export equality; artifact integrity; and CI-like rebuild negative
+  checks. Final build identity `source-f7a3509765187ea7`; artifact SHA-256
+  `c72ebb3f3bfaaf372fbc5722834fb66214e1405b773bb6b8f7004d4de892c7a2`.
+- **Residual uncertainty:** unchanged scientific limits: this remains a
+  deterministic close-contact sufficiency screen under the v1 axiom, not a
+  complete-population `R_e`, universal-control guarantee, clinical endpoint,
+  or threshold-crossing probability. Firefox and WebKit remain recommended,
+  rather than required, pre-release checks.
 
 ### 2026-07-17 -- hybrid-equivalence amendment, direct-port expansion, and Pages enablement
 

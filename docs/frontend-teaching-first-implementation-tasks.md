@@ -1,6 +1,7 @@
 # Teaching-first frontend implementation tasks
 
-**Status:** approved for implementation under `DESIGN_CONTRACT.md` version 1.8.
+**Status:** complete and release-verified on 2026-07-21 under
+`DESIGN_CONTRACT.md` version 1.8.
 
 **Decision purpose:** teach vaccine-development readers how the model connects
 pre-exposure immunity, WPV acquisition, shedding, close-contact transmission,
@@ -97,3 +98,23 @@ responsive layout, print, contrast, and the absence of runtime requests.
 **Release gate:** every amended Section 17 item passes; no diagnostic is
 misrepresented as a measurement or decision rule; the committed artifact is
 self-contained and reproducible.
+
+## Completion record
+
+- `WithinHostDiagnosticsV1` now records diagnostic and source schema versions,
+  parameter-manifest version, model identity, units, conditioning, reference
+  challenge, age, absolute reference-dose shedding indices, and the committed
+  grids. Validation rejects stale grid coordinates and mismatched scientific
+  identity or reference metadata.
+- The four-panel lesson marks one WPV HID50, states the concentration panel's
+  assessment age and assay floor, and presents both conditional burden `B` and
+  the absolute `P(acquisition | d) * B` index alongside `q_acq`, `q_shed`, and
+  `q_index`.
+- Browser smoke compares the exported browser diagnostic grids exactly with a
+  Node projection, and checks the first-viewport cohort comparison, panel
+  labels/conditioning, point-of-use product controls, UP/Bihar link semantics,
+  measurement map, linked-map decomposition, and standalone SVG diagnostic
+  payload.
+- `npm run verify` passed with 46 model tests. The final deterministic build is
+  `source-f7a3509765187ea7`; its committed artifact SHA-256 is
+  `c72ebb3f3bfaaf372fbc5722834fb66214e1405b773bb6b8f7004d4de892c7a2`.

@@ -18,12 +18,13 @@ import { MICROGRAMS_PER_GRAM } from "./model/types";
 import type { AnchorSettingId, DesignGridPoint, EnvelopeV1, ModelOutputsV1, ProductId, ScenarioV1, SettingId } from "./model/types";
 import { renderEffectMap, renderImmunityDistribution, renderProductMap, renderSettingSurface, renderWithinHostTeaching } from "./ui/charts";
 import type { ChartViewState } from "./ui/charts";
+import { BRAND_COLORS, BRAND_FONT_FAMILIES, SCIENTIFIC_SURFACE_COLORS, brandFontFaceCss, installBrandFonts } from "./ui/brand";
 import { buildPresentation, describeDecisionScope, designKey } from "./ui/presentation";
 
 
 declare const __BUILD_IDENTITY__: string;
 
-const APP_VERSION = "0.4.0-prototype";
+const APP_VERSION = "0.5.0-prototype";
 const AUTO_UPDATE_DELAY_MS = 180;
 const MIN_STALE_DISPLAY_MS = 50;
 const BUILD_IDENTITY = __BUILD_IDENTITY__;
@@ -264,9 +265,11 @@ export function mountApp(root: HTMLElement): void {
     byId<HTMLElement>("product-map").innerHTML = renderProductMap(outputs, view);
     byId<HTMLElement>("within-host-chart").innerHTML = renderWithinHostTeaching(outputs);
     byId<HTMLElement>("immunity-distribution").innerHTML = renderImmunityDistribution(outputs);
-    byId<HTMLElement>("frontier-summary").innerHTML = `<strong>${escapeHtml(presentation.frontier.message)}</strong><span>The two maps are alternate coordinates for the same ${outputs.frontier.points.length.toLocaleString("en-US")} direct evaluations.</span>`;
+    byId<HTMLElement>("frontier-summary").innerHTML = `<strong>${escapeHtml(presentation.frontier.message)}</strong><span>Selected candidate: q<sub>acq</sub> ${formatNumber(outputs.metrics.qAcq)} · q<sub>shed</sub> ${formatNumber(outputs.metrics.qShed)} · q<sub>index</sub> ${formatNumber(outputs.metrics.qIndex)} · direct R<sub>loc,max</sub> ${formatNumber(outputs.metrics.rLocEnvelopeMax)}.</span><span>The two maps are alternate coordinates for the same ${outputs.frontier.points.length.toLocaleString("en-US")} direct evaluations.</span>`;
     renderMechanism(outputs);
+    renderOpeningComparison(outputs);
     renderWithinHostReadout(outputs);
+    renderPrintProductSummary(outputs);
     renderAssumptions(outputs);
     renderLinkedInspection();
     setExportAvailability(true);
@@ -281,16 +284,38 @@ export function mountApp(root: HTMLElement): void {
     byId<HTMLElement>("mechanism-values").innerHTML = `<article><span>1 · acquisition</span><strong>${formatPercent(1 - metrics.qAcq)} reduction</strong><p>Residual acquisition multiplier q<sub>acq</sub> = ${formatNumber(metrics.qAcq)}.</p></article>
       <article><span>2 · breakthrough shedding</span><strong>${formatPercent(1 - metrics.qShed)} reduction</strong><p>Conditional infectious-shedding multiplier q<sub>shed</sub> = ${formatNumber(metrics.qShed)}.</p></article>
       <article class="diagnostic"><span>3 · diagnostic index</span><strong>q<sub>index</sub> = ${formatNumber(metrics.qIndex)}</strong><p>q<sub>acq</sub> × q<sub>shed</sub>; useful for reading, not the decision rule.</p></article>
-      <article class="authoritative"><span>4 · direct motif result</span><strong>R<sub>loc</sub> = ${formatNumber(metrics.rLocEnvelopeMax)}</strong><p>Distribution-native propagation over the declared decision scope.</p></article>`;
+      <article class="authoritative"><span>4 · direct motif rule</span><strong>R<sub>loc</sub> = N<sub>s</sub> × P(contact infected)</strong><p>The next step evaluates the selected product at the declared setting scope. This formula, not q<sub>index</sub>, is authoritative.</p></article>`;
   }
 
   function renderWithinHostReadout(outputs: ModelOutputsV1): void {
     const diagnostics = outputs.diagnostics;
-    byId<HTMLElement>("within-host-readout").innerHTML = `<article><span>Reference challenge</span><strong>${formatNumber(diagnostics.referenceChallengeDoseCID50)} CID50</strong><p>One WPV HID50 under the fixed WPV dose-response convention; this is the q-index reference, not a vaccine dose.</p></article>
-      <article><span>WPV acquisition</span><strong>${formatPercent(diagnostics.vaccinated.acquisitionAtReference)}</strong><p>Selected cohort at the reference challenge, versus ${formatPercent(diagnostics.reference.acquisitionAtReference)} for the naive reference.</p></article>
-      <article><span>Integrated burden</span><strong>${formatNumber(diagnostics.vaccinated.integratedConditionalBurdenTCID50DaysPerGram)} TCID50·days/g</strong><p>Conditioned on WPV acquisition and summed over the committed 120-day diagnostic grid.</p></article>
-      <article class="diagnostic"><span>Relative shedding index</span><strong>q<sub>index</sub> = ${formatNumber(diagnostics.qIndex)}</strong><p>q<sub>acq</sub> × q<sub>shed</sub> at one WPV HID50. It is a reading aid, not the decision rule.</p></article>`;
+    const horizonDays = outputs.scenario.horizonDays;
+    byId<HTMLElement>("within-host-readout").innerHTML = `<article><span>Reference challenge</span><strong>${formatNumber(diagnostics.referenceChallengeDoseCID50)} CID50</strong><p>One WPV HID50 under the fixed WPV dose-response convention. It is a WPV challenge reference, not a vaccine dose.</p></article>
+      <article><span>Acquisition at reference</span><strong>${formatPercent(diagnostics.reference.acquisitionAtReference)} → ${formatPercent(diagnostics.vaccinated.acquisitionAtReference)}</strong><p>Naive reference to selected cohort: q<sub>acq</sub> = ${formatNumber(diagnostics.qAcq)}.</p></article>
+      <article><span>Conditional burden, B</span><strong>${formatScientific(diagnostics.reference.integratedConditionalBurdenTCID50DaysPerGram)} → ${formatScientific(diagnostics.vaccinated.integratedConditionalBurdenTCID50DaysPerGram)}</strong><p>TCID50-days/g, conditional on WPV acquisition and integrated over ${horizonDays} days. q<sub>shed</sub> = ${formatNumber(diagnostics.qShed)}.</p></article>
+      <article class="diagnostic"><span>Source-paper-style index</span><strong>${formatScientific(diagnostics.reference.sheddingIndexAtReferenceTCID50DaysPerGram)} → ${formatScientific(diagnostics.vaccinated.sheddingIndexAtReferenceTCID50DaysPerGram)}</strong><p>P(acquisition | one WPV HID50) × B, in TCID50-days/g. Its relative value is q<sub>index</sub> = ${formatNumber(diagnostics.qIndex)} = q<sub>acq</sub> × q<sub>shed</sub>; neither replaces direct R<sub>loc</sub>.</p></article>`;
     byId<HTMLElement>("product-pathway-summary").innerHTML = `<strong>${escapeHtml(outputs.scenario.vaccine.label)}</strong><span>${escapeHtml(outputs.scenario.schedule.routineDays.map((day) => `day ${day}`).join(", "))}${outputs.scenario.schedule.boosterAgeYears > 0 ? ` + booster at year ${outputs.scenario.schedule.boosterAgeYears}` : "; no booster"} · assessed ${outputs.scenario.schedule.assessmentLagDays} days after the last scheduled dose.</span>`;
+  }
+
+  function renderPrintProductSummary(outputs: ModelOutputsV1): void {
+    const { vaccine, schedule } = outputs.scenario;
+    const scheduleText = `${schedule.routineDays.map((day) => `day ${day}`).join(", ")}${schedule.boosterAgeYears > 0 ? ` + booster at year ${schedule.boosterAgeYears}` : "; no booster"} · assessed ${schedule.assessmentLagDays} days after the last scheduled dose`;
+    const summary = byId<HTMLElement>("print-product-summary");
+    if (vaccine.id !== "hypothetical") {
+      const semantics = vaccine.id === "ipv"
+        ? "IPV is a fixed non-live comparator. It has no live-vaccine take coordinate; its mucosal effect depends on prior live infection and is not a hypothetical OPV-like design."
+        : "Sabin 2 is a fixed catalog comparator. Its take and mucosal-boost semantics are evaluated as committed, not as hypothetical product sliders.";
+      summary.innerHTML = `<p class="eyebrow">Selected product mechanism</p><dl><div><dt>Product</dt><dd>${escapeHtml(vaccine.label)}</dd></div><div><dt>Schedule</dt><dd>${escapeHtml(scheduleText)}</dd></div></dl><p>${escapeHtml(semantics)}</p>`;
+      return;
+    }
+    const administeredDose = `${Math.log10(vaccine.dose).toFixed(2)} log10 TCID50 (${formatScientific(vaccine.dose)} TCID50)`;
+    summary.innerHTML = `<p class="eyebrow">Selected product mechanism</p><dl><div><dt>Product</dt><dd>${escapeHtml(vaccine.label)}</dd></div><div><dt>Schedule</dt><dd>${escapeHtml(scheduleText)}</dd></div><div><dt>Biological take</dt><dd>${formatNumber(vaccine.takeContext)}</dd></div><div><dt>Mean mucosal boost</dt><dd>${formatNumber(vaccine.mu0)} log2</dd></div><div><dt>Vaccine dose response</dt><dd>α ${formatNumber(vaccine.alpha)} · β ${formatScientific(vaccine.beta)} CID50</dd></div><div><dt>Administered dose</dt><dd>${administeredDose}</dd></div><div><dt>Fixed vaccine parameters</dt><dd>γ ${formatNumber(vaccine.gamma)} · boost SD ${formatNumber(vaccine.sigma0)} log2</dd></div><div><dt>Receipt</dt><dd>100% in v1</dd></div></dl><p>Biological take is productive live-vaccine infection after a received dose, not receipt or coverage. These vaccine parameters determine the take/no-take split and schedule-derived mucosal-immunity distribution; they do not change the fixed WPV challenge equation.</p>`;
+  }
+
+  function renderOpeningComparison(outputs: ModelOutputsV1): void {
+    const schedule = outputs.scenario.schedule.routineDays.map((day) => `day ${day}`).join(", ");
+    const booster = outputs.scenario.schedule.boosterAgeYears > 0 ? ` + booster at year ${outputs.scenario.schedule.boosterAgeYears}` : "; no booster";
+    byId<HTMLElement>("opening-comparison").innerHTML = `<span>Reference cohort</span><strong>Naive child · all mass in mucosal-immunity bin 0</strong><i aria-hidden="true">→</i><span>Selected cohort</span><strong>${escapeHtml(outputs.scenario.vaccine.label)} · ${escapeHtml(schedule)}${escapeHtml(booster)} · assessed ${outputs.scenario.schedule.assessmentLagDays} days after last dose</strong>`;
   }
 
   function renderAssumptions(outputs: ModelOutputsV1): void {
@@ -318,6 +343,7 @@ export function mountApp(root: HTMLElement): void {
     inspector.innerHTML = `<p class="inspector-label">${key === view.persistentDesignKey ? "Held design" : "Inspection"}</p><dl>
       <div><dt>Take context</dt><dd>${point.takeContext.toFixed(2)}</dd></div><div><dt>Mean boost</dt><dd>${point.mu0.toFixed(2)} log2</dd></div>
       <div><dt>Acquisition reduction</dt><dd>${formatPercent(1 - point.qAcq)}</dd></div><div><dt>Shedding reduction</dt><dd>${formatPercent(1 - point.qShed)}</dd></div>
+      <div><dt>q<sub>index</sub></dt><dd>${formatNumber(point.qAcq * point.qShed)}</dd></div>
       <div><dt>Direct R<sub>loc</sub></dt><dd>${formatNumber(point.rLocEnvelopeMax)}</dd></div><div><dt>Criterion</dt><dd>${point.passes ? "meets" : "does not meet"}</dd></div></dl>`;
     button.hidden = view.persistentDesignKey === null;
     const alreadySelected = committedOutputs.scenario.vaccine.id === "hypothetical"
@@ -367,6 +393,10 @@ export function mountApp(root: HTMLElement): void {
 }
 
 function shell(): string {
+  const upBihar = SETTING_ANCHORS.find((anchor) => anchor.id === "up-bihar");
+  if (!upBihar) throw new Error("UP/Bihar teaching anchor is missing from the setting manifest");
+  const assayFloorLog10 = Math.log10(PARAMETERS.shedding.titerFloor).toFixed(1);
+  const horizonDays = PARAMETERS.transmission.horizonDays;
   const productOptions = Object.entries(PRODUCT_LABELS).map(([id, label]) => `<option value="${id}">${escapeHtml(label)}</option>`).join("");
   const settingOptions = ([...SETTING_ANCHORS.map((anchor) => [anchor.id, anchor.label] as [string, string]), ["custom", "Custom inspection probe"]] as Array<[string, string]>)
     .map(([id, label]) => `<option value="${id}">${escapeHtml(label)}</option>`).join("");
@@ -379,6 +409,7 @@ function shell(): string {
       <p class="eyebrow">WPV1 · close-contact sufficiency model · contract ${PARAMETERS.designContractVersion}</p>
       <h1>Under what conditions can a vaccine block close-contact transmission?</h1>
       <p class="lede">Begin with a child exposed to WPV in the UP/Bihar reference setting. Follow the model from schedule-derived immunity, through acquisition and shedding, into a close-contact transmission motif—then ask what product properties clear that stress test.</p>
+      <p id="opening-comparison" class="opening-comparison" aria-live="off"></p>
       <aside class="prototype-banner" role="note"><strong>Scientific prototype · point rule</strong><span>This is a deterministic close-contact sufficiency screen under the v1 axiom—not a complete-population R<sub>e</sub>, outbreak forecast, or probability of product success.</span></aside>
     </header>
 
@@ -392,8 +423,9 @@ function shell(): string {
       <div class="chapter-heading"><p class="chapter-number">02 / Schedule to cohort</p><div><h2 id="product-pathway-heading">A received live-vaccine dose may take, boost mucosal immunity, and then wane.</h2><p>Every routine dose is received in v1. Biological take is productive live-vaccine infection after receipt; it is not receipt, coverage, or direct protection against a WPV dose. Repeated take/no-take branches produce the cohort distribution shown here.</p></div></div>
       <div class="pathway" role="img" aria-label="Received dose, biological take or no take, mucosal boost, waning, and the cohort immunity distribution before WPV exposure"><article><span>Received dose</span><strong>Schedule event</strong><p>Routine doses at 6, 10, and 14 weeks, plus an optional booster.</p></article><i aria-hidden="true">→</i><article><span>Biological split</span><strong>Take / no take</strong><p>Each branch is probability weighted; no dose receipt is missing.</p></article><i aria-hidden="true">→</i><article><span>State transition</span><strong>Boost then wane</strong><p>Take changes mucosal state; time to assessment allows waning.</p></article><i aria-hidden="true">→</i><article><span>WPV challenge</span><strong>Distribution enters model</strong><p>Transmission uses the full state distribution and histories.</p></article></div>
       <p id="product-pathway-summary" class="narrative-summary"></p>
+      <aside id="print-product-summary" class="print-product-summary" aria-label="Selected product mechanism for print"></aside>
       <figure class="hero-figure narrow-figure"><div id="immunity-distribution" class="chart-slot"></div><figcaption><strong>This is a marginal view, not the calculation's state reduction.</strong> The model retains conditioned take/no-take history and uses each group's dose response and shedding kernel directly.</figcaption></figure>
-      <form class="narrative-controls" aria-labelledby="product-controls-heading" onsubmit="return false"><div class="controls-title"><div><p class="eyebrow">Product and schedule</p><h3 id="product-controls-heading">Now choose the schedule whose cohort you want to inspect.</h3></div><button id="reset" type="button" class="text-button">Reset defaults</button></div><div class="control-row"><label>Candidate product<select id="product">${productOptions}</select><small>Fixed catalog products remain fixed; hypothetical OPV-like designs expose their assumptions below.</small></label><label>Booster<select id="booster" data-model-control><option value="0">No booster</option><option value="1">At 1 year</option><option value="2">At 2 years</option><option value="3">At 3 years</option><option value="4">At 4 years</option></select></label><label>Assessment after last dose<select id="lag" data-model-control><option value="28">28 days</option><option value="90">90 days</option></select></label></div><p id="state-warning" class="warning" hidden></p><div class="control-actions"><button id="compute" class="primary" type="button">Update the model</button><span id="compute-status" role="status" aria-live="polite"></span></div></form>
+      <form class="narrative-controls" aria-labelledby="product-controls-heading" onsubmit="return false"><div class="controls-title"><div><p class="eyebrow">Product and schedule</p><h3 id="product-controls-heading">Now choose the schedule whose cohort you want to inspect.</h3></div><button id="reset" type="button" class="text-button">Reset defaults</button></div><div class="control-row"><label>Candidate product<select id="product">${productOptions}</select><small>Fixed catalog products remain fixed; hypothetical OPV-like designs expose their assumptions below.</small></label><label>Booster<select id="booster" data-model-control><option value="0">No booster</option><option value="1">At 1 year</option><option value="2">At 2 years</option><option value="3">At 3 years</option><option value="4">At 4 years</option></select></label><label>Assessment after last dose<select id="lag" data-model-control><option value="28">28 days</option><option value="90">90 days</option></select></label></div><fieldset id="hypothetical-controls"><legend>Hypothetical OPV-like product mechanism</legend><p>These values determine vaccine take after a received dose, the take/no-take split, the mucosal boost, and therefore the schedule-derived distribution above. They do not change the fixed WPV challenge equation.</p><div class="advanced-grid product-parameter-grid"><label>Biological take <output id="take-output">0.80</output><input id="take" data-model-control type="range" min="0" max="1" step="0.01"><small id="take-help"></small></label><label>Latent mean mucosal boost <output id="mu-output">4.0 log2</output><input id="mu" data-model-control type="range" min="0" max="8" step="0.1"><small id="mu-help"></small></label><label>Vaccine α<input id="alpha" data-model-control type="number" min="0.001" max="5" step="0.001"><small>Dose-response shape for productive vaccine infection after receipt.</small></label><label>Vaccine β (CID50)<input id="beta" data-model-control type="number" min="0.001" max="1000000" step="0.1"><small>Dose-response scale; not a WPV susceptibility parameter.</small></label><label>Administered dose (log10 TCID50)<input id="dose-log" data-model-control type="number" min="0" max="9" step="0.01"><small>Amount offered per received live-vaccine dose.</small></label></div><div class="parameter-context"><span>Fixed γ<sub>vax</sub></span><strong id="product-fixed-gamma"></strong><span>Fixed boost SD, σ<sub>0</sub></span><strong id="product-fixed-sigma"></strong><span>Receipt</span><strong>100% in v1</strong></div></fieldset><p id="catalog-product-note" class="catalog-note" hidden></p><p id="state-warning" class="warning" hidden></p><div class="control-actions"><button id="compute" class="primary" type="button">Update the model</button><span id="compute-status" role="status" aria-live="polite"></span></div></form>
     </section>
 
     <section id="transmission" class="chapter" aria-labelledby="mechanism-heading">
@@ -401,6 +433,7 @@ function shell(): string {
       <div class="motif" role="img" aria-label="Index child transmits to a household child, who connects to close social contacts">
         <article><span>01</span><strong>Index child</strong><p>Breakthrough infection and infectious shedding after the selected schedule.</p></article><i aria-hidden="true">→</i><article><span>02</span><strong>Household child</strong><p>Acquisition is propagated through the full modeled immunity distribution.</p></article><i aria-hidden="true">→</i><article><span>03</span><strong>Close social contacts</strong><p>N<sub>s</sub> family-like child contacts extend the local motif.</p></article>
       </div>
+      <div class="transmission-handshake"><p class="eyebrow">What happens on each link</p><p><strong>Infectious survival and stool concentration</strong> from the index child, multiplied by <strong>grams of stool per exposure</strong>, determine a recipient's daily oral WPV dose. The recipient's full immunity distribution determines acquisition at that dose. Repeated daily exposures compose as cumulative escape, not as one exposure to an average child.</p><dl><div><dt>UP/Bihar index → household</dt><dd>${formatMicrograms(upBihar.Tih.value)} µg stool-equivalent/exposure × ${formatExposureFrequency(upBihar.dIh.value)}</dd></div><div><dt>Household → social contact</dt><dd>${formatMicrograms(upBihar.Ths.value)} µg stool-equivalent/exposure × ${formatExposureFrequency(upBihar.dHs.value)}</dd></div><div><dt>Social-contact motif</dt><dd>N<sub>s</sub> = ${upBihar.Ns} family-like child contacts</dd></div><div><dt>Index conditioning</dt><dd>Actual breakthrough after one WPV HID50, not a random vaccinated child</dd></div></dl><p class="transmission-equation">R<sub>loc</sub> = N<sub>s</sub> × P(one close social contact is infected).</p></div>
       <div id="mechanism-values" class="mechanism-values"></div>
       <aside class="meaning-note"><strong>The decision step</strong><p>If the direct motif result is below one at the declared setting scope, the v1 sufficiency axiom treats that as a demanding local stress test. q<sub>index</sub> helps read the within-host effects but cannot replace the distribution-native motif calculation.</p></aside>
     </section>
@@ -420,7 +453,12 @@ function shell(): string {
         <tr><th scope="row">Mean mucosal boost, μ<sub>0</sub></th><td>Product property</td><td>Latent OPV-equivalent mucosal immunity shift; not measured serum titer.</td><td>Scenario input</td></tr>
         <tr><th scope="row">Exposure, T<sub>ih</sub> / T<sub>hs</sub></th><td>Setting pressure</td><td>Stool-equivalent mass transferred per exposure, converted at the UI boundary.</td><td>Named anchor or custom input</td></tr>
         <tr><th scope="row">Contact frequency and N<sub>s</sub></th><td>Motif structure</td><td>Exposures per person-day and family-like close social contacts.</td><td>Calibrated, inherited, or declared</td></tr>
-        <tr><th scope="row">q<sub>acq</sub>, q<sub>shed</sub></th><td>Modeled effects</td><td>Residual acquisition and conditional infectious-shedding multipliers.</td><td>Derived from distributions</td></tr>
+        <tr><th scope="row">WPV acquisition, P(acquisition | d)</th><td>Within-host response</td><td>Probability of productive WPV acquisition after oral challenge dose d in CID50.</td><td>Derived model output</td></tr>
+        <tr><th scope="row">Shedding duration</th><td>Within-host response</td><td>P(still shedding at day t | WPV acquisition); probability by days after acquisition.</td><td>Derived model output</td></tr>
+        <tr><th scope="row">Concentration among shedders</th><td>Within-host response</td><td>Expected TCID50/g | still shedding and WPV acquisition, at the stated assessment age; assay floor 10<sup>${assayFloorLog10}</sup> TCID50/g.</td><td>Derived model output</td></tr>
+        <tr><th scope="row">Daily and integrated conditional burden, B</th><td>Within-host response</td><td>E[TCID50/g | WPV acquisition] = survival × conditional concentration; B is its ${horizonDays}-day integral in TCID50-days/g.</td><td>Derived model output</td></tr>
+        <tr><th scope="row">q<sub>acq</sub>, q<sub>shed</sub></th><td>Modeled effects</td><td>Residual acquisition and conditional infectious-shedding multipliers at one WPV HID50. q<sub>shed</sub> is conditional on acquisition.</td><td>Derived from distributions</td></tr>
+        <tr><th scope="row">Shedding index and q<sub>index</sub></th><td>Diagnostic reading aid</td><td>P(acquisition | one WPV HID50) × B is in TCID50-days/g; q<sub>index</sub> is its unitless selected/reference ratio.</td><td>Derived; not the decision rule</td></tr>
         <tr><th scope="row">R<sub>loc</sub></th><td>Decision result</td><td>Expected tertiary infections in the v1 close-contact motif.</td><td>Direct derived output</td></tr>
         <tr><th scope="row">Parameter uncertainty</th><td>Decision uncertainty</td><td>Threshold-crossing uncertainty would require a released ensemble.</td><td>Evidence gap in this version</td></tr>
       </tbody></table></div>
@@ -429,21 +467,13 @@ function shell(): string {
     <section id="design-space" class="chapter" aria-labelledby="design-heading">
       <div class="chapter-heading"><p class="chapter-number">06 / From requirement to product</p><div><h2 id="design-heading">The same evaluated products can be read in outcome space or product space.</h2><p>Outcome space shows the acquisition-blocking and breakthrough-shedding reductions achieved by each evaluated product. Product space shows the biological take context and latent mucosal boost assumptions that generated them. Neither outcome axis is an independently tunable specification.</p></div></div>
       <div id="frontier-summary" class="frontier-summary"></div>
-      <div class="linked-maps"><figure><div id="effect-map" class="chart-slot"></div><figcaption><strong>Outcome requirement space.</strong> The russet path is the minimum-sufficient Pareto boundary when one exists. It summarizes evaluated combinations, not a new biological endpoint.</figcaption></figure><figure><div id="product-map" class="chart-slot"></div><figcaption><strong>Product-assumption space.</strong> Take is productive biological infection after a received live dose. Mean boost is latent OPV-equivalent mucosal immunity, not serum titer.</figcaption></figure></div>
+      <div class="linked-maps"><figure><div id="effect-map" class="chart-slot"></div><figcaption><strong>Outcome requirement space.</strong> The solid, labeled Pareto boundary is the minimum-sufficient boundary when one exists. It summarizes evaluated combinations, not a new biological endpoint.</figcaption></figure><figure><div id="product-map" class="chart-slot"></div><figcaption><strong>Product-assumption space.</strong> Take is productive biological infection after a received live dose. Mean boost is latent OPV-equivalent mucosal immunity, not serum titer.</figcaption></figure></div>
       <div class="design-inspection"><div id="design-inspector"><p><strong>Inspect a design.</strong> Hover, tap, or focus either map. Click or press Enter to hold a selection.</p></div><button id="use-design" type="button" class="primary" hidden disabled>Use this design</button></div>
     </section>
 
     <section class="chapter controls-and-provenance" aria-labelledby="advanced-heading">
-      <details id="advanced-controls"><summary><span>Advanced scientific controls</span><small>Hypothetical product, custom probe, decision-scope bounds, and fixed v1 assumptions</small></summary>
+      <details id="advanced-controls"><summary><span>Advanced scientific controls</span><small>Custom probe, decision-scope bounds, and fixed v1 assumptions</small></summary>
         <div class="advanced-body">
-          <fieldset id="hypothetical-controls"><legend>Hypothetical OPV-like product</legend><div class="advanced-grid">
-            <label>Biological take <output id="take-output">0.80</output><input id="take" data-model-control type="range" min="0" max="1" step="0.01"><small id="take-help"></small></label>
-            <label>Latent mean mucosal boost <output id="mu-output">4.0 log2</output><input id="mu" data-model-control type="range" min="0" max="8" step="0.1"><small id="mu-help"></small></label>
-            <label>Vaccine α<input id="alpha" data-model-control type="number" min="0.001" max="5" step="0.001"></label>
-            <label>Vaccine β (CID50)<input id="beta" data-model-control type="number" min="0.001" max="1000000" step="0.1"></label>
-            <label>Administered dose (log10 TCID50)<input id="dose-log" data-model-control type="number" min="0" max="9" step="0.01"></label>
-          </div></fieldset>
-          <p id="catalog-product-note" class="catalog-note" hidden></p>
           <fieldset id="custom-probe-controls" hidden><legend>Custom inspection probe</legend><div class="advanced-grid">
             <label>T<sub>ih</sub> (µg/exposure)<input id="custom-tih" data-model-control type="number" min="0" max="1000000" step="0.1"></label><label>T<sub>hs</sub> (µg/exposure)<input id="custom-ths" data-model-control type="number" min="0" max="1000000" step="0.1"></label>
             <label>d<sub>ih</sub> (exposures/person/day)<input id="custom-dih" data-model-control type="number" min="0" max="1000" step="0.01"></label><label>d<sub>hs</sub> (exposures/person/day)<input id="custom-dhs" data-model-control type="number" min="0" max="1000" step="0.01"></label><label>N<sub>s</sub><input id="custom-ns" data-model-control type="number" min="0" max="1000" step="1"></label>
@@ -494,6 +524,8 @@ function syncControls(scenario: ScenarioV1): void {
   syncScopeControls(scenario.envelope);
   byId<HTMLElement>("fixed-gamma").textContent = scenario.vaccine.gamma.toFixed(4);
   byId<HTMLElement>("fixed-sigma").textContent = `${scenario.vaccine.sigma0.toFixed(1)} log2`;
+  byId<HTMLElement>("product-fixed-gamma").textContent = scenario.vaccine.gamma.toFixed(4);
+  byId<HTMLElement>("product-fixed-sigma").textContent = `${scenario.vaccine.sigma0.toFixed(1)} log2`;
   byId<HTMLElement>("fixed-horizon").textContent = `${scenario.horizonDays} days`;
   byId<HTMLElement>("fixed-index-reference").textContent = scenario.indexReferenceExposure.toFixed(4);
   syncProductEditability(scenario.vaccine.id);
@@ -618,15 +650,57 @@ function standaloneSvgExport(chart: "within-host" | "setting" | "effect" | "prod
   const heldPoint = designPointByKey(outputs, view.persistentDesignKey);
   const heldSelection = heldPoint ? ` Held inspection design: take ${heldPoint.takeContext.toFixed(2)}, boost ${heldPoint.mu0.toFixed(2)} log2.` : " No inspection design is held.";
   const selected = `${exactSelection}${heldSelection}`;
+  const withinHostDiagnostics = chart === "within-host" ? outputs.diagnostics : null;
   const diagnosticContext = chart === "within-host"
-    ? ` Teaching grid: ${outputs.diagnostics.gridVersion}; challenge unit CID50; shedding curves conditioned on WPV acquisition.`
+    ? ` Teaching grid: ${outputs.diagnostics.gridVersion}; reference challenge ${formatNumber(outputs.diagnostics.referenceChallengeDoseCID50)} CID50; assessment age ${outputs.diagnostics.assessmentAgeDays} days; shedding curves conditioned on WPV acquisition.`
     : " Direct cell evaluations determine status; Contours are interpolated display context.";
   const metadata = `${PRODUCT_LABELS[outputs.scenario.vaccine.id]}. ${presentation.candidate.schedule}; ${presentation.candidate.assessment}. Decision scope: ${presentation.result.scopeLabel}. Criterion: ${presentation.result.criterion}. ${presentation.result.qualification} ${selected}${diagnosticContext}`;
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height + 166}" viewBox="0 0 ${width} ${height + 166}" role="img" aria-labelledby="export-title export-desc" data-export-schema="${SVG_EXPORT_SCHEMA_VERSION}" data-build-identity="${BUILD_IDENTITY}"><title id="export-title">${escapeXml(chart)} figure · scientific prototype</title><desc id="export-desc">${escapeXml(metadata)}</desc><metadata>${escapeXml(JSON.stringify({ exportSchemaVersion: SVG_EXPORT_SCHEMA_VERSION, buildIdentity: BUILD_IDENTITY, modelIdentity: outputs.modelIdentity, chart, diagnosticGridVersion: chart === "within-host" ? outputs.diagnostics.gridVersion : null, persistentDesignKey: view.persistentDesignKey }))}</metadata><style>${svgStyles()}</style><rect width="100%" height="100%" fill="#f7f7f2"/><text class="export-kicker" x="24" y="26">SCIENTIFIC PROTOTYPE · POINT RULE · ${escapeXml(chart.toUpperCase())}</text><text class="export-title" x="24" y="52">${escapeXml(PRODUCT_LABELS[outputs.scenario.vaccine.id])}</text><text class="export-meta" x="24" y="76">${escapeXml(presentation.candidate.schedule)} · ${escapeXml(presentation.candidate.assessment)}</text><text class="export-meta" x="24" y="96">Decision scope: ${escapeXml(presentation.result.scopeLabel)} · direct R_loc ${formatNumber(presentation.result.value)}</text><text class="export-meta" x="24" y="116">${escapeXml(presentation.result.qualification)}</text><text class="export-meta" x="24" y="136">${escapeXml(exactSelection)}${escapeXml(diagnosticContext)}</text><text class="export-meta" x="24" y="152">${escapeXml(heldSelection.trim())} ${SVG_EXPORT_SCHEMA_VERSION} · ${BUILD_IDENTITY}</text><g transform="translate(0 166)">${source.innerHTML}</g></svg>`;
+  const context = [
+    `${presentation.candidate.schedule} · ${presentation.candidate.assessment}`,
+    `Decision scope: ${presentation.result.scopeLabel} · direct R_loc ${formatNumber(presentation.result.value)}`,
+    presentation.result.qualification,
+    exactSelection,
+    diagnosticContext,
+    `${heldSelection.trim()} ${SVG_EXPORT_SCHEMA_VERSION} · ${BUILD_IDENTITY}`
+  ];
+  const visualMetadata = context.flatMap((line) => wrapSvgText(line, 168)).map((line, index) => `<text class="export-meta" x="24" y="${76 + index * 14}">${escapeXml(line)}</text>`).join("");
+  const headerHeight = 76 + context.flatMap((line) => wrapSvgText(line, 168)).length * 14 + 18;
+  const serialized = { exportSchemaVersion: SVG_EXPORT_SCHEMA_VERSION, buildIdentity: BUILD_IDENTITY, modelIdentity: outputs.modelIdentity, chart, diagnosticGridVersion: withinHostDiagnostics?.gridVersion ?? null, diagnosticGridSchemaVersion: withinHostDiagnostics?.gridSchemaVersion ?? null, withinHostDiagnostics, persistentDesignKey: view.persistentDesignKey };
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height + headerHeight}" viewBox="0 0 ${width} ${height + headerHeight}" role="img" aria-labelledby="export-title export-desc" data-export-schema="${SVG_EXPORT_SCHEMA_VERSION}" data-build-identity="${BUILD_IDENTITY}"${withinHostDiagnostics ? ` data-diagnostic-schema="${withinHostDiagnostics.schemaVersion}" data-diagnostic-grid="${withinHostDiagnostics.gridVersion}"` : ""}><title id="export-title">${escapeXml(chart)} figure · scientific prototype</title><desc id="export-desc">${escapeXml(metadata)}</desc><metadata>${escapeXml(JSON.stringify(serialized))}</metadata><style>${svgStyles()}</style><rect width="100%" height="100%" fill="${BRAND_COLORS.parchment}"/><text class="export-kicker" x="24" y="26">SCIENTIFIC PROTOTYPE · POINT RULE · ${escapeXml(chart.toUpperCase())}</text><text class="export-title" x="24" y="52">${escapeXml(PRODUCT_LABELS[outputs.scenario.vaccine.id])}</text>${visualMetadata}<g transform="translate(0 ${headerHeight})">${source.innerHTML}</g></svg>`;
+}
+
+function wrapSvgText(value: string, maxCharacters: number): string[] {
+  const words = value.trim().split(/\s+/);
+  const lines: string[] = [];
+  let line = "";
+  for (const word of words) {
+    const next = line.length === 0 ? word : `${line} ${word}`;
+    if (line.length > 0 && next.length > maxCharacters) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = next;
+    }
+  }
+  if (line.length > 0) lines.push(line);
+  return lines;
 }
 
 function svgStyles(): string {
-  return `text{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;fill:#1d2528}.plot-bg{fill:#f7f7f2}.grid-line{stroke:#1d2528;stroke-opacity:.13}.chart-kicker,.export-kicker{font-size:10px;font-weight:700;letter-spacing:1.5px}.chart-title,.export-title{font-family:Georgia,serif;font-size:19px;font-weight:700}.export-meta{font-size:10px}.axis-label{font-size:11px;font-weight:650}.tick,.anchor-label,.surface-legend,.chart-key{font-size:9px}.threshold-line{fill:none;stroke:#111;stroke-width:2;stroke-dasharray:6 4}.pareto-line{fill:none;stroke:#9a4f37;stroke-width:3}.surface-cell{stroke:none}.surface-cell.is-inspected{stroke:#111;stroke-width:2}.anchor-point{fill:#f7f7f2;stroke:#1d2528;stroke-width:2}.decision-anchor{fill:#1d2528}.probe-ring,.selected-exact{fill:none;stroke:#111;stroke-width:2.5}.decision-scope-boundary{fill:none;stroke:#9a4f37;stroke-width:3}.hybrid-interval{stroke:#9a4f37;stroke-width:4}.effect-point.passes{fill:#1d2528}.effect-point.fails{fill:#f7f7f2;stroke:#1d2528}.comparator-marker{fill:#f7f7f2;stroke:#1d2528;stroke-width:2}.design-cell{stroke:none}.design-cell.is-inspected,.effect-point.is-inspected{stroke:#9a4f37;stroke-width:3}.design-cell.is-persistent,.effect-point.is-persistent{stroke:#111;stroke-width:3}`;
+  const colors = BRAND_COLORS;
+  return [
+    brandFontFaceCss(),
+    `text{font-family:${BRAND_FONT_FAMILIES.sans};fill:${colors.weatheredSlate}}`,
+    `.plot-bg{fill:${colors.white}}.grid-line{stroke:${colors.weatheredSlate};stroke-width:.7;stroke-opacity:.13}.tick-mark{stroke:${colors.weatheredSlate};stroke-width:1}`,
+    `.tick,.anchor-label,.hybrid-label,.surface-legend,.chart-key{fill:${colors.weatheredSlate};fill-opacity:.78;font-size:10px}.axis-label{fill:${colors.weatheredSlate};font-size:12px;font-weight:800}.chart-kicker,.export-kicker{fill:${colors.dvDarkBlue};font-size:10px;font-weight:800;letter-spacing:1.4px}`,
+    `.chart-title,.export-title,.teaching-panel-title{font-family:${BRAND_FONT_FAMILIES.serif};fill:${colors.weatheredSlate};font-size:20px;font-weight:600}.teaching-panel-title{font-size:16px}.teaching-panel-note,.teaching-reference-dose-label{fill:${colors.weatheredSlate};fill-opacity:.78;font-size:10px}.teaching-y-label{fill:${colors.weatheredSlate};font-size:10px}.teaching-panel-bg{stroke:${colors.weatheredSlate};stroke-opacity:.28;stroke-width:1}`,
+    `.teaching-reference{fill:none;stroke:${colors.dvMediumOrange};stroke-width:3;stroke-dasharray:6 4;vector-effect:non-scaling-stroke}.teaching-candidate{fill:none;stroke:${colors.dvDarkMagenta};stroke-width:3;vector-effect:non-scaling-stroke}.teaching-reference-dose{stroke:${colors.dvDarkBlue};stroke-width:1.6;stroke-dasharray:4 3;vector-effect:non-scaling-stroke}.teaching-legend{fill:${colors.weatheredSlate};fill-opacity:.78;font-size:10px}.immunity-reference{fill:${colors.dvMediumOrange}}.immunity-candidate{fill:${colors.dvDarkMagenta}}`,
+    `.surface-cell,.design-cell{stroke:none}.surface-cell.is-inspected{stroke:${colors.dvDarkMagenta};stroke-width:2;vector-effect:non-scaling-stroke}.threshold-line{fill:none;stroke:#000;stroke-width:2.2;stroke-dasharray:7 5;vector-effect:non-scaling-stroke}.pareto-line{fill:none;stroke:${colors.dvDarkTurquoise};stroke-width:3;vector-effect:non-scaling-stroke}.side-label{fill:${colors.weatheredSlate};font-size:10px;font-weight:800;letter-spacing:.7px;paint-order:stroke;stroke:${SCIENTIFIC_SURFACE_COLORS.threshold};stroke-opacity:.85;stroke-width:3px}`,
+    `.anchor-point{fill:${colors.parchment};stroke:${colors.weatheredSlate};stroke-width:2;vector-effect:non-scaling-stroke}.decision-anchor{fill:${colors.weatheredSlate}}.hybrid-anchor{stroke:${colors.dvDarkOrange};stroke-dasharray:3 2}.probe-ring{fill:none;stroke:${colors.dvDarkBlue};stroke-width:2.5;vector-effect:non-scaling-stroke}.decision-scope-boundary{fill:none;stroke:${colors.dvDarkMagenta};stroke-width:3;stroke-dasharray:8 4;vector-effect:non-scaling-stroke}.hybrid-interval{stroke:${colors.dvDarkOrange};stroke-width:4;stroke-linecap:round}`,
+    `.chart-readout rect{fill:${colors.white};fill-opacity:.91;stroke:${colors.weatheredSlate};stroke-width:.8}.chart-readout text{fill:${colors.weatheredSlate};font-size:10px}.chart-readout text:first-of-type{fill:${colors.dvDarkBlue};font-weight:800;letter-spacing:1px}.interpolation-note{fill:${colors.weatheredSlate};fill-opacity:.78;font-size:10px;font-style:italic}`,
+    `.effect-point{vector-effect:non-scaling-stroke}.effect-point.passes{fill:${colors.weatheredSlate};stroke:none;opacity:.63}.effect-point.fails{fill:${colors.white};stroke:${colors.weatheredSlate};stroke-width:.75;opacity:.48}.comparator-marker{fill:${colors.parchment};stroke:${colors.weatheredSlate};stroke-width:2;vector-effect:non-scaling-stroke}.comparator-label,.selection-label{fill:${colors.weatheredSlate};font-size:10px;paint-order:stroke;stroke:${colors.parchment};stroke-width:3px}.selected-exact{fill:none;stroke:${colors.dvDarkBlue};stroke-width:2.5;vector-effect:non-scaling-stroke}.nearest-grid{fill:none;stroke:${colors.dvDarkOrange};stroke-width:2;vector-effect:non-scaling-stroke}.design-cell.is-inspected,.effect-point.is-inspected{stroke:${colors.dvDarkMagenta};stroke-width:3;opacity:1}.design-cell.is-persistent,.effect-point.is-persistent{stroke:${colors.dvDarkBlue};stroke-width:3;opacity:1}.empty-frontier{fill:${colors.dvDarkRed};font-family:${BRAND_FONT_FAMILIES.serif};font-size:16px;paint-order:stroke;stroke:${colors.parchment};stroke-width:4px}`,
+    `.export-meta{fill:${colors.weatheredSlate};fill-opacity:.78;font-size:10px}`
+  ].join("");
 }
 
 function download(name: string, content: string, type = "application/json"): void {
@@ -657,7 +731,16 @@ function unitExposure(value: number) { return { value, unit: "grams/exposure" as
 function unitFrequency(value: number) { return { value, unit: "exposures/person/day", basis: "per_day" as const }; }
 function microgramsFromGrams(value: number): number { return value * MICROGRAMS_PER_GRAM; }
 function gramsFromMicrograms(value: number): number { return value / MICROGRAMS_PER_GRAM; }
+function formatMicrograms(valueInGrams: number): string {
+  const micrograms = microgramsFromGrams(valueInGrams);
+  return micrograms >= 100 ? micrograms.toFixed(0) : micrograms >= 1 ? micrograms.toFixed(1) : micrograms.toPrecision(2);
+}
+function formatExposureFrequency(value: number): string {
+  const exposures = value.toLocaleString("en-US", { maximumFractionDigits: 4 });
+  return `${exposures} ${value === 1 ? "exposure" : "exposures"}/person/day`;
+}
 function formatNumber(value: number): string { return Math.abs(value) < .001 && value !== 0 ? value.toExponential(2) : value < 10 ? value.toFixed(3) : value.toFixed(2); }
+function formatScientific(value: number): string { return value === 0 ? "0" : (Math.abs(value) >= 10_000 || Math.abs(value) < .01 ? value.toExponential(2) : formatNumber(value)); }
 function formatPercent(value: number): string { return `${(100 * value).toFixed(1)}%`; }
 function shortIdentity(value: string): string { return `${value.slice(0, 14)}…`; }
 function csvValue(value: string): string { return `"${value.replaceAll('"', '""')}"`; }
@@ -665,4 +748,5 @@ function errorMessage(error: unknown): string { return error instanceof Error ? 
 function escapeHtml(value: string): string { return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;"); }
 function escapeXml(value: string): string { return escapeHtml(value).replaceAll("'", "&apos;"); }
 
+installBrandFonts(document);
 document.querySelector<HTMLElement>("#app") && mountApp(document.querySelector<HTMLElement>("#app")!);

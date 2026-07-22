@@ -11,10 +11,11 @@ import { applyDose, buildScheduleState, buildStateAtAssessment, initialImmuneSta
 import { peakSheddingAgeAmplitude, sheddingTerms } from "../../src/model/shedding";
 import { doseResponse, susceptibilityPerBin, vaccineTakePerBin, wpvSusceptibilityPerBin } from "../../src/model/dose-response";
 import { clearTransmissionCaches, conditionIndexBreakthrough, createRLocEvaluator, naiveRLocForSetting, repeatedExposureProbability, rLocForSetting, transmitLink, transmissionCacheStats } from "../../src/model/transmission";
-import { waneMucosal, waningDeltaMonths } from "../../src/model/waning";
+import { DAYS_PER_MONTH, waneMucosal, waningDeltaMonths } from "../../src/model/waning";
 import { evaluateMatlabFixedTiterMotif } from "../../src/model/matlab-compat";
 import { sha256Hex } from "../../src/model/canonical";
 import { deriveCalibrationVarianceConstraint, evaluatePrevalenceMotif, gaussianCalibrationStateForMean, immunityMoments } from "../../src/model/calibration";
+import { diagnosticDoseGrid, diagnosticTimeGrid } from "../../src/model/diagnostics";
 import { validateDiagnosticGridManifest, validateFrontierGridManifest, validateParameterManifest, validateSettingManifest, validateUncertaintyManifest } from "../../src/model/manifest-validation";
 import type { ProductId, ScenarioV1, ScheduleV1, SettingV1, VaccineV1 } from "../../src/model/types";
 
@@ -1067,7 +1068,21 @@ test("within-host teaching diagnostics preserve the production kernels and metri
 
   assert.equal(diagnostics.schemaVersion, "WithinHostDiagnosticsV1");
   assert.equal(diagnostics.gridVersion, DIAGNOSTIC_GRID.version);
+  assert.equal(diagnostics.gridSchemaVersion, DIAGNOSTIC_GRID.schemaVersion);
+  assert.equal(diagnostics.sourceParameterSchemaVersion, PARAMETERS.schemaVersion);
+  assert.equal(diagnostics.sourceParameterManifestVersion, PARAMETERS.manifestVersion);
+  assert.equal(diagnostics.modelIdentity, outputs.modelIdentity);
   assert.equal(diagnostics.challengeUnit, "CID50");
+  assert.deepEqual(diagnostics.units, {
+    challengeDose: "CID50",
+    assessmentAge: "days",
+    sheddingTime: "days after WPV acquisition",
+    concentration: "TCID50/g",
+    dailyBurden: "TCID50/g",
+    integratedBurden: "TCID50-days/g",
+    sheddingIndex: "TCID50-days/g"
+  });
+  assert.equal(diagnostics.acquisitionCondition, "productive WPV acquisition after oral challenge");
   assert.equal(diagnostics.sheddingCondition, "conditioned on WPV acquisition");
   assert.equal(diagnostics.reference.acquisitionByDose.length, 41);
   assert.equal(diagnostics.vaccinated.acquisitionByDose.length, 41);
@@ -1085,12 +1100,55 @@ test("within-host teaching diagnostics preserve the production kernels and metri
       return sum + point.expectedInfectiousConcentrationTCID50PerGram;
     }, 0);
     assert.ok(Math.abs(cohort.integratedConditionalBurdenTCID50DaysPerGram - burden) <= 1e-6);
+    assert.ok(Math.abs(cohort.sheddingIndexAtReferenceTCID50DaysPerGram - cohort.acquisitionAtReference * cohort.integratedConditionalBurdenTCID50DaysPerGram) <= 1e-6);
   }
 
   assert.ok(Math.abs(diagnostics.qAcq - metrics.qAcq) <= 1e-12);
   assert.ok(Math.abs(diagnostics.qShed - metrics.qShed) <= 1e-12);
   assert.ok(Math.abs(diagnostics.qIndex - metrics.qIndex) <= 1e-12);
   assert.equal(diagnostics.qIndex, diagnostics.qAcq * diagnostics.qShed);
+});
+
+test("within-host teaching diagnostics agree with direct bin-weighted kernels on every committed grid point", () => {
+  const scenario = defaultScenario();
+  const outputs = evaluateScenario(scenario);
+  const selectedState = buildScheduleState(scenario.vaccine, scenario.schedule);
+  const referenceState = { ...initialImmuneState(), assessmentAgeDays: selectedState.assessmentAgeDays };
+
+  for (const [diagnostic, state] of [[outputs.diagnostics.reference, referenceState], [outputs.diagnostics.vaccinated, selectedState]] as const) {
+    assert.deepEqual(diagnostic.acquisitionByDose.map((point) => point.doseCID50), diagnosticDoseGrid());
+    for (const point of diagnostic.acquisitionByDose) {
+      assert.ok(Math.abs(point.probability - conditionIndexBreakthrough(state, point.doseCID50).probability) <= 1e-12);
+    }
+    const breakthrough = conditionIndexBreakthrough(state, scenario.indexReferenceExposure);
+    for (const point of diagnostic.sheddingByDay) {
+      let survival = 0;
+      let jointIntensity = 0;
+      for (const cohort of breakthrough.cohorts) {
+        const terms = sheddingTerms(point.day, cohort.sourceBin, state.assessmentAgeDays / DAYS_PER_MONTH);
+        survival += cohort.mass * terms.survival;
+        jointIntensity += cohort.mass * terms.expectedInfectiousConcentration;
+      }
+      assert.ok(Math.abs(point.survivalProbability - survival) <= 1e-12);
+      assert.ok(Math.abs(point.expectedInfectiousConcentrationTCID50PerGram - jointIntensity) <= 1e-8);
+      assert.ok(Math.abs(point.conditionalConcentrationTCID50PerGram - jointIntensity / survival) <= 1e-8);
+    }
+    assert.equal(diagnostic.sheddingByDay.at(-1)?.day, diagnosticTimeGrid().at(-1));
+  }
+});
+
+test("displayed within-host kernel quantities do not increase with mucosal immunity", () => {
+  const scenario = defaultScenario();
+  const ageMonths = evaluateScenario(scenario).diagnostics.assessmentAgeDays / DAYS_PER_MONTH;
+  const acquisition = wpvSusceptibilityPerBin(scenario.indexReferenceExposure, false);
+  for (let bin = 1; bin < acquisition.length; bin += 1) assert.ok(acquisition[bin]! <= acquisition[bin - 1]! + 1e-12);
+  for (const day of diagnosticTimeGrid()) {
+    const terms = Array.from({ length: PARAMETERS.immunity.bins }, (_, bin) => sheddingTerms(day, bin, ageMonths));
+    for (let bin = 1; bin < terms.length; bin += 1) {
+      assert.ok(terms[bin]!.survival <= terms[bin - 1]!.survival + 1e-12);
+      assert.ok(terms[bin]!.conditionalConcentration <= terms[bin - 1]!.conditionalConcentration + 1e-8);
+    }
+  }
 });
 
 test("canonical identities use SHA-256", () => {
@@ -1240,6 +1298,9 @@ test("all committed scientific manifests and generated outputs have strict runti
   assert.throws(() => validateModelOutputs({ ...outputs, metrics: { ...outputs.metrics, qAcq: Number.NaN } }), /finite/);
   assert.throws(() => validateModelOutputs({ ...outputs, settingSurface: [{ ...outputs.settingSurface[0], rLoc: -1 }] }), /in \[0/);
   assert.throws(() => validateModelOutputs({ ...outputs, diagnostics: { ...outputs.diagnostics, qIndex: 0 } }), /qIndex/);
+  assert.throws(() => validateModelOutputs({ ...outputs, diagnostics: { ...outputs.diagnostics, referenceChallengeDoseCID50: outputs.diagnostics.referenceChallengeDoseCID50 + 1 } }), /reference challenge/);
+  assert.throws(() => validateModelOutputs({ ...outputs, diagnostics: { ...outputs.diagnostics, modelIdentity: "sha256-0000000000000000000000000000000000000000000000000000000000000000" } }), /scientific inputs/);
+  assert.throws(() => validateModelOutputs({ ...outputs, diagnostics: { ...outputs.diagnostics, vaccinated: { ...outputs.diagnostics.vaccinated, acquisitionByDose: outputs.diagnostics.vaccinated.acquisitionByDose.map((point, index) => ({ ...point, doseCID50: point.doseCID50 * (1 + index * 1e-8) })) } } }), /stale dose grid/);
   assert.throws(() => validateModelOutputs({ ...outputs, diagnostics: { ...outputs.diagnostics, vaccinated: { ...outputs.diagnostics.vaccinated, sheddingByDay: [{ ...outputs.diagnostics.vaccinated.sheddingByDay[0], expectedInfectiousConcentrationTCID50PerGram: 0 }, ...outputs.diagnostics.vaccinated.sheddingByDay.slice(1)] } } }), /joint expectation/);
   assert.throws(() => validateModelOutputs({ ...outputs, provenance: undefined }), /must be an object/);
   assert.throws(() => validateModelOutputs({ ...outputs, modelIdentity: "fnv1a-deadbeef" }), /SHA-256/);

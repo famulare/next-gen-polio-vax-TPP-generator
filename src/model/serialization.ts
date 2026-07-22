@@ -1,4 +1,5 @@
 import { DIAGNOSTIC_GRID, FRONTIER_GRID, PARAMETERS, SETTING_ANCHORS, SETTING_MANIFEST_VERSION, UNCERTAINTY_ENSEMBLE, vaccineDefaults } from "./parameters";
+import { diagnosticDoseGrid, diagnosticTimeGrid } from "./diagnostics";
 import { ROUTINE_DAYS } from "./types";
 import type { DesignGridPoint, ModelOutputsV1, ScenarioV1, SettingV1, UnitValueV1, VaccineV1 } from "./types";
 import { canonicalHash, canonicalJson } from "./canonical";
@@ -81,58 +82,72 @@ export function validateModelOutputs(value: unknown): asserts value is ModelOutp
   }
   if (frontier.comparators.length !== 2) throw new Error("Frontier must contain both fixed comparators");
 
-  validateWithinHostDiagnostics(value.diagnostics, metrics);
+  if (typeof value.modelIdentity !== "string" || !/^sha256-[0-9a-f]{64}$/.test(value.modelIdentity)) throw new Error("modelIdentity must be a SHA-256 content identity");
+  validateWithinHostDiagnostics(value.diagnostics, metrics, value.scenario, value.modelIdentity);
 
   const uncertainty = requireRecord(value.uncertainty, "uncertainty"); exactKeys(uncertainty, ["available", "label", "reason", "rLocMax"], "uncertainty");
   if (uncertainty.available !== false || uncertainty.rLocMax !== null || typeof uncertainty.label !== "string" || typeof uncertainty.reason !== "string") throw new Error("Uncertainty output must fail closed as unavailable");
   if (!Array.isArray(value.assumptions) || value.assumptions.some((item) => typeof item !== "string")) throw new Error("assumptions must be a string array");
-  if (typeof value.modelIdentity !== "string" || !/^sha256-[0-9a-f]{64}$/.test(value.modelIdentity)) throw new Error("modelIdentity must be a SHA-256 content identity");
   validateProvenance(value.provenance);
 }
 
-function validateWithinHostDiagnostics(value: unknown, metrics: Record<string, any>): void {
+function validateWithinHostDiagnostics(value: unknown, metrics: Record<string, any>, scenario: ScenarioV1, modelIdentity: string): void {
   const diagnostics = requireRecord(value, "WithinHostDiagnosticsV1");
-  exactKeys(diagnostics, ["schemaVersion", "gridVersion", "challengeUnit", "referenceChallengeDoseCID50", "assessmentAgeDays", "sheddingCondition", "reference", "vaccinated", "qAcq", "qShed", "qIndex"], "WithinHostDiagnosticsV1");
+  exactKeys(diagnostics, ["schemaVersion", "gridVersion", "gridSchemaVersion", "sourceParameterSchemaVersion", "sourceParameterManifestVersion", "modelIdentity", "challengeUnit", "units", "referenceChallengeDoseCID50", "assessmentAgeDays", "acquisitionCondition", "sheddingCondition", "burdenDefinition", "reference", "vaccinated", "qAcq", "qShed", "qIndex"], "WithinHostDiagnosticsV1");
   if (diagnostics.schemaVersion !== "WithinHostDiagnosticsV1") throw new Error("Unsupported within-host diagnostic schema");
-  if (diagnostics.gridVersion !== DIAGNOSTIC_GRID.version || diagnostics.challengeUnit !== "CID50" || diagnostics.sheddingCondition !== "conditioned on WPV acquisition") throw new Error("Within-host diagnostics do not match the bundled grid or conditioning");
+  if (diagnostics.gridVersion !== DIAGNOSTIC_GRID.version || diagnostics.gridSchemaVersion !== DIAGNOSTIC_GRID.schemaVersion || diagnostics.sourceParameterSchemaVersion !== PARAMETERS.schemaVersion || diagnostics.sourceParameterManifestVersion !== PARAMETERS.manifestVersion || diagnostics.modelIdentity !== modelIdentity) throw new Error("Within-host diagnostics do not identify the bundled scientific inputs");
+  if (diagnostics.challengeUnit !== "CID50" || diagnostics.acquisitionCondition !== "productive WPV acquisition after oral challenge" || diagnostics.sheddingCondition !== "conditioned on WPV acquisition" || diagnostics.burdenDefinition !== "survival probability times concentration conditional on still shedding") throw new Error("Within-host diagnostics have invalid conditioning");
+  const units = requireRecord(diagnostics.units, "WithinHostDiagnosticsV1.units");
+  exactKeys(units, ["challengeDose", "assessmentAge", "sheddingTime", "concentration", "dailyBurden", "integratedBurden", "sheddingIndex"], "WithinHostDiagnosticsV1.units");
+  const expectedUnits = { challengeDose: "CID50", assessmentAge: "days", sheddingTime: "days after WPV acquisition", concentration: "TCID50/g", dailyBurden: "TCID50/g", integratedBurden: "TCID50-days/g", sheddingIndex: "TCID50-days/g" } as const;
+  for (const [key, expected] of Object.entries(expectedUnits)) if (units[key] !== expected) throw new Error(`Within-host diagnostic unit ${key} is invalid`);
   finiteRange(diagnostics.referenceChallengeDoseCID50, 0, Number.MAX_VALUE, "WithinHostDiagnosticsV1.referenceChallengeDoseCID50");
   finiteRange(diagnostics.assessmentAgeDays, 0, Number.MAX_VALUE, "WithinHostDiagnosticsV1.assessmentAgeDays");
-  validateDiagnosticCohort(diagnostics.reference, "naive-reference", "WithinHostDiagnosticsV1.reference");
-  validateDiagnosticCohort(diagnostics.vaccinated, "selected-vaccinated", "WithinHostDiagnosticsV1.vaccinated");
+  if (diagnostics.referenceChallengeDoseCID50 !== scenario.indexReferenceExposure || diagnostics.referenceChallengeDoseCID50 !== metrics.indexReferenceExposure) throw new Error("Within-host reference challenge does not match the scenario");
+  if (diagnostics.assessmentAgeDays !== metrics.assessmentAgeDays) throw new Error("Within-host assessment age does not match the scenario");
+  const reference = validateDiagnosticCohort(diagnostics.reference, "naive-reference", "WithinHostDiagnosticsV1.reference");
+  const vaccinated = validateDiagnosticCohort(diagnostics.vaccinated, "selected-vaccinated", "WithinHostDiagnosticsV1.vaccinated");
   for (const key of ["qAcq", "qShed", "qIndex"] as const) finiteRange(diagnostics[key], 0, 1, `WithinHostDiagnosticsV1.${key}`);
+  const expectedQAcq = reference.acquisitionAtReference > 0 ? vaccinated.acquisitionAtReference / reference.acquisitionAtReference : 0;
+  const expectedQShed = reference.integratedConditionalBurdenTCID50DaysPerGram > 0 ? vaccinated.integratedConditionalBurdenTCID50DaysPerGram / reference.integratedConditionalBurdenTCID50DaysPerGram : 0;
+  const expectedQIndex = reference.sheddingIndexAtReferenceTCID50DaysPerGram > 0 ? vaccinated.sheddingIndexAtReferenceTCID50DaysPerGram / reference.sheddingIndexAtReferenceTCID50DaysPerGram : 0;
+  if (Math.abs(diagnostics.qAcq - expectedQAcq) > 1e-12 || Math.abs(diagnostics.qShed - expectedQShed) > 1e-12 || Math.abs(diagnostics.qIndex - expectedQIndex) > 1e-12) throw new Error("Within-host qAcq, qShed, or qIndex ratio does not match the cohort projections");
   if (Math.abs(diagnostics.qIndex - diagnostics.qAcq * diagnostics.qShed) > 1e-12) throw new Error("Within-host qIndex must equal qAcq times qShed");
   if (Math.abs(diagnostics.qAcq - metrics.qAcq) > 1e-12 || Math.abs(diagnostics.qShed - metrics.qShed) > 1e-12 || Math.abs(diagnostics.qIndex - metrics.qIndex) > 1e-12) {
     throw new Error("Within-host diagnostics do not agree with point metrics");
   }
 }
 
-function validateDiagnosticCohort(value: unknown, id: string, label: string): void {
+function validateDiagnosticCohort(value: unknown, id: string, label: string): Record<string, any> {
   const cohort = requireRecord(value, label);
-  exactKeys(cohort, ["id", "label", "immunityBins", "acquisitionByDose", "acquisitionAtReference", "sheddingByDay", "integratedConditionalBurdenTCID50DaysPerGram"], label);
+  exactKeys(cohort, ["id", "label", "immunityBins", "acquisitionByDose", "acquisitionAtReference", "sheddingByDay", "integratedConditionalBurdenTCID50DaysPerGram", "sheddingIndexAtReferenceTCID50DaysPerGram"], label);
   if (cohort.id !== id || typeof cohort.label !== "string" || cohort.label.length === 0) throw new Error(`${label} identity is invalid`);
   finiteArray(cohort.immunityBins, `${label}.immunityBins`);
   if (cohort.immunityBins.length !== PARAMETERS.immunity.bins || cohort.immunityBins.some((value: number) => value < 0) || Math.abs(cohort.immunityBins.reduce((sum: number, item: number) => sum + item, 0) - 1) > 1e-10) {
     throw new Error(`${label}.immunityBins must be a probability distribution`);
   }
   if (!Array.isArray(cohort.acquisitionByDose) || cohort.acquisitionByDose.length !== DIAGNOSTIC_GRID.challengeDose.count) throw new Error(`${label}.acquisitionByDose has the wrong grid size`);
+  const doseGrid = diagnosticDoseGrid();
   let previousDose = 0;
   let previousProbability = -Number.EPSILON;
   for (const [index, pointValue] of cohort.acquisitionByDose.entries()) {
     const point = requireRecord(pointValue, `${label}.acquisitionByDose[${index}]`);
     exactKeys(point, ["doseCID50", "probability"], `${label}.acquisitionByDose[${index}]`);
     finiteRange(point.doseCID50, 0, Number.MAX_VALUE, `${label}.acquisitionByDose[${index}].doseCID50`);
+    if (point.doseCID50 !== doseGrid[index]) throw new Error(`${label}.acquisitionByDose has a stale dose grid`);
     finiteRange(point.probability, 0, 1, `${label}.acquisitionByDose[${index}].probability`);
     if (point.doseCID50 <= previousDose || point.probability + 1e-12 < previousProbability) throw new Error(`${label}.acquisitionByDose is not monotone`);
     previousDose = point.doseCID50;
     previousProbability = point.probability;
   }
   finiteRange(cohort.acquisitionAtReference, 0, 1, `${label}.acquisitionAtReference`);
-  if (!Array.isArray(cohort.sheddingByDay) || cohort.sheddingByDay.length !== diagnosticTimeCount()) throw new Error(`${label}.sheddingByDay has the wrong grid size`);
+  const timeGrid = diagnosticTimeGrid();
+  if (!Array.isArray(cohort.sheddingByDay) || cohort.sheddingByDay.length !== timeGrid.length) throw new Error(`${label}.sheddingByDay has the wrong grid size`);
   let burden = 0;
   for (const [index, pointValue] of cohort.sheddingByDay.entries()) {
     const point = requireRecord(pointValue, `${label}.sheddingByDay[${index}]`);
     exactKeys(point, ["day", "survivalProbability", "conditionalConcentrationTCID50PerGram", "expectedInfectiousConcentrationTCID50PerGram"], `${label}.sheddingByDay[${index}]`);
-    if (point.day !== DIAGNOSTIC_GRID.timeDays.min + index * DIAGNOSTIC_GRID.timeDays.step) throw new Error(`${label}.sheddingByDay has a stale day grid`);
+    if (point.day !== timeGrid[index]) throw new Error(`${label}.sheddingByDay has a stale day grid`);
     finiteRange(point.survivalProbability, 0, 1, `${label}.sheddingByDay[${index}].survivalProbability`);
     finiteRange(point.conditionalConcentrationTCID50PerGram, 0, Number.MAX_VALUE, `${label}.sheddingByDay[${index}].conditionalConcentrationTCID50PerGram`);
     finiteRange(point.expectedInfectiousConcentrationTCID50PerGram, 0, Number.MAX_VALUE, `${label}.sheddingByDay[${index}].expectedInfectiousConcentrationTCID50PerGram`);
@@ -142,11 +157,10 @@ function validateDiagnosticCohort(value: unknown, id: string, label: string): vo
   }
   finiteRange(cohort.integratedConditionalBurdenTCID50DaysPerGram, 0, Number.MAX_VALUE, `${label}.integratedConditionalBurdenTCID50DaysPerGram`);
   if (Math.abs(cohort.integratedConditionalBurdenTCID50DaysPerGram - burden) > Math.max(1e-6, Math.abs(burden) * 1e-10)) throw new Error(`${label}.integrated burden does not match the daily diagnostic grid`);
-}
-
-function diagnosticTimeCount(): number {
-  const grid = DIAGNOSTIC_GRID.timeDays;
-  return Math.floor((grid.max - grid.min) / grid.step) + 1;
+  finiteRange(cohort.sheddingIndexAtReferenceTCID50DaysPerGram, 0, Number.MAX_VALUE, `${label}.sheddingIndexAtReferenceTCID50DaysPerGram`);
+  const index = cohort.acquisitionAtReference * cohort.integratedConditionalBurdenTCID50DaysPerGram;
+  if (Math.abs(cohort.sheddingIndexAtReferenceTCID50DaysPerGram - index) > Math.max(1e-6, Math.abs(index) * 1e-10)) throw new Error(`${label}.shedding index does not match the reference acquisition and burden`);
+  return cohort;
 }
 
 function validateProvenance(value: unknown): void {

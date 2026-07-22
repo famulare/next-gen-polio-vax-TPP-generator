@@ -275,15 +275,31 @@ export interface WithinHostCohortDiagnosticsV1 {
   acquisitionAtReference: number;
   sheddingByDay: DiagnosticSheddingPointV1[];
   integratedConditionalBurdenTCID50DaysPerGram: number;
+  sheddingIndexAtReferenceTCID50DaysPerGram: number;
 }
 
 export interface WithinHostDiagnosticsV1 {
   schemaVersion: "WithinHostDiagnosticsV1";
   gridVersion: string;
+  gridSchemaVersion: "DiagnosticGridV1";
+  sourceParameterSchemaVersion: "ParameterManifestV1";
+  sourceParameterManifestVersion: string;
+  modelIdentity: string;
   challengeUnit: "CID50";
+  units: {
+    challengeDose: "CID50";
+    assessmentAge: "days";
+    sheddingTime: "days after WPV acquisition";
+    concentration: "TCID50/g";
+    dailyBurden: "TCID50/g";
+    integratedBurden: "TCID50-days/g";
+    sheddingIndex: "TCID50-days/g";
+  };
   referenceChallengeDoseCID50: number;
   assessmentAgeDays: number;
+  acquisitionCondition: "productive WPV acquisition after oral challenge";
   sheddingCondition: "conditioned on WPV acquisition";
+  burdenDefinition: "survival probability times concentration conditional on still shedding";
   reference: WithinHostCohortDiagnosticsV1;
   vaccinated: WithinHostCohortDiagnosticsV1;
   qAcq: number;

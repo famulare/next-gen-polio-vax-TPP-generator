@@ -20,6 +20,7 @@ await build({
   format: "iife",
   platform: "browser",
   target: "es2022",
+  loader: { ".woff2": "dataurl" },
   minify: true,
   sourcemap: false,
   legalComments: "none",
@@ -35,7 +36,7 @@ const html = `<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; font-src 'none';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; font-src data:;">
 <title>Next-generation polio vaccine TPP generator</title>
 <style>${css}</style>
 </head>
