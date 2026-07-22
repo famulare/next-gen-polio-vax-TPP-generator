@@ -33,7 +33,7 @@ function withinHostFigure(outputs: ModelOutputsV1, mobile: boolean): string {
   if (diagnosticHorizonDays === undefined) throw new Error("Within-host diagnostic grid has no shedding time points");
   const timeTicks = [1, 30, 60, 90, diagnosticHorizonDays].filter((day, index, values) => day <= diagnosticHorizonDays && values.indexOf(day) === index);
   const width = mobile ? 360 : 1200;
-  const height = mobile ? 1336 : 690;
+  const height = mobile ? 1336 : 880;
   const panels = mobile
     ? [
         { x: 12, y: 92, width: 336, height: 258 },
@@ -42,10 +42,10 @@ function withinHostFigure(outputs: ModelOutputsV1, mobile: boolean): string {
         { x: 12, y: 998, width: 336, height: 258 }
       ]
     : [
-        { x: 58, y: 82, width: 490, height: 206 },
-        { x: 654, y: 82, width: 490, height: 206 },
-        { x: 58, y: 410, width: 490, height: 206 },
-        { x: 654, y: 410, width: 490, height: 206 }
+        { x: 58, y: 82, width: 490, height: 340 },
+        { x: 654, y: 82, width: 490, height: 340 },
+        { x: 58, y: 462, width: 490, height: 340 },
+        { x: 654, y: 462, width: 490, height: 340 }
       ];
   const acquisition = curvePanel(
     panels[0]!,
@@ -103,7 +103,7 @@ function withinHostFigure(outputs: ModelOutputsV1, mobile: boolean): string {
     : `<text class="chart-title" x="58" y="54">How a WPV exposure becomes—or fails to become—infectious shedding</text>`;
   const legend = mobile
     ? `<g class="teaching-legend" transform="translate(12 ${height - 42})"><line x1="0" x2="28" y1="0" y2="0" class="teaching-reference"/><text x="36" y="4">Naive reference</text><line x1="160" x2="188" y1="0" y2="0" class="teaching-candidate"/><text x="196" y="4">Selected cohort</text><text x="0" y="23">Named conditioning; full distributions stay in the model.</text></g>`
-    : `<g class="teaching-legend" transform="translate(58 661)"><line x1="0" x2="28" y1="0" y2="0" class="teaching-reference"/><text x="36" y="4">Naive reference</text><line x1="165" x2="193" y1="0" y2="0" class="teaching-candidate"/><text x="201" y="4">Selected vaccinated cohort</text><text x="440" y="4">Curves are conditioned as named; full immunity distributions remain in the calculation.</text></g>`;
+    : `<g class="teaching-legend" transform="translate(58 ${height - 44})"><line x1="0" x2="28" y1="0" y2="0" class="teaching-reference"/><text x="36" y="4">Naive reference</text><line x1="165" x2="193" y1="0" y2="0" class="teaching-candidate"/><text x="201" y="4">Selected vaccinated cohort</text><text x="440" y="4">Curves are conditioned as named; full immunity distributions remain in the calculation.</text></g>`;
   return `<svg id="${id}" class="scientific-chart teaching-chart${mobile ? " teaching-chart-mobile" : ""}" role="img" aria-labelledby="${titleId} ${descId}" viewBox="0 0 ${width} ${height}">
     <title id="${titleId}">Within-host components of the WPV transmission model</title>
     <desc id="${descId}">Four panels compare a naive reference cohort with the selected vaccinated cohort at the same assessment age. They show productive WPV acquisition by challenge dose, including the marked one-WPV-HID50 reference; probability of still shedding conditional on acquisition; expected concentration conditional on still shedding; and daily joint infectious burden whose integral is B. At the reference challenge, the source-paper-style index is acquisition probability times B. The calculation preserves the joint expectation rather than using an average-person approximation.</desc>
@@ -119,8 +119,8 @@ export function renderImmunityDistribution(outputs: ModelOutputsV1): string {
 }
 
 function immunityDistributionFigure(outputs: ModelOutputsV1, mobile: boolean): string {
-  const width = mobile ? 360 : 920;
-  const height = mobile ? 410 : 300;
+  const width = mobile ? 360 : 820;
+  const height = mobile ? 410 : 450;
   const margin = mobile ? { top: 92, right: 15, bottom: 62, left: 48 } : { top: 63, right: 30, bottom: 62, left: 60 };
   const plotWidth = width - margin.left - margin.right;
   const plotHeight = height - margin.top - margin.bottom;

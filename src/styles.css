@@ -213,18 +213,18 @@ fieldset > p { color: var(--muted); font-size: var(--fs-small); }
 .plot-bg { fill: var(--paper-deep); }
 .grid-line { stroke: var(--ink); stroke-width: .7; stroke-opacity: .13; }
 .tick-mark { stroke: var(--ink); stroke-width: 1; }
-.tick, .anchor-label, .hybrid-label, .surface-legend, .chart-key { fill: var(--muted); font-family: var(--sans); font-size: 10px; }
-.axis-label { fill: var(--ink); font-family: var(--sans); font-size: 12px; font-weight: 800; }
-.chart-kicker { fill: var(--focus); font-family: var(--sans); font-size: 10px; font-weight: 800; letter-spacing: 1.4px; }
+.tick, .anchor-label, .hybrid-label, .surface-legend, .chart-key { fill: var(--muted); font-family: var(--sans); font-size: 12px; }
+.axis-label { fill: var(--ink); font-family: var(--sans); font-size: 14px; font-weight: 800; }
+.chart-kicker { fill: var(--focus); font-family: var(--sans); font-size: 11.5px; font-weight: 800; letter-spacing: 1.4px; }
 .chart-title { fill: var(--ink); font-family: var(--serif); font-size: 20px; font-weight: 600; }
-.teaching-panel-title { fill: var(--ink); font-family: var(--serif); font-size: 16px; font-weight: 600; }
-.teaching-panel-note, .teaching-reference-dose-label { fill: var(--muted); font-family: var(--sans); font-size: 10px; }
-.teaching-y-label { fill: var(--ink); font-family: var(--sans); font-size: 10px; }
+.teaching-panel-title { fill: var(--ink); font-family: var(--serif); font-size: 17px; font-weight: 600; }
+.teaching-panel-note, .teaching-reference-dose-label { fill: var(--muted); font-family: var(--sans); font-size: 11px; }
+.teaching-y-label { fill: var(--ink); font-family: var(--sans); font-size: 12px; }
 .teaching-panel-bg { stroke: var(--line); stroke-width: 1; }
 .teaching-reference { fill: none; stroke: #F85C02; stroke-width: 3; stroke-dasharray: 6 4; vector-effect: non-scaling-stroke; }
 .teaching-candidate { fill: none; stroke: #6C1446; stroke-width: 3; vector-effect: non-scaling-stroke; }
 .teaching-reference-dose { stroke: var(--focus); stroke-width: 1.6; stroke-dasharray: 4 3; vector-effect: non-scaling-stroke; }
-.teaching-legend { fill: var(--muted); font-family: var(--sans); font-size: 10px; }
+.teaching-legend { fill: var(--muted); font-family: var(--sans); font-size: 13px; }
 .teaching-chart-mobile { display: none; }
 .immunity-reference { fill: #F85C02; }
 .immunity-candidate { fill: #6C1446; }
@@ -233,7 +233,7 @@ fieldset > p { color: var(--muted); font-size: var(--fs-small); }
 .surface-cell.is-inspected { stroke: #6C1446; stroke-width: 2; vector-effect: non-scaling-stroke; }
 .threshold-line { fill: none; stroke: #111; stroke-width: 2.2; stroke-dasharray: 7 5; vector-effect: non-scaling-stroke; }
 .pareto-line { fill: none; stroke: #295958; stroke-width: 3.4; vector-effect: non-scaling-stroke; paint-order: stroke; }
-.side-label { fill: var(--ink); font-size: 10px; font-weight: 800; letter-spacing: .7px; paint-order: stroke; stroke: rgba(247,247,242,.85); stroke-width: 3px; }
+.side-label { fill: var(--ink); font-size: 12px; font-weight: 800; letter-spacing: .7px; paint-order: stroke; stroke: rgba(247,247,242,.85); stroke-width: 3px; }
 .anchor-point { fill: var(--paper); stroke: var(--ink); stroke-width: 2; vector-effect: non-scaling-stroke; }
 .decision-anchor { fill: var(--ink); }
 .hybrid-anchor { stroke: #9B320D; stroke-dasharray: 3 2; }
@@ -241,14 +241,14 @@ fieldset > p { color: var(--muted); font-size: var(--fs-small); }
 .decision-scope-boundary { fill: none; stroke: #6C1446; stroke-width: 3; stroke-dasharray: 8 4; vector-effect: non-scaling-stroke; }
 .hybrid-interval { stroke: #9B320D; stroke-width: 4; stroke-linecap: round; }
 .chart-readout rect { fill: rgb(255 255 255 / .91); stroke: var(--ink); stroke-width: .8; }
-.chart-readout text { fill: var(--ink); font-size: 10px; }
+.chart-readout text { fill: var(--ink); font-size: 12px; }
 .chart-readout text:first-of-type { fill: var(--focus); font-weight: 800; letter-spacing: 1px; }
-.interpolation-note { fill: var(--muted); font-size: 10px; font-style: italic; }
+.interpolation-note { fill: var(--muted); font-size: 11.5px; font-style: italic; }
 .effect-point { vector-effect: non-scaling-stroke; }
 .effect-point.passes { fill: var(--ink); stroke: none; opacity: .9; }
 .effect-point.fails { fill: none; stroke: var(--ink); stroke-width: .7; stroke-opacity: .4; }
 .comparator-marker { fill: var(--paper); stroke: var(--ink); stroke-width: 2; vector-effect: non-scaling-stroke; }
-.comparator-label, .selection-label { fill: var(--ink); font-size: 10px; paint-order: stroke; stroke: var(--paper); stroke-width: 3px; }
+.comparator-label, .selection-label { fill: var(--ink); font-size: 12px; paint-order: stroke; stroke: var(--paper); stroke-width: 3px; }
 .selected-exact { fill: none; stroke: var(--focus); stroke-width: 2.5; vector-effect: non-scaling-stroke; }
 .nearest-grid { fill: none; stroke: #9B320D; stroke-width: 2; vector-effect: non-scaling-stroke; }
 .design-cell.is-inspected, .effect-point.is-inspected { stroke: #6C1446; stroke-width: 3; opacity: 1; }
