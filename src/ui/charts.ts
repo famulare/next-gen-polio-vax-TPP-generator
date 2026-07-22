@@ -57,7 +57,7 @@ function withinHostFigure(outputs: ModelOutputsV1, mobile: boolean): string {
     "Probability of productive WPV acquisition",
     [1, 100, 10_000, 1_000_000],
     [0, .25, .5, .75, 1],
-    { note: "One-WPV-HID50 is the q_acq and breakthrough-conditioning reference.", referenceX: diagnostics.referenceChallengeDoseCID50, referenceLabel: "1 WPV HID50" }
+    { note: "One-WPV-HID50 is the q_acq (residual acquisition) and breakthrough-conditioning reference.", referenceX: diagnostics.referenceChallengeDoseCID50, referenceLabel: "1 WPV HID50" }
   );
   const survival = curvePanel(
     panels[1]!,
@@ -264,12 +264,12 @@ export function renderSettingSurface(outputs: ModelOutputsV1, view: ChartViewSta
     <text class="side-label fail-side" x="${margin.left + plotWidth - 15}" y="${margin.top + 22}" text-anchor="end">FAILING SIDE · greater transmission pressure</text>
     ${scopeMark}
     <line class="hybrid-interval" x1="${x(3.2 / 1_000_000)}" x2="${x(61.7 / 1_000_000)}" y1="${matlabY}" y2="${matlabY}"/>
-    <text class="hybrid-label" x="${x(61.7 / 1_000_000) + 7}" y="${matlabY + 13}">Matlab household interval · 3.2–61.7 µg/day (daily basis) · hybrid mapping; social link inherited</text>
+    <text class="hybrid-label" x="${x(61.7 / 1_000_000) + 7}" y="${matlabY + 13}">Matlab household · 3.2–61.7 µg/day (hybrid)</text>
     ${anchors}${ticksX}
     <text class="axis-label" x="${margin.left + plotWidth / 2}" y="${height - 17}" text-anchor="middle">Linked stool-equivalent exposure, T (µg/exposure · log scale)</text>
     <text class="axis-label" transform="translate(20 ${margin.top + plotHeight / 2}) rotate(-90)" text-anchor="middle">Close social contacts, N_s</text>
     <g class="surface-legend" transform="translate(${margin.left + plotWidth - 236} 34)"><rect x="0" y="0" width="166" height="11" fill="url(#surface-scale)"/><text x="0" y="25">0.01</text><text x="83" y="25" text-anchor="middle">R_loc = 1</text><text x="166" y="25" text-anchor="end">100</text></g>
-    <g class="chart-readout" transform="translate(${margin.left + 6} ${margin.top + 10})"><rect x="0" y="0" width="250" height="43"/><text x="10" y="17">INSPECTION PROBE</text><text x="10" y="34">${formatMicrograms(activePoint.Tih)} µg/exposure · N_s ${activePoint.Ns} · R_loc ${formatNumber(activePoint.rLoc)}</text></g>
+    <g class="chart-readout" transform="translate(${margin.left + 6} ${margin.top + 10})"><rect x="0" y="0" width="250" height="43"/><text x="10" y="17">INSPECTED DISPLAY CELL</text><text x="10" y="34">${formatMicrograms(activePoint.Tih)} µg/exposure · N_s ${activePoint.Ns} · R_loc ${formatNumber(activePoint.rLoc)}</text></g>
     <text class="interpolation-note" x="${margin.left + plotWidth}" y="${height - 2}" text-anchor="end">Status: direct over decision scope. Contour: interpolated display context.</text>
   </svg>`;
 }
@@ -306,7 +306,7 @@ export function renderProductMap(outputs: ModelOutputsV1, view: ChartViewState):
   const contourPath = contourPoints.length > 1 ? line()(contourPoints) ?? "" : "";
   const exact = outputs.frontier.selectedDesign;
   const nearest = outputs.frontier.nearestGridPoint;
-  const exactMark = exact ? `<circle class="selected-exact" cx="${x(exact.takeContext)}" cy="${y(exact.mu0)}" r="8"/><text class="selection-label" x="${x(exact.takeContext) + 11}" y="${y(exact.mu0) - 9}">selected exact</text>` : "";
+  const exactMark = exact ? selectedExactMark(x(exact.takeContext), y(exact.mu0), margin.left + plotWidth * 0.6, margin.top, margin.top + plotHeight) : "";
   const nearestMark = nearest ? `<path class="nearest-grid" d="M ${x(nearest.takeContext) - 5} ${y(nearest.mu0)} h 10 M ${x(nearest.takeContext)} ${y(nearest.mu0) - 5} v 10"/>` : "";
   const sabin = outputs.frontier.comparators.find((point) => point.productId === "sabin2")!;
   const sabinMark = sabin.takeContext !== null && sabin.mu0 !== null ? `<path class="comparator-marker sabin-marker" d="M ${x(sabin.takeContext)} ${y(sabin.mu0) - 6} l 6 10 h -12 z"/><text class="comparator-label" x="${x(sabin.takeContext) - 9}" y="${y(sabin.mu0) - 9}" text-anchor="end">fixed Sabin 2</text>` : "";
@@ -332,7 +332,7 @@ export function renderEffectMap(outputs: ModelOutputsV1, view: ChartViewState): 
     const key = designKey(point);
     const inspected = key === view.inspectedDesignKey;
     const persistent = key === view.persistentDesignKey;
-    return `<circle class="effect-point ${point.passes ? "passes" : "fails"}${inspected ? " is-inspected" : ""}${persistent ? " is-persistent" : ""}" data-design-key="${key}" cx="${x(1 - point.qAcq)}" cy="${y(1 - point.qShed)}" r="${point.passes ? 2.1 : 1.35}"><title>acquisition reduction ${formatPercent(1 - point.qAcq)}; breakthrough shedding reduction ${formatPercent(1 - point.qShed)}; take ${point.takeContext.toFixed(2)}; boost ${point.mu0.toFixed(2)}; direct R_loc ${formatNumber(point.rLocEnvelopeMax)}</title></circle>`;
+    return `<circle class="effect-point ${point.passes ? "passes" : "fails"}${inspected ? " is-inspected" : ""}${persistent ? " is-persistent" : ""}" data-design-key="${key}" cx="${x(1 - point.qAcq)}" cy="${y(1 - point.qShed)}" r="${point.passes ? 2.5 : 1.3}"><title>acquisition reduction ${formatPercent(1 - point.qAcq)}; breakthrough shedding reduction ${formatPercent(1 - point.qShed)}; take ${point.takeContext.toFixed(2)}; boost ${point.mu0.toFixed(2)}; direct R_loc ${formatNumber(point.rLocEnvelopeMax)}</title></circle>`;
   }).join("");
   const paretoPoints = outputs.frontier.pareto.map((point) => [x(1 - point.qAcq), y(1 - point.qShed)] as [number, number]);
   const paretoPath = paretoPoints.length > 1 ? line()(paretoPoints) ?? "" : "";
@@ -341,7 +341,7 @@ export function renderEffectMap(outputs: ModelOutputsV1, view: ChartViewState): 
     ? `<g class="chart-key" transform="translate(${margin.left + 8} ${margin.top + 33})"><line class="pareto-line" x1="0" x2="24" y1="0" y2="0"/><text x="32" y="3">minimum-sufficient Pareto boundary</text></g>`
     : "";
   const exact = outputs.frontier.selectedDesign;
-  const exactMark = exact ? `<circle class="selected-exact" cx="${x(1 - exact.qAcq)}" cy="${y(1 - exact.qShed)}" r="8"/><text class="selection-label" x="${x(1 - exact.qAcq) + 11}" y="${y(1 - exact.qShed) - 9}">selected exact</text>` : "";
+  const exactMark = exact ? selectedExactMark(x(1 - exact.qAcq), y(1 - exact.qShed), margin.left + plotWidth * 0.6, margin.top, margin.top + plotHeight) : "";
   const comparators = outputs.frontier.comparators.map((point) => {
     const cx = x(1 - point.qAcq);
     const cy = y(1 - point.qShed);
@@ -356,7 +356,7 @@ export function renderEffectMap(outputs: ModelOutputsV1, view: ChartViewState): 
     <rect class="plot-bg" x="${margin.left}" y="${margin.top}" width="${plotWidth}" height="${plotHeight}"/>${gridLines(x, y, margin, plotWidth, plotHeight, "effect")}${points}${paretoMark}${exactMark}${comparators}${empty}
     ${linearTicks([0, .25, .5, .75, 1], x, margin.top + plotHeight, "x", true)}${linearTicks([0, .25, .5, .75, 1], y, margin.left, "y", true)}
     <text class="axis-label" x="${margin.left + plotWidth / 2}" y="${height - 18}" text-anchor="middle">Reduction in WPV acquisition (1 − q_acq)</text><text class="axis-label" transform="translate(18 ${margin.top + plotHeight / 2}) rotate(-90)" text-anchor="middle">Reduction in breakthrough shedding (1 − q_shed)</text>
-    <g class="chart-key" transform="translate(${margin.left + 8} ${margin.top + 15})"><circle class="effect-point passes" cx="0" cy="0" r="2.3"/><text x="8" y="3">meets</text><circle class="effect-point fails" cx="60" cy="0" r="1.5"/><text x="68" y="3">does not meet</text></g>${paretoLabel}
+    <g class="chart-key" transform="translate(${margin.left + 8} ${margin.top + 15})"><circle class="effect-point passes" cx="0" cy="0" r="2.5"/><text x="8" y="3">meets</text><circle class="effect-point fails" cx="60" cy="0" r="1.3"/><text x="68" y="3">does not meet</text></g>${paretoLabel}
     <text class="interpolation-note" x="${margin.left + plotWidth}" y="${height - 2}" text-anchor="end">Every mark is one direct product-grid evaluation.</text>
   </svg>`;
 }
@@ -411,6 +411,14 @@ function linearTicks(values: number[], scale: (value: number) => number, axis: n
 
 function surfaceColor(rLoc: number): string {
   return scaleLinear<string>().domain([-2, 0, 2]).range([BLUE, WHITE, RED]).clamp(true)(Math.log10(Math.max(rLoc, 1e-12)));
+}
+
+function selectedExactMark(cx: number, cy: number, rightBoundary: number, plotTop: number, plotBottom: number): string {
+  const nearRight = cx > rightBoundary;
+  const lx = nearRight ? cx - 11 : cx + 11;
+  const ly = nearRight ? (cy > plotBottom - 26 ? cy - 12 : cy + 20) : Math.max(plotTop + 10, cy - 9);
+  const anchor = nearRight ? "end" : "start";
+  return `<circle class="selected-exact" cx="${cx}" cy="${cy}" r="8"/><text class="selection-label" x="${lx}" y="${ly}" text-anchor="${anchor}">selected exact</text>`;
 }
 
 function anchorShortLabel(id: string): string {

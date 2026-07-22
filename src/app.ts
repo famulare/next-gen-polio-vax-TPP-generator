@@ -46,7 +46,7 @@ export function mountApp(root: HTMLElement): void {
   const view: AppViewState = {
     inspectedDesignKey: null,
     persistentDesignKey: null,
-    surfaceColumn: 40,
+    surfaceColumn: 63,
     surfaceRow: 9,
     drawerOpen: false
   };
@@ -315,7 +315,7 @@ export function mountApp(root: HTMLElement): void {
   function renderOpeningComparison(outputs: ModelOutputsV1): void {
     const schedule = outputs.scenario.schedule.routineDays.map((day) => `day ${day}`).join(", ");
     const booster = outputs.scenario.schedule.boosterAgeYears > 0 ? ` + booster at year ${outputs.scenario.schedule.boosterAgeYears}` : "; no booster";
-    byId<HTMLElement>("opening-comparison").innerHTML = `<span>Reference cohort</span><strong>Naive child · all mass in mucosal-immunity bin 0</strong><i aria-hidden="true">→</i><span>Selected cohort</span><strong>${escapeHtml(outputs.scenario.vaccine.label)} · ${escapeHtml(schedule)}${escapeHtml(booster)} · assessed ${outputs.scenario.schedule.assessmentLagDays} days after last dose</strong>`;
+    byId<HTMLElement>("opening-comparison").innerHTML = `<span class="cohort"><span class="cohort-tag">Reference cohort</span><strong>Naive child · all mass in mucosal-immunity bin 0</strong></span><i aria-hidden="true">→</i><span class="cohort"><span class="cohort-tag">Selected cohort</span><strong>${escapeHtml(outputs.scenario.vaccine.label)} · ${escapeHtml(schedule)}${escapeHtml(booster)} · assessed ${outputs.scenario.schedule.assessmentLagDays} days after last dose</strong></span>`;
   }
 
   function renderAssumptions(outputs: ModelOutputsV1): void {
@@ -442,7 +442,7 @@ function shell(): string {
       <div class="chapter-heading"><p class="chapter-number">04 / Setting and decision</p><div><h2 id="decision-heading">Only now ask whether the selected product clears the reference stress test.</h2><p>The default point rule is evaluated directly at the UP/Bihar high anchor, the hardest known empirical/model-calibrated setting in the catalog. Clearing it supports likely adequacy under less demanding modeled conditions; it does not prove control everywhere.</p></div></div>
       <div id="story-results"><div id="result-status" class="result-status pending" aria-live="polite"><p class="result-label">Evaluating</p><h2>Calculating the versioned default…</h2></div><div class="opening-meta"><p id="candidate-summary"></p><p id="scope-summary"></p><p id="probe-summary"></p></div></div>
       <form class="narrative-controls setting-controls" aria-labelledby="setting-controls-heading" onsubmit="return false"><div class="controls-title"><div><p class="eyebrow">Setting semantics</p><h3 id="setting-controls-heading">Keep the decision scope separate from an inspection probe.</h3></div></div><div class="control-row"><label>Inspection probe<select id="probe">${settingOptions}</select><small>Changes the independent readout and its ring on the figure, not the decision result or model identity.</small></label><label>Decision scope<select id="scope">${scopeOptions}</select><small>Directly determines the reported maximum R<sub>loc</sub>.</small></label></div></form>
-      <figure class="hero-figure"><div id="setting-map" class="chart-slot" aria-live="off"></div><figcaption><strong>Read from blue through white to red.</strong> White is R<sub>loc</sub> = 1. The diamond is the decision anchor; the ring is the independent inspection probe. The dashed path marks threshold crossings between directly evaluated display cells; it is not the decision calculation. Arrow keys traverse all 81 × 20 display cells.</figcaption></figure>
+      <figure class="hero-figure"><div id="setting-map" class="chart-slot" aria-live="off"></div><figcaption><strong>Read from blue through white to red.</strong> White is R<sub>loc</sub> = 1. The diamond is the decision anchor; the ring is the independent inspection probe. The outlined cell is the display cell you are inspecting, and its readout is that raster cell — not the decision calculation. The dashed path marks threshold crossings between directly evaluated display cells. Hover or use arrow keys to move the inspected cell across all 81 × 20 cells.</figcaption></figure>
       <p id="transaction-status" class="transaction-status" role="status" aria-live="polite"></p>
     </section>
 

@@ -58,7 +58,7 @@ export function evaluateScenario(scenario: ScenarioV1): ModelOutputsV1 {
   const assumptions = [
     "The default point-rule result is evaluated directly at the UP/Bihar high anchor. Clearing this hardest known empirical/model-calibrated stress-test supports likely adequacy under less demanding modeled conditions, but does not prove control everywhere.",
     "The close-contact criterion is a conditional-plausibility screen under the v1 sufficiency axiom: the modeled motif is treated as high strength and remaining connections as mostly weaker. It is not a calculated complete-population R_e.",
-    "All scheduled doses are received. take is biological productive live-vaccine infection, not receipt or coverage.",
+    "All scheduled doses are received; take is biological productive live-vaccine infection, not receipt or coverage.",
     "Transmission, susceptibility, and shedding use mucosal immunity only; IPV has no mucosal effect in a live-virus-naive cohort.",
     "The Matlab marker is a hybrid: daily exposure mass is converted to mass per exposure using each link's contact frequency; the social-contact structure is inherited rather than fitted by the Matlab study.",
     "A parameter-uncertainty interval and upper-95 rule are out of scope for this iteration. This point output does not quantify threshold-crossing probability or support probability-weighted expected-loss or risk-sensitive decisions. Any future low/base/high evaluation must be labeled sensitivity, not probability."
