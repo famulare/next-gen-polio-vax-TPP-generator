@@ -117,7 +117,9 @@ does not replace source provenance, git history, or verification output.
   calibration, performance, cache-memory, build, artifact/browser smoke, and
   release-negative CI-like deterministic rebuild checks at SHA-256
   `59bf5dd77c3c7b297ae7b7db268586c22cd17965fd1cb365d4d211a294187558`.
-  CI and Pages remain pending the repair commit.
+- **Deployment outcome:** GitHub Actions test and Pages workflows passed for
+  repair commit `aa8a08e`; the Pages build, artifact upload, and deploy jobs
+  all completed successfully.
 
 ### 2026-07-17 -- frontend redesign execution baseline
 
