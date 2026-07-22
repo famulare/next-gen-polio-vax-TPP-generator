@@ -136,7 +136,7 @@ function immunityDistributionFigure(outputs: ModelOutputsV1, mobile: boolean): s
     const selected = vaccinated[bin] ?? 0;
     return `<rect class="immunity-reference" fill="${REFERENCE}" x="${left}" y="${y(value)}" width="${pairWidth}" height="${Math.max(0, y(0) - y(value))}"><title>Naive reference: log2 mucosal-immunity bin ${bin}; probability ${formatPercent(value)}</title></rect><rect class="immunity-candidate" fill="${CANDIDATE}" x="${left + pairWidth + band * .08}" y="${y(selected)}" width="${pairWidth}" height="${Math.max(0, y(0) - y(selected))}"><title>Selected vaccinated cohort: log2 mucosal-immunity bin ${bin}; probability ${formatPercent(selected)}</title></rect>`;
   }).join("");
-  const yTicks = y.ticks(4).map((value) => `<g><line class="grid-line" x1="${margin.left}" x2="${margin.left + plotWidth}" y1="${y(value)}" y2="${y(value)}"/><text class="tick" x="${margin.left - 10}" y="${y(value) + 3}" text-anchor="end">${formatPercent(value)}</text></g>`).join("");
+  const yTicks = y.ticks(4).map((value) => `<g><line class="grid-line" x1="${margin.left}" x2="${margin.left + plotWidth}" y1="${y(value)}" y2="${y(value)}"/><text class="tick" x="${margin.left - 10}" y="${y(value) + 3}" text-anchor="end">${formatPercentTick(value)}</text></g>`).join("");
   const xTicks = reference.map((_, bin) => `<text class="tick" x="${x(bin + .5)}" y="${margin.top + plotHeight + 18}" text-anchor="middle">${bin}</text>`).join("");
   const id = mobile ? "immunity-distribution-mobile-figure" : "immunity-distribution-figure";
   const titleId = mobile ? "immunity-distribution-mobile-title" : "immunity-distribution-title";
@@ -190,7 +190,7 @@ function curvePanel(
   const displayedYTicks = scale === "log-y"
     ? yTicks.filter((value) => value >= logDomain(values)[0] && value <= logDomain(values)[1])
     : yTicks;
-  const horizontal = displayedYTicks.map((value) => `<g><line class="grid-line" x1="${plot.x}" x2="${plot.x + plot.width}" y1="${yScale(value)}" y2="${yScale(value)}"/><text class="tick" x="${plot.x - 9}" y="${yScale(value) + 3}" text-anchor="end">${scale === "log-y" ? powerLabel(value) : formatPercent(value)}</text></g>`).join("");
+  const horizontal = displayedYTicks.map((value) => `<g><line class="grid-line" x1="${plot.x}" x2="${plot.x + plot.width}" y1="${yScale(value)}" y2="${yScale(value)}"/><text class="tick" x="${plot.x - 9}" y="${yScale(value) + 3}" text-anchor="end">${scale === "log-y" ? powerLabel(value) : formatPercentTick(value)}</text></g>`).join("");
   const vertical = xTicks.map((value) => `<g><line class="grid-line" x1="${xScale(value)}" x2="${xScale(value)}" y1="${plot.y}" y2="${plot.y + plot.height}"/><text class="tick" x="${xScale(value)}" y="${plot.y + plot.height + 18}" text-anchor="middle">${scale === "log-dose" ? powerLabel(value) : value}</text></g>`).join("");
   const referenceMarker = annotation.referenceX === undefined ? "" : `<line class="teaching-reference-dose" x1="${xScale(annotation.referenceX)}" x2="${xScale(annotation.referenceX)}" y1="${plot.y}" y2="${plot.y + plot.height}"/><text class="teaching-reference-dose-label" x="${xScale(annotation.referenceX) + 5}" y="${plot.y + 12}">${escapeXml(annotation.referenceLabel ?? "Reference")}</text>`;
   return `<g class="teaching-panel"><text class="teaching-panel-title" x="${panel.x}" y="${titleY}">${escapeXml(title)}</text><text class="teaching-panel-note" x="${panel.x}" y="${panel.y + 17}">${escapeXml(annotation.note)}</text><rect class="plot-bg teaching-panel-bg" x="${plot.x}" y="${plot.y}" width="${plot.width}" height="${plot.height}"/>${horizontal}${vertical}${referenceMarker}<path class="teaching-reference" fill="none" stroke="${REFERENCE}" stroke-width="2.5" d="${path(reference)}"/><path class="teaching-candidate" fill="none" stroke="${CANDIDATE}" stroke-width="2.5" d="${path(candidate)}"/><text class="axis-label" x="${plot.x + plot.width / 2}" y="${panel.y + panel.height - 1}" text-anchor="middle">${escapeXml(xLabel)}</text><text class="teaching-y-label" transform="translate(${panel.x + 12} ${plot.y + plot.height / 2}) rotate(-90)" text-anchor="middle">${escapeXml(yLabel)}</text></g>`;
@@ -438,6 +438,10 @@ function formatNumber(value: number): string {
 
 function formatPercent(value: number): string {
   return `${(100 * value).toFixed(1)}%`;
+}
+
+function formatPercentTick(value: number): string {
+  return `${Math.round(100 * value)}%`;
 }
 
 function escapeXml(value: string): string {
