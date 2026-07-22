@@ -84,6 +84,24 @@ does not replace source provenance, git history, or verification output.
   byte-identical rebuild checks at the recorded hash. CI and Pages deployment
   remain pending this repair commit.
 
+### 2026-07-22 -- narrow-layout deployment repair
+
+- **Objective:** remove the 360 px Chromium horizontal-overflow failure found
+  after the artifact identity repair.
+- **Implementation:** narrow grid and flex children may shrink under the
+  bundled Noto metrics; chart slots clip only horizontal SVG paint at phone
+  widths; and existing long status/footer text can break anywhere. Browser
+  smoke now reports uncontained element bounds if an overflow recurs.
+- **Scientific discriminator:** CSS and browser-test diagnostics only; no
+  scientific state, chart value, decision classification, data palette, or
+  export schema changed.
+- **Artifact:** build identity `source-a7a8914be4306e31`; SHA-256
+  `59bf5dd77c3c7b297ae7b7db268586c22cd17965fd1cb365d4d211a294187558`.
+- **Verification:** `npm run verify` passes: typecheck, 49 tests, fixture,
+  calibration, performance, cache-memory, build, artifact/browser smoke, and
+  release-negative CI-like deterministic rebuild checks. CI and Pages remain
+  pending this repair commit.
+
 ### 2026-07-17 -- frontend redesign execution baseline
 
 - **Objective:** execute `docs/frontend-redesign-implementation-tasks.md`

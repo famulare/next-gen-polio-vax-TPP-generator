@@ -291,6 +291,7 @@ fieldset > p { color: var(--muted); font-size: .78rem; }
 
 @media (max-width: 480px) {
   .app-shell, .site-footer { width: calc(100% - 28px); }
+  .opening > *, .chapter-heading > *, .controls-title > *, .control-row > *, .opening-meta > *, .linked-maps > *, .design-inspection > *, .mechanism-values > * { min-width: 0; }
   h1 { font-size: clamp(2.55rem, 15vw, 4.2rem); }
   h2 { font-size: 2rem; }
   .opening { padding-top: 30px; }
@@ -307,7 +308,9 @@ fieldset > p { color: var(--muted); font-size: .78rem; }
   .fixed-values { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .parameter-context { grid-template-columns: 1fr; gap: 2px; }
   .transmission-handshake dl { grid-template-columns: 1fr; }
-  .scientific-chart { overflow: hidden; }
+  .chart-slot { max-width: 100%; overflow-x: clip; }
+  .scientific-chart { max-width: 100%; overflow: hidden; }
+  .site-footer p, .prototype-banner span, #export-status { overflow-wrap: anywhere; }
 }
 
 @media (prefers-reduced-motion: reduce) {

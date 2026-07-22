@@ -309,7 +309,7 @@ try {
   if (!hash.startsWith("#scenario=")) throw new Error("Scenario was not serialized into the URL hash");
 
   await page.setViewportSize({ width: 360, height: 900 });
-  if (await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)) throw new Error("360 px viewport has horizontal overflow");
+  await assertNoHorizontalOverflow(page, "360 px viewport");
   await page.emulateMedia({ reducedMotion: "reduce", colorScheme: "light" });
   if (await page.evaluate(() => getComputedStyle(document.documentElement).scrollBehavior) !== "auto") throw new Error("Reduced-motion mode did not disable smooth scrolling");
   await page.locator("#product").focus();
@@ -318,7 +318,7 @@ try {
   if (await page.evaluate(() => getComputedStyle(document.activeElement).outlineStyle === "none")) throw new Error("Keyboard focus lacks a visible outline");
 
   await page.setViewportSize({ width: 600, height: 900 });
-  if (await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)) throw new Error("200%-equivalent desktop reflow has horizontal overflow");
+  await assertNoHorizontalOverflow(page, "200%-equivalent desktop reflow");
   await page.addStyleTag({ content: "html { filter: grayscale(1); }" });
   const settingText = await page.locator("#setting-figure").textContent();
   if (!settingText?.includes("PASSING SIDE") || !settingText.includes("FAILING SIDE") || !settingText.includes("R_loc = 1")) throw new Error("Grayscale setting surface lacks non-color threshold cues");
@@ -337,7 +337,7 @@ try {
   await waitForCommitted(touchPage);
   await touchPage.locator("#product-figure [data-design-key]").first().tap();
   if (!(await touchPage.locator("#design-inspector").textContent())?.includes("Held design")) throw new Error("Touch did not provide an equivalent persistent design readout");
-  if (await touchPage.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)) throw new Error("Touch viewport has horizontal overflow");
+  await assertNoHorizontalOverflow(touchPage, "touch viewport");
   await touchContext.close();
   console.log("Browser smoke: responsive, zoom, grayscale, contrast, print, motion, focus, and touch checks passed");
 
@@ -382,6 +382,28 @@ async function waitForStale(page) {
 async function waitForCommitted(page) {
   await page.locator("#transaction-status.committed").waitFor({ state: "visible", timeout: 30_000 });
   await page.locator("#result-status[data-model-identity]").waitFor({ state: "visible", timeout: 30_000 });
+}
+
+async function assertNoHorizontalOverflow(page, label) {
+  const overflow = await page.evaluate(() => {
+    const viewportWidth = window.innerWidth;
+    const isContained = (element) => {
+      for (let parent = element.parentElement; parent; parent = parent.parentElement) {
+        const overflowX = getComputedStyle(parent).overflowX;
+        if (["auto", "scroll", "hidden", "clip"].includes(overflowX)) return true;
+      }
+      return false;
+    };
+    const offenders = [...document.querySelectorAll("body *")].flatMap((element) => {
+      if (isContained(element)) return [];
+      const rect = element.getBoundingClientRect();
+      if (rect.right <= viewportWidth + 1 && rect.left >= -1) return [];
+      const name = element.id ? `#${element.id}` : element.classList.length ? `.${[...element.classList].join(".")}` : element.tagName.toLowerCase();
+      return [{ name, left: Math.round(rect.left), right: Math.round(rect.right), width: Math.round(rect.width) }];
+    }).slice(0, 8);
+    return { viewportWidth, scrollWidth: document.documentElement.scrollWidth, offenders };
+  });
+  if (overflow.scrollWidth > overflow.viewportWidth) throw new Error(`${label} has horizontal overflow: ${JSON.stringify(overflow)}`);
 }
 
 function contrastRatio(foreground, background) {
