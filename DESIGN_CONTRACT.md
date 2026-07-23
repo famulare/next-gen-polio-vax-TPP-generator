@@ -102,11 +102,13 @@ its viewBox-to-container ratio so tick, axis, legend, and note text all render a
 that floor uniformly across figures (narrow viewports scale the shared figures
 down proportionally); long rotated y-axis labels are shortened or wrapped so they neither
 overflow the plot nor collide with tick labels; and single-panel legends stack
-one item per row. An orienting paragraph after the hero lede states what the
-tool is, where its model and parameters come from (the India-calibrated
-within-host kernels, the post-cessation stability analysis, and the Matlab
-household-exposure calibration), and what the reader does, while disclaiming any
-new model or clinical prediction. Model variables written with underscores
+one item per row. An orienting paragraph after the hero lede frames the
+question the tool explores (how much shedding reduction a vaccine must produce
+to interrupt transmission in any setting under a given schedule), names the
+published model it is based on (PLoS Biology, 2018) and its serology-based
+mucosal-immunity mechanism, states the close-contact sufficiency assumption
+(`R_loc` below one likely suffices anywhere), and flags the roughly 100- to
+1,000-fold shedding-index reduction to look for. Model variables written with underscores
 (`R_loc`, `R_e`, `q_acq`, `q_shed`, `q_index`, `N_s`, `T_ih`/`T_hs`, `d_ih`/`d_hs`) render as
 typographic subscripts in visible text — HTML `<sub>` and baseline-shifted SVG
 `<tspan>` — applied only at the view boundary so plain-text contexts (tooltips,
