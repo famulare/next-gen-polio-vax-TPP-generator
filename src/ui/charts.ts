@@ -247,7 +247,6 @@ export function renderSettingSurface(outputs: ModelOutputsV1, view: ChartViewSta
       : `<circle class="anchor-point${anchor.kind === "hybrid" ? " hybrid-anchor" : ""}" cx="${x(anchor.Tih.value)}" cy="${y(anchor.Ns)}" r="5"/>`;
     return `<g class="anchor-group${probe ? " probe-anchor" : ""}">${shape}${probe ? `<circle class="probe-ring" cx="${x(anchor.Tih.value)}" cy="${y(anchor.Ns)}" r="10"/>` : ""}<text class="anchor-label" x="${x(anchor.Tih.value) + dx}" y="${y(anchor.Ns) + dy}" text-anchor="${anchorText}">${escapeXml(anchorShortLabel(anchor.id))}</text></g>`;
   }).join("");
-  const matlabY = y(3);
   const activePoint = outputs.settingSurface.find((point) => exposures.indexOf(point.Tih) === view.surfaceColumn && contacts.indexOf(point.Ns) === view.surfaceRow) ?? outputs.settingSurface[0]!;
   const ticksX = [0.1, 1, 10, 100, 1000, 2000].map((micrograms) => `<g><line class="tick-mark" x1="${x(micrograms / 1_000_000)}" x2="${x(micrograms / 1_000_000)}" y1="${margin.top + plotHeight}" y2="${margin.top + plotHeight + 6}"/><text class="tick" x="${x(micrograms / 1_000_000)}" y="${margin.top + plotHeight + 22}" text-anchor="middle">${micrograms >= 1000 ? `${micrograms / 1000}k` : micrograms}</text></g>`).join("");
   const ticksY = [1, 5, 10, 15, 20].map((contact) => `<g><line class="grid-line" x1="${margin.left}" x2="${margin.left + plotWidth}" y1="${y(contact)}" y2="${y(contact)}"/><text class="tick" x="${margin.left - 12}" y="${y(contact) + 4}" text-anchor="end">${contact}</text></g>`).join("");
@@ -263,8 +262,6 @@ export function renderSettingSurface(outputs: ModelOutputsV1, view: ChartViewSta
     <text class="side-label pass-side" x="${margin.left + 15}" y="${margin.top + plotHeight - 16}">PASSING SIDE · lower exposure / fewer contacts</text>
     <text class="side-label fail-side" x="${margin.left + plotWidth - 15}" y="${margin.top + 22}" text-anchor="end">FAILING SIDE · greater transmission pressure</text>
     ${scopeMark}
-    <line class="hybrid-interval" x1="${x(3.2 / 1_000_000)}" x2="${x(61.7 / 1_000_000)}" y1="${matlabY}" y2="${matlabY}"/>
-    <text class="hybrid-label" x="${x(61.7 / 1_000_000) + 7}" y="${matlabY + 13}">Matlab household · 3.2–61.7 µg/day (hybrid)</text>
     ${anchors}${ticksX}
     <text class="axis-label" x="${margin.left + plotWidth / 2}" y="${height - 17}" text-anchor="middle">Linked stool-equivalent exposure, T (µg/exposure · log scale)</text>
     <text class="axis-label" transform="translate(20 ${margin.top + plotHeight / 2}) rotate(-90)" text-anchor="middle">Close social contacts, N_s</text>
@@ -422,7 +419,7 @@ function selectedExactMark(cx: number, cy: number, rightBoundary: number, plotTo
 }
 
 function anchorShortLabel(id: string): string {
-  return id === "low" ? "Low" : id === "houston" ? "Houston / Louisiana" : id === "matlab" ? "Matlab hybrid" : "UP / Bihar · decision anchor";
+  return id === "low" ? "Low" : id === "houston" ? "Houston / Louisiana" : id === "matlab" ? "Matlab · daily-exposure hybrid" : "UP / Bihar · decision anchor";
 }
 
 function formatMicrograms(grams: number): string {

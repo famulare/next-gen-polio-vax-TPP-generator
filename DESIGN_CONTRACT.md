@@ -2,7 +2,7 @@
 
 **Status:** LOCKED FOR IMPLEMENTATION
 
-**Contract version:** 1.8
+**Contract version:** 1.9
 
 **Locked:** 2026-07-21
 
@@ -54,6 +54,25 @@ requirement and product-design maps. The amendment adds deterministic,
 read-only within-host diagnostics and a schedule-derived immunity-distribution
 view. It changes neither equations, parameters, defaults, units, comparators,
 success rule, uncertainty semantics, nor the meaning of `R_loc`.
+
+**Communication rework amendment 2026-07-22 (contract 1.9):** a
+communication-and-interactivity revision of the same locked model. Stage 3 of
+that revision: (a) within the decision chapter the setting surface now precedes
+the direct `R_loc` verdict, which remains present and legible at the
+setting-surface step (§13.5, §13.9, §18.11); (b) the measurement/provenance map
+(§13.6, §17.13, §18.18) is delivered as point-of-use provenance tags — measured,
+derived, scenario input, assumption, and not-measured — distributed through the
+narrative, together with a compact collapsible "Provenance & units" reference
+retained in place as the `#measurement` section before the linked maps, whose
+full table content is unchanged; (c) the plotted Matlab exposure interval is
+removed from the setting surface to reduce clutter (§10.2, §13.5), while the
+Matlab marker remains a distinct hybrid anchor whose daily-exposure basis is
+stated in its on-plot label and the provenance reference. Later stages of this
+rework (recorded in git) add a live-preview tier to the existing committed/stale
+interaction model, link a master parameter panel with inline per-section
+controls, and add further read-only teaching figures. Every 1.9 change alters no
+equation, parameter, default, unit, comparator, success rule, uncertainty
+semantics, or the meaning of `R_loc`.
 
 **Primary audience:** people well versed in vaccine development who do not yet
 have a clean mechanistic mental model analogous to this mathematical model
@@ -729,9 +748,12 @@ must not infer a correlation between them without a versioned empirical model.
 | Matlab household exposure | 18.6 micrograms/day for contacts under 5 | 3 provisional | `10^-4.73 g/day` from Taniuchi 2017 Table S6; `N_s` is borrowed from the published moderate-setting reduction because the Matlab study did not fit the extrafamilial link |
 | UP/Bihar high | 230 micrograms/exposure | 10 | Published Fig 9 high setting, calibrated to UP/Bihar 2003-2008 household prevalence data |
 
-The Matlab marker must be visually distinguishable as a hybrid mapping, with an
-exposure interval of approximately 3.2-61.7 micrograms/day from the reported
-95% confidence interval. Its tooltip must state that the trial estimated the
+The Matlab marker must be visually distinguishable as a hybrid mapping, with its
+daily-exposure basis made explicit. (Contract 1.9 removes the plotted
+3.2-61.7 micrograms/day exposure interval — derived from the reported 95%
+confidence interval — from the setting surface to reduce clutter; the interval
+value is retained in the provenance reference rather than drawn as an on-plot
+error bar.) Its tooltip or label must state that the trial estimated the
 index-to-household link only and that the social-contact component is inherited,
 not calibrated in Matlab.
 
@@ -1035,8 +1057,8 @@ transmission route has been modeled.
 
 ### 13.5 Visual 1 -- setting surface (required decision visual)
 
-After Section 13.4, present the direct UP/Bihar decision result and the
-dominant setting surface:
+After Section 13.4, present the dominant setting surface and, immediately below
+it, the direct UP/Bihar decision result (order per the 1.9 amendment):
 
 - x-axis: fecal-oral exposure/sanitation, log scale;
 - y-axis: number of close social contacts;
@@ -1044,8 +1066,9 @@ dominant setting surface:
   `R_loc = 1` at the near-white center;
 - a strong `R_loc = 1` contour plus a non-color cue that distinguishes the
   passing and failing sides;
-- named anchor points and a collision-aware Matlab exposure interval whose
-  daily exposure basis and hybrid status are explicit;
+- named anchor points, including a Matlab hybrid anchor whose daily-exposure
+  basis and hybrid status are explicit in its label (contract 1.9 removes the
+  previously plotted Matlab exposure interval; see §10.2);
 - the selected product and schedule reflected immediately;
 - the UP/Bihar default decision anchor or selected alternative scope marked
   distinctly from the display-domain bounds; and

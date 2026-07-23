@@ -1,6 +1,6 @@
 {
   "schemaVersion": "ProvenanceV1",
-  "designContract": "1.8",
+  "designContract": "1.9",
   "generatedAt": "2026-07-15",
   "sourceFiles": [
     "/Users/famulare/git/famulare/india-polio/model/R/mixture.R",
