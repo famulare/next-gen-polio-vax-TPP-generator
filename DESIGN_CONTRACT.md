@@ -68,11 +68,22 @@ full table content is unchanged; (c) the plotted Matlab exposure interval is
 removed from the setting surface to reduce clutter (§10.2, §13.5), while the
 Matlab marker remains a distinct hybrid anchor whose daily-exposure basis is
 stated in its on-plot label and the provenance reference. Later stages of this
-rework (recorded in git) add a live-preview tier to the existing committed/stale
-interaction model, link a master parameter panel with inline per-section
-controls, and add further read-only teaching figures. Every 1.9 change alters no
-equation, parameter, default, unit, comparator, success rule, uncertainty
-semantics, or the meaning of `R_loc`.
+rework (recorded in git) added read-only teaching figures — a vaccine
+dose-response figure, an original motif illustration, and a view-only
+per-contact `R_loc` readout — and then simplified interaction: any control edit
+updates the teaching figures and the direct verdict as an instant live preview
+and auto-commits the full frontier, maps, and exports after a short debounce,
+with no manual "Update the model" step; the separate inspection probe is merged
+into a single decision-scope selector (choosing a named setting both decides and
+inspects it), so `metrics.rLocSelectedSetting` and the surface marker follow the
+scope; and the custom-scope option plus the advanced-controls drawer (custom
+probe/scope bounds and the master parameter panel) are removed, with the fixed
+v1 assumptions relocated into the "Provenance & units" reference. This
+supersedes the earlier two-tier "Update the model" commit gate, the
+three-distinct-objects control model, and any custom-envelope / axis-unlinking
+UI affordance (§10.3, §13.8, §18.17, §18.20). Every 1.9 change
+alters no equation, parameter, default, unit, comparator, success rule,
+uncertainty semantics, or the meaning of `R_loc`.
 
 **Primary audience:** people well versed in vaccine development who do not yet
 have a clean mechanistic mental model analogous to this mathematical model
@@ -1720,10 +1731,11 @@ The following decisions are binding for v1:
 16. The primary audience is people well versed in vaccine development who do
     not yet have a clean mechanistic mental model analogous to this mathematical
     model.
-17. Candidate product/schedule, selected setting probe, and decision scope are
-    distinct. UP/Bihar high is the default decision scope; another named point
-    or custom envelope changes classification only through an explicit labeled
-    selection.
+17. (Amended in 1.9, §18.20) Candidate product/schedule and a single decision
+    scope are the interactive objects. UP/Bihar high is the default decision
+    scope; choosing another named setting changes both the reported decision and
+    the on-surface inspection to that setting. (The earlier separate inspection
+    probe and custom envelope are removed.)
 18. The measurement/provenance map is part of the core explanatory design.
     The fixed-grid, read-only within-host teaching diagnostics and
     schedule-derived immunity-distribution view are part of the core
@@ -1733,22 +1745,18 @@ The following decisions are binding for v1:
     anchor. Clearing it supports likely adequacy under less demanding conditions
     represented by the model, but is not presented as proof for every place or
     present-day setting.
-20. (Contract 1.9) Interaction is two-tier. Scientific control edits — candidate
-    product, `take_context`, `mu0_new`, `alpha_vax`, `beta_vax`, vaccine dose,
-    booster, assessment age, and decision scope — recompute the cheap teaching,
-    immunity-distribution, and setting-surface figures and their point readouts as
-    a live, deterministic, uncommitted preview, and simultaneously mark the
-    outcome/product frontier, the direct decision result, and all exports stale
-    until an explicit "Update the model" commit. The inspection probe and
-    setting-surface cell inspection are independent live readouts that never change
-    model identity or the frontier; a probe change re-commits by reusing the
-    committed frontier, so exports stay available. Staleness is defined exactly as
-    a mismatch between the live projection's scientific identity and the committed
-    model identity. Only the committed scenario is serialized to the URL hash and
-    to exports; the live preview is never hashed anew nor exported, and introduces
-    no runtime randomness. A single scenario field may be exposed by a master
-    parameter panel and by inline per-section controls; all instances are two-way
-    linked through one write-back and always display one value.
+20. (Contract 1.9, superseding the earlier two-tier "Update the model" commit)
+    Interaction auto-commits. Any control edit instantly updates the teaching,
+    immunity-distribution, dose-response, and setting-surface figures and the
+    direct verdict as a deterministic live preview, and the full frontier, linked
+    maps, and exports auto-commit after a short debounce — there is no manual
+    "Update the model" step. Each settled edit becomes the committed scenario,
+    serialized to the URL hash and exports; the brief in-flight preview is never
+    hashed anew nor exported, and no runtime randomness is introduced. A single
+    decision-scope selector fixes both the reported scope (envelope) and the
+    inspected setting to one named anchor. Setting-surface cell inspection and the
+    per-contact `R_loc` readout (§18.21) remain view-only and never change model
+    identity, the committed decision, or exports.
 21. (Contract 1.9) Two bounded read-only teaching figures are added, plus one
     view-only readout. (a) A vaccine dose-response figure in the product chapter
     (§13.3) plots productive vaccine take versus administered dose at a naive and a

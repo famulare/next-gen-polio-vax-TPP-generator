@@ -126,7 +126,7 @@ try {
   if (!defaultResult.includes("Direct Rloc0.920") || !defaultResult.includes("does not prove control everywhere")) throw new Error("Default result or adjacent qualification is wrong");
   if (!defaultResult.includes("not a complete-population R_e")) throw new Error("Result blurs R_loc and complete-population R_e");
   if (await page.locator("#scope").inputValue() !== "up-bihar") throw new Error("UP/Bihar is not the default decision scope");
-  if (await page.locator("#probe").inputValue() !== "up-bihar") throw new Error("UP/Bihar is not the default inspection probe");
+  if (await page.locator("#probe").count()) throw new Error("A separate inspection probe control still exists; it should be merged into decision scope");
   const narrativeOrder = await page.evaluate(() => ["within-host", "product-pathway", "transmission", "decision", "measurement", "design-space"].map((id) => [...document.querySelectorAll("section")].indexOf(document.getElementById(id))));
   if (narrativeOrder.some((index, position) => position > 0 && index <= narrativeOrder[position - 1])) throw new Error("Teaching chapters are not in within-host, product, transmission, decision, measurement, design order");
   const resultAfterTransmission = await page.evaluate(() => {
@@ -162,32 +162,30 @@ try {
   if (await page.locator("[data-export]").first().isDisabled()) throw new Error("Exports were not enabled for the committed default");
   if (await page.locator("#transaction-status").getAttribute("aria-live") !== "polite") throw new Error("Committed results lack a concise live announcement");
 
-  const defaultIdentity = await page.locator("#result-status").getAttribute("data-model-identity");
-  await page.selectOption("#probe", "low");
-  // The inspection probe is an independent live readout: it updates without marking
-  // the result stale, without disabling export, and without changing scientific identity.
-  await page.waitForFunction(() => document.getElementById("probe-summary")?.textContent?.includes("Low transmission"), null, { timeout: 30_000 });
-  await waitForCommitted(page);
-  if (await page.locator("#result-status").getAttribute("data-model-identity") !== defaultIdentity) throw new Error("Probe-only change altered scientific identity");
-  if (await page.locator("[data-export]").first().isDisabled()) throw new Error("Probe-only change disabled export");
-  if (!(await page.locator("#scope-summary").textContent())?.includes("UP/Bihar")) throw new Error("Probe-only change altered decision scope");
-  console.log("Browser smoke: probe/scope identity checked");
+  let identity = await page.locator("#result-status").getAttribute("data-model-identity");
+  // One decision-scope selector both decides and inspects the same named setting, and
+  // auto-commits (no manual step): changing it changes the committed identity and verdict.
+  await page.selectOption("#scope", "low");
+  await awaitCommit(page, identity);
+  if (!(await page.locator("#scope-summary").textContent())?.includes("Low transmission")) throw new Error("Decision-scope change did not update the scope summary");
+  if (await page.locator("[data-export]").first().isDisabled()) throw new Error("Committed decision-scope change left export disabled");
+  identity = await page.locator("#result-status").getAttribute("data-model-identity");
+  await page.selectOption("#scope", "up-bihar");
+  await awaitCommit(page, identity);
+  console.log("Browser smoke: decision-scope selector checked");
 
+  identity = await page.locator("#result-status").getAttribute("data-model-identity");
   await page.selectOption("#product", "sabin2");
-  await waitForStale(page);
+  await awaitCommit(page, identity);
   if (!(await page.locator("#hypothetical-controls").evaluate((element) => element.hidden)) || !(await page.locator("#take").isDisabled())) throw new Error("Fixed Sabin 2 exposed hypothetical product controls");
   if (!(await page.locator("#catalog-product-note").textContent())?.includes("fixed catalog comparator")) throw new Error("Sabin 2 catalog semantics are not visible");
-  await page.locator("#compute").click();
-  await waitForCommitted(page);
+  identity = await page.locator("#result-status").getAttribute("data-model-identity");
   await page.selectOption("#product", "ipv");
-  await waitForStale(page);
+  await awaitCommit(page, identity);
   if (!(await page.locator("#catalog-product-note").textContent())?.includes("fixed non-live comparator")) throw new Error("IPV catalog semantics are not visible");
-  await page.locator("#compute").click();
-  await waitForCommitted(page);
+  identity = await page.locator("#result-status").getAttribute("data-model-identity");
   await page.selectOption("#product", "hypothetical");
-  await waitForStale(page);
-  await page.locator("#compute").click();
-  await waitForCommitted(page);
+  await awaitCommit(page, identity);
   if (await page.locator("#take").isDisabled() || await page.locator("#hypothetical-controls").evaluate((element) => element.hidden)) throw new Error("Hypothetical product controls were not restored");
   console.log("Browser smoke: product controls checked");
 
@@ -202,10 +200,9 @@ try {
   const heldKey = await firstDesign.getAttribute("data-design-key");
   if (await page.locator(`#effect-figure [data-design-key="${heldKey}"]`).count() !== 1) throw new Error("Product selection has no linked effect-space mark");
   if (!(await page.locator(`#effect-figure [data-design-key="${heldKey}"]`).evaluate((element) => element.classList.contains("is-persistent")))) throw new Error("Persistent selection was not linked across maps");
+  const useIdentity = await page.locator("#result-status").getAttribute("data-model-identity");
   await page.locator("#use-design").click();
-  await waitForStale(page);
-  await page.locator("#compute").click();
-  await waitForCommitted(page);
+  await awaitCommit(page, useIdentity);
   if (await page.locator("#take").inputValue() !== "0" || await page.locator("#mu").inputValue() !== "0") throw new Error("Use this design did not promote the held grid point");
 
   await page.locator("#product-figure").focus();
@@ -235,53 +232,42 @@ try {
   await page.keyboard.press("ArrowRight");
   if (await page.locator("#setting-figure .chart-readout").textContent() === surfaceReadout) throw new Error("Setting-surface keyboard traversal did not update readout");
 
-  const preEditImmunity = await page.locator("#immunity-distribution-figure").innerHTML();
-  const preEditIdentity = await page.locator("#result-status").getAttribute("data-model-identity");
-  await page.locator("#take").evaluate((element) => {
-    element.value = "0.01";
-    element.dispatchEvent(new Event("input", { bubbles: true }));
-  });
-  await waitForStale(page);
-  if (!(await page.locator("#story-results").evaluate((element) => element.classList.contains("is-stale")))) throw new Error("Prior result is not visibly marked stale");
-  if (!(await page.locator("#setting-figure").count()) || !(await page.locator("#result-status").textContent())?.includes("Direct Rloc")) throw new Error("Prior committed result disappeared during recomputation");
-  if (!(await page.locator("[data-export]").first().isDisabled())) throw new Error("Stale result remained exportable");
-  // Two-tier: the light teaching figure updates live during the stale scientific edit,
-  // while the committed verdict and its identity stay unchanged until an explicit commit.
-  if (await page.locator("#immunity-distribution-figure").innerHTML() === preEditImmunity) throw new Error("Light figure did not update live during a stale scientific edit");
-  if (await page.locator("#result-status").getAttribute("data-model-identity") !== preEditIdentity) throw new Error("Stale scientific edit changed the committed identity before commit");
-  await page.locator("#compute").click();
-  await waitForCommitted(page);
-
-  await page.selectOption("#scope", "custom");
-  // Custom scope is a scientific edit; commit it explicitly before the invalid probe below.
-  await page.locator("#compute").click();
-  await waitForCommitted(page);
-  await page.locator("#scope-t-min").evaluate((element) => {
-    element.value = "0";
-    element.dispatchEvent(new Event("change", { bubbles: true }));
-  });
-  // An invalid scientific edit is caught in the light recompute and fails closed.
-  await page.locator("#transaction-status.invalid").waitFor({ state: "visible", timeout: 30_000 });
-  if (!(await page.locator("#setting-figure").count())) throw new Error("Invalid edit removed prior committed figure instead of retaining it stale");
-  if (!(await page.locator("[data-export]").first().isDisabled())) throw new Error("Invalid edited state remained exportable");
-  if (!(await page.locator("#state-warning").textContent())?.includes("TihMin")) throw new Error("Invalid scientific state did not expose actionable validation");
-  console.log("Browser smoke: stale and invalid transactions checked");
-
   await page.locator("#reset").click();
   await waitForCommitted(page);
-  await page.selectOption("#scope", "custom");
-  await page.evaluate(() => {
-    const values = {
-      "scope-t-min": "2000", "scope-t-max": "2000", "scope-ns-min": "20", "scope-ns-max": "20",
-      "scope-dih-min": "1", "scope-dih-max": "1", "scope-dhs-min": "8.9685", "scope-dhs-max": "8.9685"
-    };
-    for (const [id, value] of Object.entries(values)) document.getElementById(id).value = value;
-    document.getElementById("scope-dhs-max").dispatchEvent(new Event("change", { bubbles: true }));
+  const preEditImmunity = await page.locator("#immunity-distribution-figure").innerHTML();
+  const preEditRloc = await page.locator("#result-status .result-number strong").textContent();
+  const takeIdentity = await page.locator("#result-status").getAttribute("data-model-identity");
+  await page.locator("#take").evaluate((element) => {
+    element.value = "0.1";
+    element.dispatchEvent(new Event("input", { bubbles: true }));
   });
-  await waitForStale(page);
-  await page.locator("#compute").click();
+  // The verdict and figures update live on the edit; the frontier maps/exports auto-commit
+  // shortly after, with no manual "Update the model" step.
+  await page.waitForFunction((prev) => document.querySelector("#result-status .result-number strong")?.textContent !== prev, preEditRloc, { timeout: 30_000 });
+  if (await page.locator("#immunity-distribution-figure").innerHTML() === preEditImmunity) throw new Error("Live figure did not update on a scientific edit");
+  if (!(await page.locator("#setting-figure").count()) || !(await page.locator("#result-status").textContent())?.includes("Direct Rloc")) throw new Error("Verdict block disappeared during a live edit");
+  await awaitCommit(page, takeIdentity);
+  if (await page.locator("[data-export]").first().isDisabled()) throw new Error("Exports were not re-enabled after auto-commit");
+  console.log("Browser smoke: live verdict and auto-commit checked");
+
+  // An out-of-range scientific edit fails closed: prior verdict retained + dimmed, export
+  // disabled; recovering re-commits and clears the dimming (no permanently stale verdict).
+  await page.locator("#reset").click();
   await waitForCommitted(page);
-  if (!(await page.locator("#frontier-summary").textContent())?.includes("No evaluated hypothetical design")) throw new Error("Harsh scope did not expose empty-frontier branch");
+  await page.locator("#alpha").evaluate((element) => { element.value = "0"; element.dispatchEvent(new Event("change", { bubbles: true })); });
+  await page.locator("#transaction-status.invalid").waitFor({ state: "visible", timeout: 30_000 });
+  if (!(await page.locator("[data-export]").first().isDisabled())) throw new Error("Invalid edited state remained exportable");
+  if (!(await page.locator("#story-results").evaluate((element) => element.classList.contains("is-stale")))) throw new Error("Invalid edit did not dim the retained verdict");
+  await page.locator("#reset").click();
+  await waitForCommitted(page);
+  if (await page.locator("#story-results").evaluate((element) => element.classList.contains("is-stale"))) throw new Error("Verdict stayed dimmed after recovering from an invalid edit");
+  console.log("Browser smoke: invalid edit fails closed and recovers checked");
+
+  // A reachable weak-dose design yields an empty frontier (no passing design).
+  const emptyIdentity = await page.locator("#result-status").getAttribute("data-model-identity");
+  await page.locator("#dose-log").evaluate((element) => { element.value = "0"; element.dispatchEvent(new Event("change", { bubbles: true })); });
+  await awaitCommit(page, emptyIdentity);
+  if (!(await page.locator("#frontier-summary").textContent())?.includes("No evaluated hypothetical design")) throw new Error("Weak-dose scenario did not expose the empty-frontier branch");
   if (await page.locator("#effect-figure .pareto-line").count()) throw new Error("Empty frontier retained a Pareto line element");
   if (!(await page.locator("#effect-figure .empty-frontier").count())) throw new Error("Empty frontier lacks direct accessible chart annotation");
   console.log("Browser smoke: empty frontier checked");
@@ -403,13 +389,19 @@ try {
   await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
 }
 
-async function waitForStale(page) {
-  await page.locator("#transaction-status.stale").waitFor({ state: "visible", timeout: 30_000 });
-}
-
 async function waitForCommitted(page) {
   await page.locator("#transaction-status.committed").waitFor({ state: "visible", timeout: 30_000 });
   await page.locator("#result-status[data-model-identity]").waitFor({ state: "visible", timeout: 30_000 });
+}
+
+// After an auto-committing edit: wait for the verdict identity to change (the live tier
+// updated) then for the debounced full commit. Avoids racing the transient recompute window.
+async function awaitCommit(page, previousIdentity) {
+  await page.waitForFunction((prev) => {
+    const el = document.getElementById("result-status");
+    return !!el && !!el.dataset.modelIdentity && el.dataset.modelIdentity !== prev;
+  }, previousIdentity, { timeout: 30_000 });
+  await waitForCommitted(page);
 }
 
 async function assertNoHorizontalOverflow(page, label) {

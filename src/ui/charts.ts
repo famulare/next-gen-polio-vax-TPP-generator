@@ -266,7 +266,6 @@ export function renderSettingSurface(outputs: TeachingView, view: ChartViewState
     : "";
   const anchors = SETTING_ANCHORS.map((anchor) => {
     const activeScope = anchor.id === scope.id;
-    const probe = anchor.id === outputs.scenario.setting.id;
     const offsets: Record<string, [number, number, string]> = {
       low: [8, 21, "start"],
       houston: [8, -13, "start"],
@@ -275,9 +274,9 @@ export function renderSettingSurface(outputs: TeachingView, view: ChartViewState
     };
     const [dx, dy, anchorText] = offsets[anchor.id] ?? [8, -8, "start"];
     const shape = activeScope
-      ? `<path class="anchor-point decision-anchor" d="M ${x(anchor.Tih.value)} ${y(anchor.Ns) - 7} l 7 7 -7 7 -7 -7 z"/>`
+      ? `<g class="anchor-group decision-anchor-group"><circle class="decision-anchor-ring" cx="${x(anchor.Tih.value)}" cy="${y(anchor.Ns)}" r="10"/><path class="anchor-point decision-anchor" d="M ${x(anchor.Tih.value)} ${y(anchor.Ns) - 7} l 7 7 -7 7 -7 -7 z"/></g>`
       : `<circle class="anchor-point${anchor.kind === "hybrid" ? " hybrid-anchor" : ""}" cx="${x(anchor.Tih.value)}" cy="${y(anchor.Ns)}" r="5"/>`;
-    return `<g class="anchor-group${probe ? " probe-anchor" : ""}">${shape}${probe ? `<circle class="probe-ring" cx="${x(anchor.Tih.value)}" cy="${y(anchor.Ns)}" r="10"/>` : ""}<text class="anchor-label" x="${x(anchor.Tih.value) + dx}" y="${y(anchor.Ns) + dy}" text-anchor="${anchorText}">${escapeXml(anchorShortLabel(anchor.id))}</text></g>`;
+    return `<g class="anchor-group">${shape}<text class="anchor-label" x="${x(anchor.Tih.value) + dx}" y="${y(anchor.Ns) + dy}" text-anchor="${anchorText}">${escapeXml(anchorShortLabel(anchor.id))}</text></g>`;
   }).join("");
   const activePoint = outputs.settingSurface.find((point) => exposures.indexOf(point.Tih) === view.surfaceColumn && contacts.indexOf(point.Ns) === view.surfaceRow) ?? outputs.settingSurface[0]!;
   const ticksX = [0.1, 1, 10, 100, 1000, 2000].map((micrograms) => `<g><line class="tick-mark" x1="${x(micrograms / 1_000_000)}" x2="${x(micrograms / 1_000_000)}" y1="${margin.top + plotHeight}" y2="${margin.top + plotHeight + 6}"/><text class="tick" x="${x(micrograms / 1_000_000)}" y="${margin.top + plotHeight + 22}" text-anchor="middle">${micrograms >= 1000 ? `${micrograms / 1000}k` : micrograms}</text></g>`).join("");
@@ -451,7 +450,7 @@ function selectedExactMark(cx: number, cy: number, rightBoundary: number, plotTo
 }
 
 function anchorShortLabel(id: string): string {
-  return id === "low" ? "Low" : id === "houston" ? "Houston / Louisiana" : id === "matlab" ? "Matlab · daily-exposure hybrid" : "UP / Bihar · decision anchor";
+  return id === "low" ? "Low" : id === "houston" ? "Houston / Louisiana" : id === "matlab" ? "Matlab · daily-exposure hybrid" : "UP / Bihar high";
 }
 
 function formatMicrograms(grams: number): string {

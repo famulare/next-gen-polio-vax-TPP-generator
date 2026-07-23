@@ -22,13 +22,14 @@ import type { AnchorSettingId, DesignGridPoint, EnvelopeV1, ModelOutputsV1, Prod
 import { renderEffectMap, renderImmunityDistribution, renderProductMap, renderSettingSurface, renderVaccineDoseResponse, renderWithinHostTeaching } from "./ui/charts";
 import type { ChartViewState } from "./ui/charts";
 import { BRAND_COLORS, BRAND_FONT_FAMILIES, SCIENTIFIC_SURFACE_COLORS, brandFontFaceCss, installBrandFonts } from "./ui/brand";
-import { buildPresentation, describeDecisionScope, designKey } from "./ui/presentation";
+import { buildCandidate, buildPresentation, buildResult, describeDecisionScope, designKey } from "./ui/presentation";
 
 
 declare const __BUILD_IDENTITY__: string;
 
 const APP_VERSION = "0.5.0-prototype";
-const LIGHT_UPDATE_DELAY_MS = 90;
+const LIGHT_UPDATE_DELAY_MS = 45;
+const HEAVY_COMMIT_DELAY_MS = 240;
 const BUILD_IDENTITY = __BUILD_IDENTITY__;
 const PROTOTYPE_STATUS = "Scientific prototype: direct point-rule close-contact results under the v1 sufficiency axiom";
 const JSON_EXPORT_SCHEMA_VERSION = "PrototypeModelExportV2";
@@ -46,6 +47,7 @@ export function mountApp(root: HTMLElement): void {
   let committedOutputs: ModelOutputsV1 | null = null;
   let liveOutputs: TeachingView | null = null;
   let lightTimer: number | undefined;
+  let heavyTimer: number | undefined;
   const view: AppViewState = {
     inspectedDesignKey: null,
     persistentDesignKey: null,
@@ -69,33 +71,25 @@ export function mountApp(root: HTMLElement): void {
       view.inspectedDesignKey = null;
       view.persistentDesignKey = null;
       syncControls(draftScenario);
-      commitHeavy("Versioned defaults restored.");
+      commitNow("Versioned defaults restored.");
     });
-    byId<HTMLButtonElement>("compute").addEventListener("click", () => commitHeavy("Update committed."));
     byId<HTMLSelectElement>("product").addEventListener("change", (event) => {
       draftScenario = scenarioWithProduct(draftScenario, (event.target as HTMLSelectElement).value as ProductId);
       syncControls(draftScenario);
-      scheduleLight("Candidate changed.");
-    });
-    byId<HTMLSelectElement>("probe").addEventListener("change", (event) => {
-      const id = (event.target as HTMLSelectElement).value as SettingId;
-      draftScenario = scenarioWithSetting(draftScenario, id);
-      syncControls(draftScenario);
-      scheduleLight("Inspection probe changed.");
+      onEdit();
     });
     byId<HTMLSelectElement>("scope").addEventListener("change", (event) => {
-      const id = (event.target as HTMLSelectElement).value;
-      if (id !== "custom") draftScenario = scenarioWithDecisionScope(draftScenario, id as AnchorSettingId);
-      syncScopeVisibility(id);
-      if (id !== "custom") syncScopeControls(draftScenario.envelope);
-      scheduleLight("Decision scope changed.");
+      const id = (event.target as HTMLSelectElement).value as AnchorSettingId;
+      // One selector decides and inspects the same named setting.
+      draftScenario = scenarioWithSetting(scenarioWithDecisionScope(draftScenario, id), id);
+      syncControls(draftScenario);
+      onEdit();
     });
     document.querySelectorAll<HTMLInputElement | HTMLSelectElement>("[data-model-control]").forEach((input) => {
       const eventName = input instanceof HTMLInputElement && input.type === "range" ? "input" : "change";
       input.addEventListener(eventName, () => {
-        mirrorField(input);
         updateReadouts();
-        scheduleLight("Scientific controls changed.");
+        onEdit();
       });
     });
     byId<HTMLButtonElement>("use-design").addEventListener("click", () => {
@@ -105,7 +99,7 @@ export function mountApp(root: HTMLElement): void {
       draftScenario = scenarioWithProduct(draftScenario, "hypothetical");
       draftScenario.vaccine = { ...draftScenario.vaccine, takeContext: point.takeContext, mu0: point.mu0 };
       syncControls(draftScenario);
-      scheduleLight("Selected grid design promoted to the scientific scenario.");
+      onEdit();
     });
   }
 
@@ -184,8 +178,6 @@ export function mountApp(root: HTMLElement): void {
       if (event.key !== "Escape") return;
       view.inspectedDesignKey = null;
       view.persistentDesignKey = null;
-      const advanced = byId<HTMLDetailsElement>("advanced-controls");
-      advanced.open = false;
       view.drawerOpen = false;
       renderLinkedInspection();
     });
@@ -224,30 +216,50 @@ export function mountApp(root: HTMLElement): void {
   // render it live. If the edit changed scientific identity, the committed frontier
   // and verdict are marked stale until an explicit commit; a probe-only edit (which
   // never changes identity) re-commits by reusing the committed frontier.
-  function scheduleLight(message: string): void {
+  // Any control edit updates the cheap teaching figures + verdict instantly (live tier),
+  // then auto-commits the full frontier/maps/exports a short debounce after the last edit.
+  // No manual "Update the model" step.
+  function onEdit(): void {
     if (lightTimer !== undefined) window.clearTimeout(lightTimer);
-    lightTimer = window.setTimeout(() => {
-      lightTimer = undefined;
-      let draft: ScenarioV1;
-      try { draft = readControls(draftScenario); }
-      catch (error) { renderInvalid(error); return; }
-      draftScenario = draft;
-      let live: TeachingView;
-      try { live = evaluateScenarioLight(structuredClone(draft)); }
-      catch (error) { renderInvalid(error); return; }
-      liveOutputs = live;
-      hideWarning();
-      renderTeaching(live);
-      if (!committedOutputs) return;
-      if (live.diagnostics.modelIdentity === committedOutputs.modelIdentity) recommitNonScientific(live, message);
-      else markStale(message);
-    }, LIGHT_UPDATE_DELAY_MS);
+    lightTimer = window.setTimeout(renderLivePreview, LIGHT_UPDATE_DELAY_MS);
+    if (heavyTimer !== undefined) window.clearTimeout(heavyTimer);
+    heavyTimer = window.setTimeout(commitDebounced, HEAVY_COMMIT_DELAY_MS);
   }
 
-  // Heavy tier: read controls, evaluate the full scenario including the frontier,
-  // and commit it as the exported/URL state.
-  function commitHeavy(message?: string): void {
+  // Instant preview: cheap projection (no frontier), rendering figures + the live verdict.
+  // Marks the frontier-dependent maps/exports as recomputing until the debounced commit.
+  function renderLivePreview(): void {
+    lightTimer = undefined;
+    let draft: ScenarioV1;
+    try { draft = readControls(draftScenario); }
+    catch (error) { renderInvalid(error); return; }
+    draftScenario = draft;
+    let live: TeachingView;
+    try { live = evaluateScenarioLight(structuredClone(draft)); }
+    catch (error) { renderInvalid(error); return; }
+    liveOutputs = live;
+    hideWarning();
+    renderTeaching(live);
+    setExportAvailability(false);
+    const transaction = byId<HTMLElement>("transaction-status");
+    transaction.className = "transaction-status stale";
+    transaction.textContent = "Figures and verdict updated; recomputing the design frontier…";
+  }
+
+  function commitDebounced(): void {
+    heavyTimer = undefined;
+    if (lightTimer !== undefined) { window.clearTimeout(lightTimer); lightTimer = undefined; }
+    let draft: ScenarioV1;
+    try { draft = readControls(draftScenario); }
+    catch (error) { renderInvalid(error); return; }
+    draftScenario = draft;
+    run(draft);
+  }
+
+  // Immediate full commit (reset and initial load).
+  function commitNow(message?: string): void {
     if (lightTimer !== undefined) window.clearTimeout(lightTimer);
+    if (heavyTimer !== undefined) window.clearTimeout(heavyTimer);
     let draft: ScenarioV1;
     try { draft = readControls(draftScenario); }
     catch (error) { renderInvalid(error); return; }
@@ -255,27 +267,7 @@ export function mountApp(root: HTMLElement): void {
     run(draft, message);
   }
 
-  // Probe / setting-inspection edits do not change model identity (scientificScenario
-  // strips `setting`), so the committed frontier stays valid: re-commit the scenario
-  // and refreshed light outputs while reusing the frontier, keeping exports enabled.
-  function recommitNonScientific(live: TeachingView, message: string): void {
-    if (!committedOutputs) return;
-    committedOutputs = { ...committedOutputs, scenario: live.scenario, metrics: live.metrics, settingSurface: live.settingSurface, diagnostics: live.diagnostics };
-    renderMotifReadout();
-    window.location.hash = `scenario=${encodeScenario(committedOutputs.scenario)}`;
-    setExportAvailability(true);
-    byId<HTMLElement>("export-status").textContent = `Exports are ready for committed model ${shortIdentity(committedOutputs.modelIdentity)}.`;
-    byId<HTMLElement>("compute-status").textContent = "";
-    byId<HTMLElement>("story-results").classList.remove("is-stale");
-    delete byId<HTMLElement>("result-status").dataset.stale;
-    const transaction = byId<HTMLElement>("transaction-status");
-    transaction.className = "transaction-status committed";
-    transaction.textContent = `${message} The inspection probe is independent; the committed decision and export are unchanged.`;
-  }
-
   function run(nextScenario: ScenarioV1, notice?: string): void {
-    const start = performance.now();
-    byId<HTMLElement>("compute-status").textContent = "Evaluating deterministic model…";
     try {
       const outputs = evaluateScenario(structuredClone(nextScenario));
       draftScenario = structuredClone(outputs.scenario);
@@ -284,7 +276,6 @@ export function mountApp(root: HTMLElement): void {
       renderCommitted(outputs);
       hideWarning();
       if (notice) showWarning(notice, "notice");
-      byId<HTMLElement>("compute-status").textContent = `Committed in ${Math.round(performance.now() - start)} ms`;
     } catch (error) {
       renderInvalid(error);
     }
@@ -298,16 +289,6 @@ export function mountApp(root: HTMLElement): void {
     renderTeaching(outputs);
     renderMotifReadout();
     const presentation = buildPresentation(outputs);
-    const result = byId<HTMLElement>("result-status");
-    result.className = `result-status ${presentation.result.branch}`;
-    result.dataset.modelIdentity = outputs.modelIdentity;
-    delete result.dataset.stale;
-    result.innerHTML = `<p class="result-label">${escapeHtml(presentation.result.statusLabel)} · ${escapeHtml(presentation.result.scopeShortLabel)}</p>
-      <h2>${escapeHtml(presentation.result.headline)}</h2>
-      <p class="result-number"><span>Direct R<sub>loc</sub></span><strong>${formatNumber(presentation.result.value)}</strong><span>${escapeHtml(presentation.result.criterion)}</span></p>
-      <p class="qualification">${escapeHtml(presentation.result.qualification)}</p>`;
-    byId<HTMLElement>("candidate-summary").innerHTML = `<strong>${escapeHtml(presentation.candidate.label)}</strong><span>${escapeHtml(presentation.candidate.schedule)} · assessed ${escapeHtml(presentation.candidate.assessment)}</span>`;
-    byId<HTMLElement>("scope-summary").innerHTML = `<span>Decision scope</span><strong>${escapeHtml(presentation.result.scopeLabel)}</strong>`;
     byId<HTMLElement>("effect-map").innerHTML = renderEffectMap(outputs, view);
     byId<HTMLElement>("product-map").innerHTML = renderProductMap(outputs, view);
     byId<HTMLElement>("frontier-summary").innerHTML = `<strong>${escapeHtml(presentation.frontier.message)}</strong><span>Selected candidate: q<sub>acq</sub> ${formatNumber(outputs.metrics.qAcq)} · q<sub>shed</sub> ${formatNumber(outputs.metrics.qShed)} · q<sub>index</sub> ${formatNumber(outputs.metrics.qIndex)} · direct R<sub>loc,max</sub> ${formatNumber(outputs.metrics.rLocEnvelopeMax)}.</span><span>The two maps are alternate coordinates for the same ${outputs.frontier.points.length.toLocaleString("en-US")} direct evaluations.</span>`;
@@ -316,12 +297,11 @@ export function mountApp(root: HTMLElement): void {
     setExportAvailability(true);
     byId<HTMLElement>("export-status").textContent = `Exports are ready for committed model ${shortIdentity(outputs.modelIdentity)}.`;
     byId<HTMLElement>("transaction-status").className = "transaction-status committed";
-    byId<HTMLElement>("transaction-status").textContent = `Current result committed. ${presentation.result.statusLabel}: direct R_loc ${formatNumber(presentation.result.value)}.`;
-    byId<HTMLElement>("story-results").classList.remove("is-stale");
+    byId<HTMLElement>("transaction-status").textContent = `Committed. ${presentation.result.statusLabel}: direct R_loc ${formatNumber(presentation.result.value)}.`;
   }
 
-  // Light tier: the cheap teaching/immunity/surface figures and point readouts,
-  // driven by the live draft (or by the committed outputs, which are a superset).
+  // Live tier: the cheap teaching/immunity/surface figures, point readouts, and the
+  // verdict + candidate/scope summaries, all derivable from point metrics + scenario.
   function renderTeaching(teaching: TeachingView): void {
     byId<HTMLElement>("setting-map").innerHTML = renderSettingSurface(teaching, view);
     byId<HTMLElement>("within-host-chart").innerHTML = renderWithinHostTeaching(teaching);
@@ -331,7 +311,24 @@ export function mountApp(root: HTMLElement): void {
     renderOpeningComparison(teaching);
     renderWithinHostReadout(teaching);
     renderPrintProductSummary(teaching);
-    byId<HTMLElement>("probe-summary").innerHTML = `<span>Inspection probe</span><strong>${escapeHtml(probeLabel(teaching.scenario.setting.id))} · R<sub>loc</sub> ${teaching.metrics.rLocSelectedSetting === null ? "—" : formatNumber(teaching.metrics.rLocSelectedSetting)}</strong>`;
+    renderDecision(teaching);
+  }
+
+  // The verdict tracks live: it depends only on rLocEnvelopeMax + the scenario, both in
+  // the light projection, so it updates instantly on any edit.
+  function renderDecision(teaching: TeachingView): void {
+    const result = buildResult(teaching.metrics, teaching.scenario);
+    const candidate = buildCandidate(teaching.scenario);
+    const status = byId<HTMLElement>("result-status");
+    status.className = `result-status ${result.branch}`;
+    status.dataset.modelIdentity = teaching.diagnostics.modelIdentity;
+    status.innerHTML = `<p class="result-label">${escapeHtml(result.statusLabel)} · ${escapeHtml(result.scopeShortLabel)}</p>
+      <h2>${escapeHtml(result.headline)}</h2>
+      <p class="result-number"><span>Direct R<sub>loc</sub></span><strong>${formatNumber(result.value)}</strong><span>${escapeHtml(result.criterion)}</span></p>
+      <p class="qualification">${escapeHtml(result.qualification)}</p>`;
+    byId<HTMLElement>("candidate-summary").innerHTML = `<strong>${escapeHtml(candidate.label)}</strong><span>${escapeHtml(candidate.schedule)} · assessed ${escapeHtml(candidate.assessment)}</span>`;
+    byId<HTMLElement>("scope-summary").innerHTML = `<span>Decision scope</span><strong>${escapeHtml(result.scopeLabel)}</strong>`;
+    byId<HTMLElement>("story-results").classList.remove("is-stale");
   }
 
   function renderMechanism(outputs: TeachingView): void {
@@ -435,31 +432,14 @@ export function mountApp(root: HTMLElement): void {
     byId<HTMLOutputElement>("motif-rloc").value = `R_loc = ${formatNumber(rLoc)}`;
   }
 
-  function markStale(message: string): void {
-    setExportAvailability(false);
-    byId<HTMLElement>("export-status").textContent = "Exports are unavailable while controls differ from the committed result.";
-    byId<HTMLElement>("compute-status").textContent = "Change pending…";
-    const transaction = byId<HTMLElement>("transaction-status");
-    transaction.className = "transaction-status stale";
-    transaction.textContent = committedOutputs
-      ? `${message} The prior committed result remains visible but is stale until evaluation succeeds.`
-      : `${message} No result is committed yet.`;
-    if (committedOutputs) {
-      byId<HTMLElement>("story-results").classList.add("is-stale");
-      const result = byId<HTMLElement>("result-status");
-      result.dataset.stale = "true";
-    }
-  }
-
   function renderInvalid(error: unknown): void {
     setExportAvailability(false);
     const message = errorMessage(error);
     showWarning(message, "error");
-    byId<HTMLElement>("compute-status").textContent = "Invalid scientific state; prior commit retained.";
     const transaction = byId<HTMLElement>("transaction-status");
     transaction.className = "transaction-status invalid";
     transaction.textContent = committedOutputs
-      ? "The edited state is invalid. The visible result is the prior commit and cannot be exported as the current controls."
+      ? "The edited state is invalid. The last committed result is retained and cannot be exported as the current controls."
       : "The edited state is invalid. No result is committed.";
     if (committedOutputs) byId<HTMLElement>("story-results").classList.add("is-stale");
   }
@@ -475,10 +455,7 @@ function shell(): string {
   const assayFloorLog10 = Math.log10(PARAMETERS.shedding.titerFloor).toFixed(1);
   const horizonDays = PARAMETERS.transmission.horizonDays;
   const productOptions = Object.entries(PRODUCT_LABELS).map(([id, label]) => `<option value="${id}">${escapeHtml(label)}</option>`).join("");
-  const settingOptions = ([...SETTING_ANCHORS.map((anchor) => [anchor.id, anchor.label] as [string, string]), ["custom", "Custom inspection probe"]] as Array<[string, string]>)
-    .map(([id, label]) => `<option value="${id}">${escapeHtml(label)}</option>`).join("");
-  const scopeOptions = ([...SETTING_ANCHORS.map((anchor) => [anchor.id, `${anchor.label} singleton`] as [string, string]), ["custom", "Custom rectangular scope"]] as Array<[string, string]>)
-    .map(([id, label]) => `<option value="${id}">${escapeHtml(label)}</option>`).join("");
+  const scopeOptions = SETTING_ANCHORS.map((anchor) => `<option value="${anchor.id}">${escapeHtml(anchor.label)}</option>`).join("");
   return `<a class="skip-link" href="#within-host">Skip to model</a>
   <header class="site-header"><a class="wordmark" href="#top" aria-label="Polio vaccine target product profile explorer home">TPP / WPV1</a><nav aria-label="Narrative chapters"><a href="#within-host">Model</a><a href="#product-pathway">Product</a><a href="#transmission">Transmission</a><a href="#decision">Decision</a><a href="#measurement">Measurement</a></nav></header>
   <main id="top" class="app-shell">
@@ -503,7 +480,7 @@ function shell(): string {
       <aside id="print-product-summary" class="print-product-summary" aria-label="Selected product mechanism for print"></aside>
       <figure class="hero-figure narrow-figure"><div id="dose-response-chart" class="chart-slot" aria-live="off"></div><figcaption><strong>Vaccine take is the front of the chain.</strong> α, β, and administered dose set the take probability, and prior mucosal immunity lowers it. Take seeds the immunity distribution below, which drives the downstream acquisition and shedding reductions; it does not change the fixed WPV challenge equation.</figcaption></figure>
       <figure class="hero-figure narrow-figure"><div id="immunity-distribution" class="chart-slot"></div><figcaption><strong>This is a marginal view, not the calculation's state reduction.</strong> The model retains conditioned take/no-take history and uses each group's dose response and shedding kernel directly.</figcaption></figure>
-      <form class="narrative-controls" aria-labelledby="product-controls-heading" onsubmit="return false"><div class="controls-title"><div><p class="eyebrow">Product and schedule</p><h3 id="product-controls-heading">Now choose the schedule whose cohort you want to inspect.</h3></div><button id="reset" type="button" class="text-button">Reset defaults</button></div><div class="control-row"><label>Candidate product<select id="product">${productOptions}</select><small>Fixed catalog products remain fixed; hypothetical OPV-like designs expose their assumptions below.</small></label><label>Booster<select id="booster" data-field="booster" data-model-control><option value="0">No booster</option><option value="1">At 1 year</option><option value="2">At 2 years</option><option value="3">At 3 years</option><option value="4">At 4 years</option></select><small>An extra dose on top of the routine 6/10/14-week schedule.</small></label><label>Assessment after last dose<select id="lag" data-field="lag" data-model-control><option value="28">28 days</option><option value="90">90 days</option></select></label></div><fieldset id="hypothetical-controls"><legend>Hypothetical OPV-like product mechanism</legend><p>These values determine vaccine take after a received dose, the take/no-take split, the mucosal boost, and therefore the schedule-derived distribution above. They do not change the fixed WPV challenge equation. The five controls are <span class="prov-tag" data-kind="scenario-input">scenario inputs</span>; the fixed values below are v1 <span class="prov-tag" data-kind="assumption">assumptions</span>.</p><div class="advanced-grid product-parameter-grid"><label>Biological take <output id="take-output">0.80</output><input id="take" data-field="take" data-model-control type="range" min="0" max="1" step="0.01"><small id="take-help"></small></label><label>Latent mean mucosal boost <output id="mu-output">4.0 log2</output><input id="mu" data-field="mu" data-model-control type="range" min="0" max="8" step="0.1"><small id="mu-help"></small></label><label>Vaccine α<input id="alpha" data-field="alpha" data-model-control type="number" min="0.001" max="5" step="0.001"><small>Dose-response shape for productive vaccine infection after receipt.</small></label><label>Vaccine β (CID50)<input id="beta" data-field="beta" data-model-control type="number" min="0.001" max="1000000" step="0.1"><small>Dose-response scale; not a WPV susceptibility parameter.</small></label><label>Administered dose (log10 TCID50)<input id="dose-log" data-field="dose-log" data-model-control type="number" min="0" max="9" step="0.01"><small>Amount offered per received live-vaccine dose.</small></label></div><div class="parameter-context"><span>Fixed γ<sub>vax</sub></span><strong id="product-fixed-gamma"></strong><span>Fixed boost SD, σ<sub>0</sub></span><strong id="product-fixed-sigma"></strong><span>Receipt</span><strong>100% in v1</strong></div></fieldset><p id="catalog-product-note" class="catalog-note" hidden></p><p id="state-warning" class="warning" hidden></p><div class="control-actions"><button id="compute" class="primary" type="button">Update the model</button><span id="compute-status" role="status" aria-live="polite"></span></div></form>
+      <form class="narrative-controls" aria-labelledby="product-controls-heading" onsubmit="return false"><div class="controls-title"><div><p class="eyebrow">Product and schedule</p><h3 id="product-controls-heading">Now choose the schedule whose cohort you want to inspect.</h3></div><button id="reset" type="button" class="text-button">Reset defaults</button></div><div class="control-row"><label>Candidate product<select id="product">${productOptions}</select><small>Fixed catalog products remain fixed; hypothetical OPV-like designs expose their assumptions below.</small></label><label>Booster<select id="booster" data-field="booster" data-model-control><option value="0">No booster</option><option value="1">At 1 year</option><option value="2">At 2 years</option><option value="3">At 3 years</option><option value="4">At 4 years</option></select><small>An extra dose on top of the routine 6/10/14-week schedule.</small></label><label>Assessment after last dose<select id="lag" data-field="lag" data-model-control><option value="28">28 days</option><option value="90">90 days</option></select></label></div><fieldset id="hypothetical-controls"><legend>Hypothetical OPV-like product mechanism</legend><p>These values determine vaccine take after a received dose, the take/no-take split, the mucosal boost, and therefore the schedule-derived distribution above. They do not change the fixed WPV challenge equation. The five controls are <span class="prov-tag" data-kind="scenario-input">scenario inputs</span>; the fixed values below are v1 <span class="prov-tag" data-kind="assumption">assumptions</span>.</p><div class="advanced-grid product-parameter-grid"><label>Biological take <output id="take-output">0.80</output><input id="take" data-field="take" data-model-control type="range" min="0" max="1" step="0.01"><small id="take-help"></small></label><label>Latent mean mucosal boost <output id="mu-output">4.0 log2</output><input id="mu" data-field="mu" data-model-control type="range" min="0" max="8" step="0.1"><small id="mu-help"></small></label><label>Vaccine α<input id="alpha" data-field="alpha" data-model-control type="number" min="0.001" max="5" step="0.001"><small>Dose-response shape for productive vaccine infection after receipt.</small></label><label>Vaccine β (CID50)<input id="beta" data-field="beta" data-model-control type="number" min="0.001" max="1000000" step="0.1"><small>Dose-response scale; not a WPV susceptibility parameter.</small></label><label>Administered dose (log10 TCID50)<input id="dose-log" data-field="dose-log" data-model-control type="number" min="0" max="9" step="0.01"><small>Amount offered per received live-vaccine dose.</small></label></div><div class="parameter-context"><span>Fixed γ<sub>vax</sub></span><strong id="product-fixed-gamma"></strong><span>Fixed boost SD, σ<sub>0</sub></span><strong id="product-fixed-sigma"></strong><span>Receipt</span><strong>100% in v1</strong></div></fieldset><p id="catalog-product-note" class="catalog-note" hidden></p><p id="state-warning" class="warning" hidden></p></form>
     </section>
 
     <section id="transmission" class="chapter" aria-labelledby="mechanism-heading">
@@ -531,9 +508,9 @@ function shell(): string {
 
     <section id="decision" class="chapter surface-chapter" aria-labelledby="decision-heading">
       <div class="chapter-heading"><p class="chapter-number">04 / Setting and decision</p><div><h2 id="decision-heading">Only now ask whether the selected product clears the reference stress test.</h2><p>The default point rule is evaluated directly at the UP/Bihar high anchor, the hardest known empirical/model-calibrated setting in the catalog. Clearing it supports likely adequacy under less demanding modeled conditions; it does not prove control everywhere. Parameter uncertainty and a threshold-crossing probability are <span class="prov-tag" data-kind="not-measured">not measured</span> in v1.</p></div></div>
-      <form class="narrative-controls setting-controls" aria-labelledby="setting-controls-heading" onsubmit="return false"><div class="controls-title"><div><p class="eyebrow">Setting semantics</p><h3 id="setting-controls-heading">Keep the decision scope separate from an inspection probe.</h3></div></div><div class="control-row"><label>Inspection probe<select id="probe">${settingOptions}</select><small>Changes the independent readout and its ring on the figure, not the decision result or model identity.</small></label><label>Decision scope<select id="scope">${scopeOptions}</select><small>Directly determines the reported maximum R<sub>loc</sub>.</small></label></div></form>
-      <figure class="hero-figure"><div id="setting-map" class="chart-slot" aria-live="off"></div><figcaption><strong>Read from blue through white to red.</strong> White is R<sub>loc</sub> = 1. The diamond is the decision anchor; the ring is the independent inspection probe. The outlined cell is the display cell you are inspecting, and its readout is that raster cell — not the decision calculation. The dashed path marks threshold crossings between directly evaluated display cells. Hover or use arrow keys to move the inspected cell across all 81 × 20 cells.</figcaption></figure>
-      <div id="story-results"><div id="result-status" class="result-status pending" aria-live="polite"><p class="result-label">Evaluating</p><h2>Calculating the versioned default…</h2></div><div class="opening-meta"><p id="candidate-summary"></p><p id="scope-summary"></p><p id="probe-summary"></p></div></div>
+      <form class="narrative-controls setting-controls" aria-labelledby="setting-controls-heading" onsubmit="return false"><div class="controls-title"><div><p class="eyebrow">Setting</p><h3 id="setting-controls-heading">Choose the field setting you are deciding for.</h3></div></div><div class="control-row"><label>Decision scope<select id="scope">${scopeOptions}</select><small>Sets the field exposure and contacts the candidate must clear, and marks that anchor on the surface. UP/Bihar high is the hardest known.</small></label></div></form>
+      <figure class="hero-figure"><div id="setting-map" class="chart-slot" aria-live="off"></div><figcaption><strong>Read from blue through white to red.</strong> White is R<sub>loc</sub> = 1. The ringed diamond is the selected decision anchor. The outlined cell is the display cell you are inspecting, and its readout is that raster cell — not the decision calculation. The dashed path marks threshold crossings between directly evaluated display cells. Hover or use arrow keys to move the inspected cell across all 81 × 20 cells.</figcaption></figure>
+      <div id="story-results"><div id="result-status" class="result-status pending" aria-live="polite"><p class="result-label">Evaluating</p><h2>Calculating the versioned default…</h2></div><div class="opening-meta"><p id="candidate-summary"></p><p id="scope-summary"></p></div></div>
       <p id="transaction-status" class="transaction-status" role="status" aria-live="polite"></p>
     </section>
 
@@ -553,7 +530,9 @@ function shell(): string {
         <tr><th scope="row">Shedding index and q<sub>index</sub></th><td>Diagnostic reading aid</td><td>P(acquisition | one WPV HID50) × B is in TCID50-days/g; q<sub>index</sub> is its unitless selected/reference ratio.</td><td>Derived; not the decision rule</td></tr>
         <tr><th scope="row">R<sub>loc</sub></th><td>Decision result</td><td>Expected tertiary infections in the v1 close-contact motif.</td><td>Direct derived output</td></tr>
         <tr><th scope="row">Parameter uncertainty</th><td>Decision uncertainty</td><td>Threshold-crossing uncertainty would require a released ensemble.</td><td>Evidence gap in this version</td></tr>
-      </tbody></table></div></details>
+      </tbody></table></div>
+      <dl class="fixed-values"><div><dt>Success rule</dt><dd>Direct R<sub>loc</sub> &lt; 1</dd></div><div><dt>Boost σ<sub>0</sub></dt><dd id="fixed-sigma"></dd></div><div><dt>γ<sub>vax</sub></dt><dd id="fixed-gamma"></dd></div><div><dt>Episode horizon</dt><dd id="fixed-horizon"></dd></div><div><dt>Index reference exposure</dt><dd id="fixed-index-reference"></dd></div></dl>
+      </details>
     </section>
 
     <section id="design-space" class="chapter" aria-labelledby="design-heading">
@@ -561,25 +540,6 @@ function shell(): string {
       <div id="frontier-summary" class="frontier-summary"></div>
       <div class="linked-maps"><figure><div id="effect-map" class="chart-slot"></div><figcaption><strong>Outcome requirement space.</strong> Each mark is one evaluated product. The turquoise <strong>Pareto boundary</strong> traces the minimum-sufficient frontier — the least acquisition and breakthrough-shedding reduction that still clears R<sub>loc</sub> &lt; 1 at the decision scope. Designs on it (or up and to the right) meet the criterion; designs below and left do not. It summarizes evaluated combinations, not a new biological endpoint.</figcaption></figure><figure><div id="product-map" class="chart-slot"></div><figcaption><strong>Product-assumption space.</strong> The dashed contour is the same sufficiency boundary in design coordinates: designs beyond it (higher take and mean boost) clear the criterion. Take is productive biological infection after a received live dose. Mean boost is latent OPV-equivalent mucosal immunity, not serum titer.</figcaption></figure></div>
       <div class="design-inspection"><div id="design-inspector"><p><strong>Inspect a design.</strong> Hover, tap, or focus either map. Click or press Enter to hold a selection.</p></div><button id="use-design" type="button" class="primary" hidden disabled>Use this design</button></div>
-    </section>
-
-    <section class="chapter controls-and-provenance" aria-labelledby="advanced-heading">
-      <details id="advanced-controls"><summary><span>Advanced scientific controls</span><small>Custom probe, decision-scope bounds, and fixed v1 assumptions</small></summary>
-        <div class="advanced-body">
-          <fieldset id="custom-probe-controls" hidden><legend>Custom inspection probe</legend><div class="advanced-grid">
-            <label>T<sub>ih</sub> (µg/exposure)<input id="custom-tih" data-model-control type="number" min="0" max="1000000" step="0.1"></label><label>T<sub>hs</sub> (µg/exposure)<input id="custom-ths" data-model-control type="number" min="0" max="1000000" step="0.1"></label>
-            <label>d<sub>ih</sub> (exposures/person/day)<input id="custom-dih" data-model-control type="number" min="0" max="1000" step="0.01"></label><label>d<sub>hs</sub> (exposures/person/day)<input id="custom-dhs" data-model-control type="number" min="0" max="1000" step="0.01"></label><label>N<sub>s</sub><input id="custom-ns" data-model-control type="number" min="0" max="1000" step="1"></label>
-          </div></fieldset>
-          <fieldset id="custom-scope-controls" hidden><legend>Custom rectangular decision scope</legend><p>All corners are evaluated directly. The fixed setting surface remains a nonbinding display domain.</p><div class="advanced-grid">
-            <label>Linked T minimum (µg/exposure)<input id="scope-t-min" data-model-control type="number" min="0.000001" max="1000000" step="0.1"></label><label>Linked T maximum (µg/exposure)<input id="scope-t-max" data-model-control type="number" min="0.000001" max="1000000" step="1"></label>
-            <label>N<sub>s</sub> minimum<input id="scope-ns-min" data-model-control type="number" min="0" max="1000" step="1"></label><label>N<sub>s</sub> maximum<input id="scope-ns-max" data-model-control type="number" min="0" max="1000" step="1"></label>
-            <label>d<sub>ih</sub> minimum<input id="scope-dih-min" data-model-control type="number" min="0" max="1000" step="0.01"></label><label>d<sub>ih</sub> maximum<input id="scope-dih-max" data-model-control type="number" min="0" max="1000" step="0.01"></label>
-            <label>d<sub>hs</sub> minimum<input id="scope-dhs-min" data-model-control type="number" min="0" max="1000" step="0.01"></label><label>d<sub>hs</sub> maximum<input id="scope-dhs-max" data-model-control type="number" min="0" max="1000" step="0.01"></label>
-          </div></fieldset>
-          <fieldset id="master-parameters"><legend>Complete parameter set</legend><p>Every hypothetical vaccine and schedule parameter in one place, two-way linked to the inline controls above — editing either moves both.</p><div class="advanced-grid"><label>Booster<select data-field="booster" data-model-control><option value="0">No booster</option><option value="1">At 1 year</option><option value="2">At 2 years</option><option value="3">At 3 years</option><option value="4">At 4 years</option></select></label><label>Assessment after last dose<select data-field="lag" data-model-control><option value="28">28 days</option><option value="90">90 days</option></select></label></div><fieldset id="master-hypothetical"><legend>Hypothetical vaccine parameters</legend><div class="advanced-grid product-parameter-grid"><label>Biological take<input data-field="take" data-model-control type="number" min="0" max="1" step="0.01"></label><label>Latent mean mucosal boost (log2)<input data-field="mu" data-model-control type="number" min="0" max="8" step="0.1"></label><label>Vaccine α<input data-field="alpha" data-model-control type="number" min="0.001" max="5" step="0.001"></label><label>Vaccine β (CID50)<input data-field="beta" data-model-control type="number" min="0.001" max="1000000" step="0.1"></label><label>Administered dose (log10 TCID50)<input data-field="dose-log" data-model-control type="number" min="0" max="9" step="0.01"></label></div></fieldset></fieldset>
-          <fieldset><legend>Fixed v1 assumptions</legend><dl class="fixed-values"><div><dt>Success rule</dt><dd>Direct R<sub>loc</sub> &lt; 1</dd></div><div><dt>Boost σ</dt><dd id="fixed-sigma"></dd></div><div><dt>γ</dt><dd id="fixed-gamma"></dd></div><div><dt>Episode horizon</dt><dd id="fixed-horizon"></dd></div><div><dt>Index reference exposure</dt><dd id="fixed-index-reference"></dd></div></dl></fieldset>
-        </div>
-      </details>
     </section>
 
     <section id="assumptions" class="chapter closing" aria-labelledby="assumptions-heading">
@@ -598,25 +558,8 @@ function scenarioFromHash(): { scenario: ScenarioV1; error?: string } {
   catch (error) { return { scenario: defaultScenario(), error: errorMessage(error) }; }
 }
 
-function probeLabel(id: SettingId): string {
-  if (id === "custom") return "Custom probe";
-  return SETTING_ANCHORS.find((anchor) => anchor.id === id)?.label ?? id;
-}
-
-// Two-way link for controls that expose the same scenario field in more than one
-// place (master panel + inline per-section controls): push an edited value to every
-// other control bound to the same data-field. No-op for unlinked controls.
-function mirrorField(source: HTMLInputElement | HTMLSelectElement): void {
-  const field = source.dataset.field;
-  if (!field) return;
-  document.querySelectorAll<HTMLInputElement | HTMLSelectElement>(`[data-field="${field}"]`).forEach((element) => {
-    if (element !== source && element.value !== source.value) element.value = source.value;
-  });
-}
-
 function syncControls(scenario: ScenarioV1): void {
   setValue("product", scenario.vaccine.id);
-  setValue("probe", scenario.setting.id);
   setValue("scope", describeDecisionScope(scenario.envelope).id);
   setValue("booster", scenario.schedule.boosterAgeYears);
   setValue("lag", scenario.schedule.assessmentLagDays);
@@ -625,12 +568,6 @@ function syncControls(scenario: ScenarioV1): void {
   setValue("alpha", scenario.vaccine.alpha);
   setValue("beta", scenario.vaccine.beta);
   setValue("dose-log", Math.log10(Math.max(scenario.vaccine.dose, 1)));
-  setValue("custom-tih", microgramsFromGrams(scenario.setting.Tih.value));
-  setValue("custom-ths", microgramsFromGrams(scenario.setting.Ths.value));
-  setValue("custom-dih", scenario.setting.dIh.value);
-  setValue("custom-dhs", scenario.setting.dHs.value);
-  setValue("custom-ns", scenario.setting.Ns);
-  syncScopeControls(scenario.envelope);
   byId<HTMLElement>("fixed-gamma").textContent = scenario.vaccine.gamma.toFixed(4);
   byId<HTMLElement>("fixed-sigma").textContent = `${scenario.vaccine.sigma0.toFixed(1)} log2`;
   byId<HTMLElement>("product-fixed-gamma").textContent = scenario.vaccine.gamma.toFixed(4);
@@ -638,34 +575,16 @@ function syncControls(scenario: ScenarioV1): void {
   byId<HTMLElement>("fixed-horizon").textContent = `${scenario.horizonDays} days`;
   byId<HTMLElement>("fixed-index-reference").textContent = scenario.indexReferenceExposure.toFixed(4);
   syncProductEditability(scenario.vaccine.id);
-  syncProbeVisibility(scenario.setting.id);
-  syncScopeVisibility(describeDecisionScope(scenario.envelope).id);
-  // Push each canonical value to any linked master-panel duplicate.
-  for (const field of ["take", "mu", "alpha", "beta", "dose-log", "booster", "lag"]) {
-    const canonical = document.getElementById(field);
-    if (canonical instanceof HTMLInputElement || canonical instanceof HTMLSelectElement) mirrorField(canonical);
-  }
   updateReadouts();
-}
-
-function syncScopeControls(envelope: EnvelopeV1): void {
-  setValue("scope-t-min", microgramsFromGrams(envelope.TihMin));
-  setValue("scope-t-max", microgramsFromGrams(envelope.TihMax));
-  setValue("scope-ns-min", envelope.NsMin);
-  setValue("scope-ns-max", envelope.NsMax);
-  setValue("scope-dih-min", envelope.dIhMin);
-  setValue("scope-dih-max", envelope.dIhMax);
-  setValue("scope-dhs-min", envelope.dHsMin);
-  setValue("scope-dhs-max", envelope.dHsMax);
 }
 
 function readControls(previous: ScenarioV1): ScenarioV1 {
   const productId = byId<HTMLSelectElement>("product").value as ProductId;
   let scenario = productId === previous.vaccine.id ? structuredClone(previous) : scenarioWithProduct(previous, productId);
-  const probeId = byId<HTMLSelectElement>("probe").value as SettingId;
-  scenario = probeId === "custom"
-    ? { ...scenario, setting: { id: "custom", Tih: unitExposure(gramsFromMicrograms(numberValue("custom-tih"))), Ths: unitExposure(gramsFromMicrograms(numberValue("custom-ths"))), dIh: unitFrequency(numberValue("custom-dih")), dHs: unitFrequency(numberValue("custom-dhs")), Ns: numberValue("custom-ns") } }
-    : scenarioWithSetting(scenario, probeId);
+  // One decision-scope selector fixes both the reported scope (envelope) and the
+  // inspected setting to the same named anchor.
+  const scopeId = byId<HTMLSelectElement>("scope").value as AnchorSettingId;
+  scenario = scenarioWithSetting(scenarioWithDecisionScope(scenario, scopeId), scopeId);
   scenario.schedule = {
     ...scenario.schedule,
     boosterAgeYears: Number(byId<HTMLSelectElement>("booster").value) as ScenarioV1["schedule"]["boosterAgeYears"],
@@ -673,26 +592,6 @@ function readControls(previous: ScenarioV1): ScenarioV1 {
   };
   if (scenario.vaccine.id === "hypothetical") {
     scenario.vaccine = { ...scenario.vaccine, takeContext: numberValue("take"), mu0: numberValue("mu"), alpha: numberValue("alpha"), beta: numberValue("beta"), dose: 10 ** numberValue("dose-log") };
-  }
-  const scopeId = byId<HTMLSelectElement>("scope").value;
-  if (scopeId === "custom") {
-    const tMin = gramsFromMicrograms(numberValue("scope-t-min"));
-    const tMax = gramsFromMicrograms(numberValue("scope-t-max"));
-    scenario.envelope = {
-      linkedExposure: true,
-      TihMin: tMin,
-      TihMax: tMax,
-      ThsMin: tMin,
-      ThsMax: tMax,
-      NsMin: numberValue("scope-ns-min"),
-      NsMax: numberValue("scope-ns-max"),
-      dIhMin: numberValue("scope-dih-min"),
-      dIhMax: numberValue("scope-dih-max"),
-      dHsMin: numberValue("scope-dhs-min"),
-      dHsMax: numberValue("scope-dhs-max")
-    };
-  } else {
-    scenario = scenarioWithDecisionScope(scenario, scopeId as AnchorSettingId);
   }
   return scenario;
 }
@@ -702,8 +601,6 @@ function syncProductEditability(productId: ProductId): void {
   const controls = byId<HTMLFieldSetElement>("hypothetical-controls");
   controls.hidden = !editable;
   controls.disabled = !editable;
-  const masterHypothetical = byId<HTMLFieldSetElement>("master-hypothetical");
-  masterHypothetical.disabled = !editable;
   const note = byId<HTMLElement>("catalog-product-note");
   note.hidden = editable;
   if (productId === "sabin2") note.textContent = "Sabin 2 is a fixed catalog comparator. Its take and mucosal-boost semantics are evaluated as committed, not exposed as hypothetical sliders.";
@@ -711,9 +608,6 @@ function syncProductEditability(productId: ProductId): void {
   byId<HTMLElement>("take-help").textContent = "Productive live-vaccine infection after receipt; receipt itself is fixed at 100%.";
   byId<HTMLElement>("mu-help").textContent = "Latent OPV-equivalent mucosal immunity; not measured serum titer.";
 }
-
-function syncProbeVisibility(id: SettingId): void { byId<HTMLFieldSetElement>("custom-probe-controls").hidden = id !== "custom"; }
-function syncScopeVisibility(id: string): void { byId<HTMLFieldSetElement>("custom-scope-controls").hidden = id !== "custom"; }
 function updateReadouts(): void {
   byId<HTMLOutputElement>("take-output").value = numberValue("take").toFixed(2);
   byId<HTMLOutputElement>("mu-output").value = `${numberValue("mu").toFixed(1)} log2`;
@@ -812,7 +706,7 @@ function svgStyles(): string {
     `.chart-title,.export-title,.teaching-panel-title{font-family:${BRAND_FONT_FAMILIES.serif};fill:${colors.weatheredSlate};font-size:20px;font-weight:600}.teaching-panel-title{font-size:16px}.teaching-panel-note,.teaching-reference-dose-label{fill:${colors.weatheredSlate};fill-opacity:.78;font-size:10px}.teaching-y-label{fill:${colors.weatheredSlate};font-size:10px}.teaching-panel-bg{stroke:${colors.weatheredSlate};stroke-opacity:.28;stroke-width:1}`,
     `.teaching-reference{fill:none;stroke:${colors.dvMediumOrange};stroke-width:3;stroke-dasharray:6 4;vector-effect:non-scaling-stroke}.teaching-candidate{fill:none;stroke:${colors.dvDarkMagenta};stroke-width:3;vector-effect:non-scaling-stroke}.teaching-reference-dose{stroke:${colors.dvDarkBlue};stroke-width:1.6;stroke-dasharray:4 3;vector-effect:non-scaling-stroke}.teaching-legend{fill:${colors.weatheredSlate};fill-opacity:.78;font-size:10px}.immunity-reference{fill:${colors.dvMediumOrange}}.immunity-candidate{fill:${colors.dvDarkMagenta}}`,
     `.surface-cell,.design-cell{stroke:none}.surface-cell.is-inspected{stroke:${colors.dvDarkMagenta};stroke-width:2;vector-effect:non-scaling-stroke}.threshold-line{fill:none;stroke:#000;stroke-width:2.2;stroke-dasharray:7 5;vector-effect:non-scaling-stroke}.pareto-line{fill:none;stroke:${colors.dvDarkTurquoise};stroke-width:3;vector-effect:non-scaling-stroke}.side-label{fill:${colors.weatheredSlate};font-size:10px;font-weight:800;letter-spacing:.7px;paint-order:stroke;stroke:${SCIENTIFIC_SURFACE_COLORS.threshold};stroke-opacity:.85;stroke-width:3px}`,
-    `.anchor-point{fill:${colors.parchment};stroke:${colors.weatheredSlate};stroke-width:2;vector-effect:non-scaling-stroke}.decision-anchor{fill:${colors.weatheredSlate}}.hybrid-anchor{stroke:${colors.dvDarkOrange};stroke-dasharray:3 2}.probe-ring{fill:none;stroke:${colors.dvDarkBlue};stroke-width:2.5;vector-effect:non-scaling-stroke}.decision-scope-boundary{fill:none;stroke:${colors.dvDarkMagenta};stroke-width:3;stroke-dasharray:8 4;vector-effect:non-scaling-stroke}.hybrid-interval{stroke:${colors.dvDarkOrange};stroke-width:4;stroke-linecap:round}`,
+    `.anchor-point{fill:${colors.parchment};stroke:${colors.weatheredSlate};stroke-width:2;vector-effect:non-scaling-stroke}.decision-anchor{fill:${colors.weatheredSlate}}.hybrid-anchor{stroke:${colors.dvDarkOrange};stroke-dasharray:3 2}.decision-anchor-ring{fill:none;stroke:${colors.dvDarkBlue};stroke-width:2.5;vector-effect:non-scaling-stroke}.decision-scope-boundary{fill:none;stroke:${colors.dvDarkMagenta};stroke-width:3;stroke-dasharray:8 4;vector-effect:non-scaling-stroke}.hybrid-interval{stroke:${colors.dvDarkOrange};stroke-width:4;stroke-linecap:round}`,
     `.chart-readout rect{fill:${colors.white};fill-opacity:.91;stroke:${colors.weatheredSlate};stroke-width:.8}.chart-readout text{fill:${colors.weatheredSlate};font-size:10px}.chart-readout text:first-of-type{fill:${colors.dvDarkBlue};font-weight:800;letter-spacing:1px}.interpolation-note{fill:${colors.weatheredSlate};fill-opacity:.78;font-size:10px;font-style:italic}`,
     `.effect-point{vector-effect:non-scaling-stroke}.effect-point.passes{fill:${colors.weatheredSlate};stroke:none;opacity:.63}.effect-point.fails{fill:${colors.white};stroke:${colors.weatheredSlate};stroke-width:.75;opacity:.48}.comparator-marker{fill:${colors.parchment};stroke:${colors.weatheredSlate};stroke-width:2;vector-effect:non-scaling-stroke}.comparator-label,.selection-label{fill:${colors.weatheredSlate};font-size:10px;paint-order:stroke;stroke:${colors.parchment};stroke-width:3px}.selected-exact{fill:none;stroke:${colors.dvDarkBlue};stroke-width:2.5;vector-effect:non-scaling-stroke}.nearest-grid{fill:none;stroke:${colors.dvDarkOrange};stroke-width:2;vector-effect:non-scaling-stroke}.design-cell.is-inspected,.effect-point.is-inspected{stroke:${colors.dvDarkMagenta};stroke-width:3;opacity:1}.design-cell.is-persistent,.effect-point.is-persistent{stroke:${colors.dvDarkBlue};stroke-width:3;opacity:1}.empty-frontier{fill:${colors.dvDarkRed};font-family:${BRAND_FONT_FAMILIES.serif};font-size:16px;paint-order:stroke;stroke:${colors.parchment};stroke-width:4px}`,
     `.export-meta{fill:${colors.weatheredSlate};fill-opacity:.78;font-size:10px}`

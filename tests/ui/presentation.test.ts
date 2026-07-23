@@ -42,7 +42,7 @@ test("presentation derives fail, tie, and empty-frontier branches from model out
   assert.match(buildPresentation(tied).result.headline, /does not meet/);
 });
 
-test("scope and probe labels remain semantically separate", () => {
+test("scenarioWithDecisionScope changes the envelope without touching the setting", () => {
   const scenario = defaultScenario();
   assert.equal(describeDecisionScope(scenario.envelope).id, "up-bihar");
   const lowScope = scenarioWithDecisionScope(scenario, "low");

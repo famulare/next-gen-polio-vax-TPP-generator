@@ -22,7 +22,7 @@ test("visual-system tokens retain the independent Gates-aligned palette", () => 
   assert.match(styles, /\.teaching-candidate[^}]*stroke: #6C1446/);
   assert.match(styles, /\.pareto-line[^}]*stroke: #295958/);
   assert.match(styles, /\.hybrid-interval[^}]*stroke: #9B320D/);
-  assert.match(styles, /\.probe-ring[^}]*stroke: var\(--focus\)/);
+  assert.match(styles, /\.decision-anchor-ring[^}]*stroke: var\(--focus\)/);
 });
 
 test("scientific R_loc scale remains separate from the visual-system palette", () => {

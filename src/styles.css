@@ -85,7 +85,7 @@ h3 { font-size: var(--fs-h3); }
 .result-number span:first-child { grid-column: 2; align-self: end; color: var(--ink); font-weight: 750; }
 .result-number span:last-child { grid-column: 2; max-width: 340px; }
 .qualification { max-width: 760px; margin: 0; padding-left: 18px; border-left: 4px solid var(--accent); color: var(--muted); }
-.opening-meta { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px; padding-top: 20px; }
+.opening-meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; padding-top: 20px; }
 .opening-meta p { margin: 0; }
 .opening-meta span { display: block; margin-bottom: 4px; color: var(--muted); font-size: var(--fs-label); font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
 .opening-meta strong { display: block; font-size: var(--fs-small); line-height: 1.4; }
@@ -237,7 +237,7 @@ fieldset > p { color: var(--muted); font-size: var(--fs-small); }
 .anchor-point { fill: var(--paper); stroke: var(--ink); stroke-width: 2; vector-effect: non-scaling-stroke; }
 .decision-anchor { fill: var(--ink); }
 .hybrid-anchor { stroke: #9B320D; stroke-dasharray: 3 2; }
-.probe-ring { fill: none; stroke: var(--focus); stroke-width: 2.5; vector-effect: non-scaling-stroke; }
+.decision-anchor-ring { fill: none; stroke: var(--focus); stroke-width: 2.5; vector-effect: non-scaling-stroke; }
 .decision-scope-boundary { fill: none; stroke: #6C1446; stroke-width: 3; stroke-dasharray: 8 4; vector-effect: non-scaling-stroke; }
 .hybrid-interval { stroke: #9B320D; stroke-width: 4; stroke-linecap: round; }
 .chart-readout rect { fill: rgb(255 255 255 / .91); stroke: var(--ink); stroke-width: .8; }
