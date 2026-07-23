@@ -460,7 +460,7 @@ function shell(): string {
   const productOptions = Object.entries(PRODUCT_LABELS).map(([id, label]) => `<option value="${id}">${escapeHtml(label)}</option>`).join("");
   const scopeOptions = SETTING_ANCHORS.map((anchor) => `<option value="${anchor.id}">${escapeHtml(anchor.label)}</option>`).join("");
   return `<a class="skip-link" href="#within-host">Skip to model</a>
-  <header class="site-header"><a class="wordmark" href="#top" aria-label="Polio vaccine target product profile explorer home">TPP / WPV1</a><details class="section-nav"><summary aria-label="Sections">Sections</summary><nav aria-label="Narrative chapters"><a href="#within-host">Model</a><a href="#product-pathway">Product</a><a href="#transmission">Transmission</a><a href="#decision">Decision</a><a href="#measurement">Measurement</a></nav></details></header>
+  <header class="site-header"><a class="wordmark" href="#top" aria-label="Polio vaccine target product profile explorer home">TPP / WPV1</a><nav class="chapter-nav" aria-label="Narrative chapters"><a href="#within-host">Model</a><a href="#product-pathway">Product</a><a href="#transmission">Transmission</a><a href="#decision">Decision</a><a href="#measurement">Measurement</a></nav><details class="section-nav"><summary aria-label="Sections">Sections</summary><nav aria-label="Narrative chapters"><a href="#within-host">Model</a><a href="#product-pathway">Product</a><a href="#transmission">Transmission</a><a href="#decision">Decision</a><a href="#measurement">Measurement</a></nav></details></header>
   <main id="top" class="app-shell">
     <header class="hero">
       <p class="eyebrow">WPV1 · close-contact sufficiency model · contract ${PARAMETERS.designContractVersion}</p>

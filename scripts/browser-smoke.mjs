@@ -194,6 +194,15 @@ try {
   if (await page.locator("[data-export]").first().isDisabled()) throw new Error("Exports were not enabled for the committed default");
   if (await page.locator("#transaction-status").getAttribute("aria-live") !== "polite") throw new Error("Committed results lack a concise live announcement");
   await assertSvgTextWithinViewBox(page, "desktop viewport");
+  // Desktop chapter navigation must render its links on-screen (a prior <details>
+  // treatment collapsed to zero width and pushed the links off the right edge).
+  const desktopNav = await page.evaluate(() => {
+    const vw = window.innerWidth;
+    const links = [...document.querySelectorAll(".chapter-nav a")];
+    return { count: links.length, offscreen: links.filter((a) => { const r = a.getBoundingClientRect(); return r.right > vw + 1 || r.left < -1; }).map((a) => a.textContent) };
+  });
+  if (desktopNav.count !== 5) throw new Error(`Desktop chapter nav should expose five links, found ${desktopNav.count}`);
+  if (desktopNav.offscreen.length) throw new Error(`Desktop chapter-nav links render offscreen: ${desktopNav.offscreen.join(", ")}`);
 
   let identity = await page.locator("#result-status").getAttribute("data-model-identity");
   // One decision-scope selector both decides and inspects the same named setting, and

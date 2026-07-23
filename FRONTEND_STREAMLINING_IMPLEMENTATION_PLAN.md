@@ -1,8 +1,8 @@
 # Frontend Streamlining Implementation Plan
 
-**Status:** execution brief for Claude Opus 4.8  
+**Status:** execution brief for Claude Opus 4.8\
 **Baseline reviewed:** `606aafe` (`main`, 2026-07-23), plus the pre-existing
-worktree precision adjustment in `src/app.ts::syncControls`  
+worktree precision adjustment in `src/app.ts::syncControls`\
 **Primary decision:** make the page read as one continuous, predominantly
 single-column explanation while preserving the few comparisons that require
 side-by-side figures.
