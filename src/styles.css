@@ -213,7 +213,7 @@ dt { color: var(--muted); font-size: var(--fs-body); font-weight: 750; letter-sp
 dd { margin: 3px 0 0; font-family: var(--serif); font-size: var(--fs-body); font-variant-numeric: tabular-nums; }
 
 .table-wrap { overflow-x: auto; border-top: 1px solid var(--ink); }
-table { width: 100%; min-width: 760px; border-collapse: collapse; font-size: var(--fs-body); }
+table { width: 100%; min-width: 640px; border-collapse: collapse; font-size: var(--fs-body); }
 th, td { padding: 16px 14px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
 thead th { color: var(--muted); font-size: var(--fs-body); letter-spacing: .1em; text-transform: uppercase; }
 tbody th { width: 21%; font-family: var(--serif); font-size: var(--fs-body); font-weight: 400; }
@@ -409,6 +409,29 @@ fieldset > p { color: var(--muted); font-size: var(--fs-body); }
   .threshold-line, .pareto-line, .anchor-point, .selected-exact, .effect-point { stroke: CanvasText; }
   .effect-point.passes, .decision-anchor { fill: CanvasText; }
   .effect-point.fails { fill: Canvas; }
+}
+
+/* Export controls are secondary: compact, muted, below the closing prose. */
+.exports h3 { font-size: var(--fs-accent); }
+.export-actions button { min-height: 34px; padding: 6px 12px; border-color: var(--line-dark); color: var(--muted); font-weight: 700; }
+.export-actions button:hover:not(:disabled) { color: var(--paper); }
+
+/* Narrow measurement map: the provenance table recomposes into vertically
+   readable records (no horizontal page scroll). Table semantics stay intact for
+   assistive tech; sighted narrow users get per-field labels via ::before. */
+@media (max-width: 600px) {
+  .table-wrap { overflow-x: visible; }
+  .provenance-reference table, .provenance-reference tbody, .provenance-reference tr, .provenance-reference th, .provenance-reference td { display: block; width: auto; }
+  .provenance-reference table { min-width: 0; }
+  .provenance-reference thead { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); }
+  .provenance-reference tr { padding: 14px 0; border-bottom: 1px solid var(--line-dark); }
+  .provenance-reference tbody th { padding: 0 0 8px; font-family: var(--serif); font-size: var(--fs-accent); }
+  .provenance-reference tbody td { padding: 3px 0; border: 0; color: var(--ink); }
+  .provenance-reference tbody td::before { display: block; color: var(--muted); font-size: var(--fs-body); font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+  .provenance-reference tbody td:nth-child(2)::before { content: "Scientific role"; }
+  .provenance-reference tbody td:nth-child(3)::before { content: "Measurement interpretation"; }
+  .provenance-reference tbody td:nth-child(4)::before { content: "Status in v1"; }
+  .provenance-reference tbody td:nth-child(2), .provenance-reference tbody td:nth-child(4) { color: var(--russet-dark); }
 }
 
 @media print {
