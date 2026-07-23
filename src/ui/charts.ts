@@ -58,7 +58,7 @@ function withinHostFigure(outputs: TeachingView, mobile: boolean): string {
     "Acquisition probability",
     [1, 100, 10_000, 1_000_000],
     [0, .25, .5, .75, 1],
-    { note: "One WPV HID50 anchors q_acq and conditioning.", referenceX: diagnostics.referenceChallengeDoseCID50, referenceLabel: "1 WPV HID50" }
+    { note: "One WPV HID50: the residual-acquisition reference.", referenceX: diagnostics.referenceChallengeDoseCID50, referenceLabel: "1 WPV HID50" }
   );
   const survival = curvePanel(
     panels[1]!,
@@ -254,6 +254,9 @@ function indexBarPanel(
 
 function formatScientific(value: number): string { return formatNumber(value); }
 
+// SVG subscript: a baseline-shifted, smaller tspan for in-figure variable subscripts.
+function svgSub(base: string, subscript: string): string { return `${base}<tspan baseline-shift="sub" font-size="0.72em">${subscript}</tspan>`; }
+
 function splitLabel(label: string, maxChars = 40): [string] | [string, string] {
   if (label.length <= maxChars) return [label];
   const mid = label.length / 2;
@@ -330,7 +333,7 @@ export function renderSettingSurface(outputs: TeachingView, view: ChartViewState
     <desc id="setting-desc">Direct display-grid R_loc values over 0.1 to 2,000 micrograms per exposure and 1 to 20 close social contacts. Blue is below one, near-white is one, and red is above one. The black dashed internal line is the interpolated threshold. Status is evaluated directly over ${escapeXml(scope.label)}, not from the raster or display-domain corner.</desc>
     <defs><linearGradient id="surface-scale" x1="0" x2="1"><stop offset="0" stop-color="${BLUE}"/><stop offset="0.5" stop-color="${WHITE}"/><stop offset="1" stop-color="${RED}"/></linearGradient></defs>
     <text class="chart-kicker" x="${margin.left}" y="24">NONBINDING DISPLAY DOMAIN · PRODUCT-SPECIFIC MARGIN</text>
-    <text class="chart-title" x="${margin.left}" y="51">Where does this candidate cross R_loc = 1?</text>
+    <text class="chart-title" x="${margin.left}" y="51">Where does this candidate cross ${svgSub("R", "loc")} = 1?</text>
     <rect class="plot-bg" x="${margin.left}" y="${margin.top}" width="${plotWidth}" height="${plotHeight}"/>
     ${ticksY}${cells}
     <path class="threshold-line" d="${thresholdPath}"/>
@@ -339,9 +342,9 @@ export function renderSettingSurface(outputs: TeachingView, view: ChartViewState
     ${scopeMark}
     ${anchors}${ticksX}
     <text class="axis-label" x="${margin.left + plotWidth / 2}" y="${height - 17}" text-anchor="middle">Linked stool-equivalent exposure, T (µg/exposure · log scale)</text>
-    <text class="axis-label" transform="translate(20 ${margin.top + plotHeight / 2}) rotate(-90)" text-anchor="middle">Close social contacts, N_s</text>
-    <g class="surface-legend" transform="translate(${margin.left + plotWidth - 236} 34)"><rect x="0" y="0" width="166" height="11" fill="url(#surface-scale)"/><text x="0" y="25">0.01</text><text x="83" y="25" text-anchor="middle">R_loc = 1</text><text x="166" y="25" text-anchor="end">100</text></g>
-    <g class="chart-readout" transform="translate(${margin.left + 6} ${margin.top + 10})"><rect x="0" y="0" width="250" height="43"/><text x="10" y="17">INSPECTED DISPLAY CELL</text><text x="10" y="34">${formatMicrograms(activePoint.Tih)} µg/exposure · N_s ${activePoint.Ns} · R_loc ${formatNumber(activePoint.rLoc)}</text></g>
+    <text class="axis-label" transform="translate(20 ${margin.top + plotHeight / 2}) rotate(-90)" text-anchor="middle">Close social contacts, ${svgSub("N", "s")}</text>
+    <g class="surface-legend" transform="translate(${margin.left + plotWidth - 236} 34)"><rect x="0" y="0" width="166" height="11" fill="url(#surface-scale)"/><text x="0" y="25">0.01</text><text x="83" y="25" text-anchor="middle">${svgSub("R", "loc")} = 1</text><text x="166" y="25" text-anchor="end">100</text></g>
+    <g class="chart-readout" transform="translate(${margin.left + 6} ${margin.top + 10})"><rect x="0" y="0" width="250" height="43"/><text x="10" y="17">INSPECTED DISPLAY CELL</text><text x="10" y="34">${formatMicrograms(activePoint.Tih)} µg/exposure · ${svgSub("N", "s")} ${activePoint.Ns} · ${svgSub("R", "loc")} ${formatNumber(activePoint.rLoc)}</text></g>
     <text class="interpolation-note" x="${margin.left + plotWidth}" y="${height - 2}" text-anchor="end">Status: direct over decision scope. Contour: interpolated display context.</text>
   </svg>`;
 }
@@ -427,7 +430,7 @@ export function renderEffectMap(outputs: ModelOutputsV1, view: ChartViewState): 
     <text class="chart-kicker" x="${margin.left}" y="24">MODELED OUTCOMES</text><text class="chart-title" x="${margin.left}" y="50">What combination of effects is sufficient?</text>
     <rect class="plot-bg" x="${margin.left}" y="${margin.top}" width="${plotWidth}" height="${plotHeight}"/>${gridLines(x, y, margin, plotWidth, plotHeight, "effect")}${points}${paretoMark}${exactMark}${comparators}${empty}
     ${linearTicks([0, .25, .5, .75, 1], x, margin.top + plotHeight, "x", true)}${linearTicks([0, .25, .5, .75, 1], y, margin.left, "y", true)}
-    <text class="axis-label" x="${margin.left + plotWidth / 2}" y="${height - 18}" text-anchor="middle">Reduction in WPV acquisition (1 − q_acq)</text>${rotatedYLabel("axis-label", 13, margin.top + plotHeight / 2, "Reduction in breakthrough shedding")}
+    <text class="axis-label" x="${margin.left + plotWidth / 2}" y="${height - 18}" text-anchor="middle">Reduction in WPV acquisition (1 − ${svgSub("q", "acq")})</text>${rotatedYLabel("axis-label", 13, margin.top + plotHeight / 2, "Reduction in breakthrough shedding")}
     <g class="chart-key" transform="translate(${margin.left + 8} ${margin.top + 15})"><circle class="effect-point passes" cx="0" cy="0" r="2.5"/><text x="8" y="3">meets</text><circle class="effect-point fails" cx="60" cy="0" r="1.3"/><text x="68" y="3">does not meet</text></g>${paretoLabel}
     <text class="interpolation-note" x="${margin.left + plotWidth}" y="${height - 2}" text-anchor="end">Every mark is one direct product-grid evaluation.</text>
   </svg>`;

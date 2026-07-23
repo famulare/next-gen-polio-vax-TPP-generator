@@ -58,6 +58,8 @@ h1 { max-width: 980px; margin-bottom: 24px; font-size: var(--fs-display); line-h
 h2 { margin-bottom: 14px; font-size: var(--fs-h2); line-height: 1.06; letter-spacing: -.02em; }
 h3 { font-size: var(--fs-h3); }
 .lede { max-width: 760px; margin-bottom: 28px; color: var(--muted); font-family: var(--serif); font-size: var(--fs-lede); }
+.orienting { max-width: 860px; margin: 0 0 28px; color: var(--muted); font-size: var(--fs-body); line-height: 1.6; }
+.orienting strong { color: var(--ink); }
 .opening-comparison { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1.2fr); gap: 6px 20px; align-items: stretch; max-width: 960px; margin: 0 0 22px; padding: 12px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); font-size: var(--fs-body); }
 .opening-comparison .cohort { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
 .opening-comparison .cohort-tag { color: var(--russet-dark); font-size: var(--fs-body); font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }

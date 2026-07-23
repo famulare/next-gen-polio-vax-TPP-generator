@@ -102,7 +102,16 @@ its viewBox-to-container ratio so tick, axis, legend, and note text all render a
 that floor uniformly across figures (narrow viewports scale the shared figures
 down proportionally); long rotated y-axis labels are shortened or wrapped so they neither
 overflow the plot nor collide with tick labels; and single-panel legends stack
-one item per row. This
+one item per row. An orienting paragraph after the hero lede states what the
+tool is, where its model and parameters come from (the India-calibrated
+within-host kernels, the post-cessation stability analysis, and the Matlab
+household-exposure calibration), and what the reader does, while disclaiming any
+new model or clinical prediction. Model variables written with underscores
+(`R_loc`, `R_e`, `q_acq`, `q_shed`, `q_index`, `N_s`, `T_ih`/`T_hs`, `d_ih`/`d_hs`) render as
+typographic subscripts in visible text — HTML `<sub>` and baseline-shifted SVG
+`<tspan>` — applied only at the view boundary so plain-text contexts (tooltips,
+accessibility descriptions, machine exports, and CSV headers) keep their literal
+forms. This
 supersedes the earlier two-tier "Update the model" commit gate, the
 three-distinct-objects control model, and any custom-envelope / axis-unlinking
 UI affordance (§10.3, §13.8, §18.17, §18.20). Every 1.9 change

@@ -297,7 +297,7 @@ export function mountApp(root: HTMLElement): void {
     setExportAvailability(true);
     byId<HTMLElement>("export-status").textContent = `Exports are ready for committed model ${shortIdentity(outputs.modelIdentity)}.`;
     byId<HTMLElement>("transaction-status").className = "transaction-status committed";
-    byId<HTMLElement>("transaction-status").textContent = `Committed. ${presentation.result.statusLabel}: direct R_loc ${formatNumber(presentation.result.value)}.`;
+    byId<HTMLElement>("transaction-status").innerHTML = `Committed. ${escapeHtml(presentation.result.statusLabel)}: direct R<sub>loc</sub> ${formatNumber(presentation.result.value)}.`;
   }
 
   // Live tier: the cheap teaching/immunity/surface figures, point readouts, and the
@@ -324,10 +324,10 @@ export function mountApp(root: HTMLElement): void {
     status.dataset.modelIdentity = teaching.diagnostics.modelIdentity;
     status.innerHTML = `<p class="result-label">${escapeHtml(result.statusLabel)} · ${escapeHtml(result.scopeShortLabel)}</p>
       <h2>${escapeHtml(result.headline)}</h2>
-      <p class="result-number"><span>Direct R<sub>loc</sub></span><strong>${formatNumber(result.value)}</strong><span>${escapeHtml(result.criterion)}</span></p>
-      <p class="qualification">${escapeHtml(result.qualification)}</p>`;
+      <p class="result-number"><span>Direct R<sub>loc</sub></span><strong>${formatNumber(result.value)}</strong><span>${subVarsHtml(result.criterion)}</span></p>
+      <p class="qualification">${subVarsHtml(result.qualification)}</p>`;
     byId<HTMLElement>("candidate-summary").innerHTML = `<strong>${escapeHtml(candidate.label)}</strong><span>${escapeHtml(candidate.schedule)} · assessed ${escapeHtml(candidate.assessment)}</span>`;
-    byId<HTMLElement>("scope-summary").innerHTML = `<span>Decision scope</span><strong>${escapeHtml(result.scopeLabel)}</strong>`;
+    byId<HTMLElement>("scope-summary").innerHTML = `<span>Decision scope</span><strong>${subVarsHtml(result.scopeLabel)}</strong>`;
     byId<HTMLElement>("story-results").classList.remove("is-stale");
   }
 
@@ -371,8 +371,8 @@ export function mountApp(root: HTMLElement): void {
   }
 
   function renderAssumptions(outputs: ModelOutputsV1): void {
-    byId<HTMLElement>("assumptions-list").innerHTML = outputs.assumptions.map((item) => `<li>${escapeHtml(item)}</li>`).join("");
-    byId<HTMLElement>("uncertainty-note").innerHTML = `<strong>Evidence gap:</strong> ${escapeHtml(outputs.uncertainty.reason)}`;
+    byId<HTMLElement>("assumptions-list").innerHTML = outputs.assumptions.map((item) => `<li>${subVarsHtml(item)}</li>`).join("");
+    byId<HTMLElement>("uncertainty-note").innerHTML = `<strong>Evidence gap:</strong> ${subVarsHtml(outputs.uncertainty.reason)}`;
     byId<HTMLElement>("provenance-summary").textContent = `Model ${shortIdentity(outputs.modelIdentity)} · ${outputs.provenance && typeof outputs.provenance === "object" ? "committed source snapshots and deterministic transforms" : "provenance unavailable"}.`;
   }
 
@@ -429,7 +429,7 @@ export function mountApp(root: HTMLElement): void {
     const contacts = Number(byId<HTMLInputElement>("motif-contacts").value);
     const state = buildScheduleState(scenario.vaccine, scenario.schedule);
     const rLoc = rLocForSetting(state, { ...scenario.setting, Ns: contacts }, scenario.indexReferenceExposure, scenario.horizonDays);
-    byId<HTMLOutputElement>("motif-rloc").value = `R_loc = ${formatNumber(rLoc)}`;
+    byId<HTMLOutputElement>("motif-rloc").innerHTML = `R<sub>loc</sub> = ${formatNumber(rLoc)}`;
   }
 
   function renderInvalid(error: unknown): void {
@@ -463,6 +463,7 @@ function shell(): string {
       <p class="eyebrow">WPV1 · close-contact sufficiency model · contract ${PARAMETERS.designContractVersion}</p>
       <h1>Under what conditions can a vaccine block close-contact transmission?</h1>
       <p class="lede">Begin with a child exposed to WPV in the UP/Bihar reference setting. Follow the model from schedule-derived immunity, through acquisition and shedding, into a close-contact transmission motif—then ask what product properties clear that stress test.</p>
+      <p class="orienting"><strong>What this is, and where it comes from.</strong> The tool makes an existing, locked polio model legible for target-product-profile reasoning—it introduces no new model and makes no clinical or outbreak prediction. Its within-host infection and shedding kernels are the India-calibrated model; the close-contact transmission motif and its household exposures come from the post-cessation stability analysis (Famulare et al., PLoS Biology 2018) and the Matlab, Bangladesh trial. You set a candidate product and a decision setting, and the page recomputes the whole chain—schedule-derived immunity, acquisition, breakthrough shedding, and the close-contact reproduction number R<sub>loc</sub>—to show whether it blocks transmission under the conditions you chose.</p>
       <p id="opening-comparison" class="opening-comparison" aria-live="off"></p>
       <aside class="prototype-banner" role="note"><strong>Scientific prototype · point rule</strong><span>This is a deterministic close-contact sufficiency screen under the v1 axiom—not a complete-population R<sub>e</sub>, outbreak forecast, or probability of product success.</span></aside>
     </header>
@@ -492,15 +493,15 @@ function shell(): string {
           <rect class="motif-frame" x="36" y="52" width="410" height="118" rx="8"/><text class="motif-frame-label" x="50" y="72">ONE HOUSEHOLD</text>
           <rect class="motif-frame" x="516" y="52" width="268" height="118" rx="8"/><text class="motif-frame-label" x="530" y="72">OTHER HOUSEHOLDS</text>
           <g><rect class="motif-node motif-node-index" x="64" y="90" width="152" height="62" rx="8"/><text class="motif-num" x="78" y="114">01</text><text class="motif-name" x="78" y="136">Index child</text></g>
-          <line class="motif-arrow" x1="220" y1="121" x2="296" y2="121" marker-end="url(#motif-arrow)"/><text class="motif-link" x="258" y="110" text-anchor="middle">T_ih · d_ih</text>
+          <line class="motif-arrow" x1="220" y1="121" x2="296" y2="121" marker-end="url(#motif-arrow)"/><text class="motif-link" x="258" y="110" text-anchor="middle">${svgSub("T", "ih")} · ${svgSub("d", "ih")}</text>
           <g><rect class="motif-node" x="300" y="90" width="142" height="62" rx="8"/><text class="motif-num" x="314" y="114">02</text><text class="motif-name" x="314" y="136">Household child</text></g>
-          <line class="motif-arrow" x1="446" y1="121" x2="544" y2="121" marker-end="url(#motif-arrow)"/><text class="motif-link" x="495" y="110" text-anchor="middle">T_hs · d_hs</text>
+          <line class="motif-arrow" x1="446" y1="121" x2="544" y2="121" marker-end="url(#motif-arrow)"/><text class="motif-link" x="495" y="110" text-anchor="middle">${svgSub("T", "hs")} · ${svgSub("d", "hs")}</text>
           <g class="motif-fanout"><text class="motif-num" x="530" y="92">03</text><text class="motif-name" x="552" y="92">Close social contacts</text>
             <g class="motif-house"><path class="motif-house-roof" d="M 544 116 L 560 102 L 576 116 Z"/><rect class="motif-house-body" x="547" y="116" width="26" height="22" rx="2"/></g><text class="motif-house-label" x="560" y="152" text-anchor="middle">house 1</text>
             <g class="motif-house"><path class="motif-house-roof" d="M 592 116 L 608 102 L 624 116 Z"/><rect class="motif-house-body" x="595" y="116" width="26" height="22" rx="2"/></g><text class="motif-house-label" x="608" y="152" text-anchor="middle">house 2</text>
             <text class="motif-name" x="656" y="130" text-anchor="middle">…</text>
-            <g class="motif-house"><path class="motif-house-roof" d="M 688 116 L 704 102 L 720 116 Z"/><rect class="motif-house-body" x="691" y="116" width="26" height="22" rx="2"/></g><text class="motif-house-label" x="704" y="152" text-anchor="middle">house N_s</text></g>
-          <text class="motif-foot" x="12" y="206">Endpoint: R_loc = expected infections along this one motif — not a complete-population R_e.</text>
+            <g class="motif-house"><path class="motif-house-roof" d="M 688 116 L 704 102 L 720 116 Z"/><rect class="motif-house-body" x="691" y="116" width="26" height="22" rx="2"/></g><text class="motif-house-label" x="704" y="152" text-anchor="middle">house ${svgSub("N", "s")}</text></g>
+          <text class="motif-foot" x="12" y="206">Endpoint: ${svgSub("R", "loc")} = expected infections along this one motif — not a complete-population ${svgSub("R", "e")}.</text>
         </svg>
         <figcaption><strong>One declared motif.</strong> A breakthrough index child exposes a household child, who exposes N<sub>s</sub> close social contacts in other households. R<sub>loc</sub> counts expected infections along this motif only.</figcaption>
       </figure>
@@ -773,6 +774,12 @@ function shortIdentity(value: string): string { return `${value.slice(0, 14)}…
 function csvValue(value: string): string { return `"${value.replaceAll('"', '""')}"`; }
 function errorMessage(error: unknown): string { return error instanceof Error ? error.message : String(error); }
 function escapeHtml(value: string): string { return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;"); }
+// Render model variables written with underscores (R_loc, q_acq, N_s, …) as HTML
+// subscripts at the view boundary, leaving the underlying strings plain so SVG
+// exports and machine outputs stay literal.
+function subVarsHtml(value: string): string { return escapeHtml(value).replace(/\b([RqNTd])_(loc|e|acq|shed|index|s|ih|hs)\b/g, (_m, base, sub) => `${base}<sub>${sub}</sub>`); }
+// SVG subscript: a baseline-shifted, smaller tspan for in-figure variable subscripts.
+function svgSub(base: string, subscript: string): string { return `${base}<tspan baseline-shift="sub" font-size="0.72em">${subscript}</tspan>`; }
 function escapeXml(value: string): string { return escapeHtml(value).replaceAll("'", "&apos;"); }
 
 installBrandFonts(document);

@@ -124,7 +124,7 @@ try {
   const defaultResult = await page.locator("#result-status").textContent();
   if (!defaultResult?.includes("clears the hardest known modeled anchor")) throw new Error("Default result does not lead with the hardest-known anchor");
   if (!defaultResult.includes("Direct Rloc0.92") || !defaultResult.includes("does not prove control everywhere")) throw new Error("Default result or adjacent qualification is wrong");
-  if (!defaultResult.includes("not a complete-population R_e")) throw new Error("Result blurs R_loc and complete-population R_e");
+  if (!defaultResult.includes("not a complete-population Re")) throw new Error("Result blurs R_loc and complete-population R_e");
   if (await page.locator("#scope").inputValue() !== "up-bihar") throw new Error("UP/Bihar is not the default decision scope");
   if (await page.locator("#probe").count()) throw new Error("A separate inspection probe control still exists; it should be merged into decision scope");
   const narrativeOrder = await page.evaluate(() => ["within-host", "product-pathway", "transmission", "decision", "measurement", "design-space"].map((id) => [...document.querySelectorAll("section")].indexOf(document.getElementById(id))));
@@ -310,7 +310,7 @@ try {
     }
     if (!svg.includes("Noto Sans") || !svg.includes("Noto Serif") || !svg.includes("data:font/woff2;base64,")) throw new Error(`Standalone ${kind} SVG did not embed the screen typography`);
     if (!svg.includes(palette.orange) || !svg.includes(palette.magenta) || !svg.includes(palette.darkBlue) || !svg.includes(palette.darkOrange) || !svg.includes(palette.turquoise)) throw new Error(`Standalone ${kind} SVG does not share the screen data palette`);
-    if (kind === "setting" && !["0.01", "R_loc = 1", "100", palette.surfaceBlue, palette.surfaceWhite, palette.surfaceRed].every((phrase) => svg.includes(phrase))) throw new Error("Standalone setting SVG omitted its fixed scientific scale");
+    if (kind === "setting" && !["0.01", "loc</tspan> = 1", "100", palette.surfaceBlue, palette.surfaceWhite, palette.surfaceRed].every((phrase) => svg.includes(phrase))) throw new Error("Standalone setting SVG omitted its fixed scientific scale");
   }
   await page.locator("#share").click();
   await page.waitForFunction(() => document.getElementById("export-status")?.textContent?.includes("Canonical scenario link"));
@@ -335,7 +335,7 @@ try {
   await assertNoHorizontalOverflow(page, "200%-equivalent desktop reflow");
   await page.addStyleTag({ content: "html { filter: grayscale(1); }" });
   const settingText = await page.locator("#setting-figure").textContent();
-  if (!settingText?.includes("PASSING SIDE") || !settingText.includes("FAILING SIDE") || !settingText.includes("R_loc = 1")) throw new Error("Grayscale setting surface lacks non-color threshold cues");
+  if (!settingText?.includes("PASSING SIDE") || !settingText.includes("FAILING SIDE") || !settingText.includes("Rloc = 1")) throw new Error("Grayscale setting surface lacks non-color threshold cues");
 
   await page.emulateMedia({ media: "screen", reducedMotion: "reduce", forcedColors: "active" });
   if (!(await page.evaluate(() => matchMedia("(forced-colors: active)").matches))) throw new Error("Forced-colors mode was not activated");
