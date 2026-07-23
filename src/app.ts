@@ -574,8 +574,8 @@ function syncControls(scenario: ScenarioV1): void {
   setValue("lag", scenario.schedule.assessmentLagDays);
   setValue("take", scenario.vaccine.takeContext);
   setValue("mu", scenario.vaccine.mu0);
-  setValue("alpha", scenario.vaccine.alpha);
-  setValue("hid50", scenario.vaccine.beta * (2 ** (1 / scenario.vaccine.alpha) - 1));
+  setRoundedInput("alpha", scenario.vaccine.alpha);
+  setRoundedInput("hid50", scenario.vaccine.beta * (2 ** (1 / scenario.vaccine.alpha) - 1));
   setValue("dose-log", Math.log10(Math.max(scenario.vaccine.dose, 1)));
   byId<HTMLElement>("fixed-gamma").textContent = formatNumber(scenario.vaccine.gamma);
   byId<HTMLElement>("fixed-sigma").textContent = `${formatNumber(scenario.vaccine.sigma0)} log2`;
@@ -600,8 +600,8 @@ function readControls(previous: ScenarioV1): ScenarioV1 {
     assessmentLagDays: Number(byId<HTMLSelectElement>("lag").value) as 28 | 90
   };
   if (scenario.vaccine.id === "hypothetical") {
-    const alphaInput = numberValue("alpha");
-    scenario.vaccine = { ...scenario.vaccine, takeContext: numberValue("take"), mu0: numberValue("mu"), alpha: alphaInput, beta: Math.min(1e6, Math.max(0.001, numberValue("hid50") / (2 ** (1 / alphaInput) - 1))), dose: 10 ** numberValue("dose-log") };
+    const alphaInput = preciseValue("alpha");
+    scenario.vaccine = { ...scenario.vaccine, takeContext: numberValue("take"), mu0: numberValue("mu"), alpha: alphaInput, beta: Math.min(1e6, Math.max(0.001, preciseValue("hid50") / (2 ** (1 / alphaInput) - 1))), dose: 10 ** numberValue("dose-log") };
   }
   return scenario;
 }
@@ -746,6 +746,22 @@ function showWarning(message: string, kind: "notice" | "error" = "error"): void 
 function hideWarning(): void { const warning = byId<HTMLElement>("state-warning"); warning.hidden = true; warning.textContent = ""; }
 function numberValue(id: string): number { return Number(byId<HTMLInputElement>(id).value); }
 function setValue(id: string, value: string | number): void { const element = document.getElementById(id) as HTMLInputElement | HTMLSelectElement | null; if (element) element.value = String(value); }
+// Show a control at two significant figures while keeping the exact committed value in a data
+// attribute, so an untouched field reads back exact (the model is unchanged) but the user sees a
+// clean number. A user-typed value (differing from the rounded display) is read verbatim.
+function setRoundedInput(id: string, exact: number): void {
+  const element = document.getElementById(id) as HTMLInputElement | null;
+  if (!element) return;
+  element.value = String(Number(exact.toPrecision(2)));
+  element.dataset.exact = String(exact);
+}
+function preciseValue(id: string): number {
+  const element = byId<HTMLInputElement>(id);
+  const shown = Number(element.value);
+  if (element.dataset.exact === undefined) return shown;
+  const exact = Number(element.dataset.exact);
+  return Number(exact.toPrecision(2)) === shown ? exact : shown;
+}
 function byId<T extends HTMLElement>(id: string): T { const element = document.getElementById(id); if (!element) throw new Error(`Missing UI element #${id}`); return element as T; }
 function unitExposure(value: number) { return { value, unit: "grams/exposure" as const, basis: "per_exposure" as const }; }
 function unitFrequency(value: number) { return { value, unit: "exposures/person/day", basis: "per_day" as const }; }
