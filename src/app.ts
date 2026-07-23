@@ -12,6 +12,7 @@ import {
   PARAMETERS,
   PRODUCT_LABELS,
   SETTING_ANCHORS,
+  SETTING_DISPLAY_DOMAIN,
   SETTING_MANIFEST_VERSION
 } from "./model/parameters";
 import { buildScheduleState } from "./model/schedule";
@@ -48,10 +49,12 @@ export function mountApp(root: HTMLElement): void {
   let liveOutputs: TeachingView | null = null;
   let lightTimer: number | undefined;
   let heavyTimer: number | undefined;
+  const maxSurfaceColumn = SETTING_DISPLAY_DOMAIN.exposure.count - 1;
+  const maxSurfaceRow = SETTING_DISPLAY_DOMAIN.contacts.max - SETTING_DISPLAY_DOMAIN.contacts.min;
   const view: AppViewState = {
     inspectedDesignKey: null,
     persistentDesignKey: null,
-    surfaceColumn: 63,
+    surfaceColumn: Math.round(maxSurfaceColumn * 0.787), // ~UP/Bihar log-position on the exposure axis
     surfaceRow: 9,
     drawerOpen: false
   };
@@ -139,11 +142,11 @@ export function mountApp(root: HTMLElement): void {
       if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"].includes(key)) return;
       event.preventDefault();
       if (key === "ArrowLeft") view.surfaceColumn = Math.max(0, view.surfaceColumn - 1);
-      if (key === "ArrowRight") view.surfaceColumn = Math.min(80, view.surfaceColumn + 1);
-      if (key === "ArrowUp") view.surfaceRow = Math.min(19, view.surfaceRow + 1);
+      if (key === "ArrowRight") view.surfaceColumn = Math.min(maxSurfaceColumn, view.surfaceColumn + 1);
+      if (key === "ArrowUp") view.surfaceRow = Math.min(maxSurfaceRow, view.surfaceRow + 1);
       if (key === "ArrowDown") view.surfaceRow = Math.max(0, view.surfaceRow - 1);
       if (key === "Home") view.surfaceColumn = 0;
-      if (key === "End") view.surfaceColumn = 80;
+      if (key === "End") view.surfaceColumn = maxSurfaceColumn;
       renderSurfaceOnly();
       document.querySelector<SVGSVGElement>("#setting-figure")?.focus();
     });

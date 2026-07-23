@@ -302,7 +302,7 @@ export function renderSettingSurface(outputs: TeachingView, view: ChartViewState
     const right = column === exposures.length - 1 ? SETTING_DISPLAY_DOMAIN.exposure.max : Math.sqrt(exposure * exposures[column + 1]!);
     const rLoc = values.get(`${exposure}:${contact}`)!;
     const active = column === view.surfaceColumn && row === view.surfaceRow;
-    return `<rect class="surface-cell${active ? " is-inspected" : ""}" data-surface-column="${column}" data-surface-row="${row}" x="${x(left)}" y="${y(contact + 0.5)}" width="${Math.max(0.25, x(right) - x(left) + 0.35)}" height="${Math.max(0.25, y(contact - 0.5) - y(contact + 0.5) + 0.35)}" fill="${surfaceColor(rLoc)}"><title>${formatMicrograms(exposure)} µg/exposure; ${contact} contacts; direct cell R_loc ${formatNumber(rLoc)}</title></rect>`;
+    return `<rect class="surface-cell${active ? " is-inspected" : ""}" data-surface-column="${column}" data-surface-row="${row}" x="${x(left)}" y="${y(contact + 0.5)}" width="${Math.max(0.25, x(right) - x(left) + 0.35)}" height="${Math.max(0.25, y(contact - 0.5) - y(contact + 0.5) + 0.35)}" fill="${surfaceColor(rLoc)}"><title>${formatMicrograms(exposure)} µg/day; ${contact} contacts; direct cell R_loc ${formatNumber(rLoc)}</title></rect>`;
   })).join("");
   const threshold = thresholdAcrossExposure(exposures, contacts, values, x, y);
   const thresholdPath = threshold.length > 1 ? line()(threshold) ?? "" : "";
@@ -313,25 +313,26 @@ export function renderSettingSurface(outputs: TeachingView, view: ChartViewState
   const anchors = SETTING_ANCHORS.map((anchor) => {
     const activeScope = anchor.id === scope.id;
     const offsets: Record<string, [number, number, string]> = {
-      low: [8, 21, "start"],
-      houston: [8, -13, "start"],
-      matlab: [8, 32, "start"],
-      "up-bihar": [10, -13, "start"]
+      houston: [10, -20, "start"],
+      matlab: [10, 26, "start"],
+      "up-bihar": [12, -20, "start"]
     };
-    const [dx, dy, anchorText] = offsets[anchor.id] ?? [8, -8, "start"];
+    const [dx, dy, anchorText] = offsets[anchor.id] ?? [10, -20, "start"];
     const shape = activeScope
       ? `<g class="anchor-group decision-anchor-group"><circle class="decision-anchor-ring" cx="${x(anchor.Tih.value)}" cy="${y(anchor.Ns)}" r="10"/><path class="anchor-point decision-anchor" d="M ${x(anchor.Tih.value)} ${y(anchor.Ns) - 7} l 7 7 -7 7 -7 -7 z"/></g>`
       : `<circle class="anchor-point${anchor.kind === "hybrid" ? " hybrid-anchor" : ""}" cx="${x(anchor.Tih.value)}" cy="${y(anchor.Ns)}" r="5"/>`;
-    return `<g class="anchor-group">${shape}<text class="anchor-label" x="${x(anchor.Tih.value) + dx}" y="${y(anchor.Ns) + dy}" text-anchor="${anchorText}">${escapeXml(anchorShortLabel(anchor.id))}</text></g>`;
+    const lx = x(anchor.Tih.value) + dx;
+    const [line1, line2] = anchorShortLabel(anchor.id);
+    return `<g class="anchor-group">${shape}<text class="anchor-label" x="${lx}" y="${y(anchor.Ns) + dy}" text-anchor="${anchorText}"><tspan x="${lx}">${escapeXml(line1)}</tspan><tspan x="${lx}" dy="1.05em">${escapeXml(line2)}</tspan></text></g>`;
   }).join("");
   const activePoint = outputs.settingSurface.find((point) => exposures.indexOf(point.Tih) === view.surfaceColumn && contacts.indexOf(point.Ns) === view.surfaceRow) ?? outputs.settingSurface[0]!;
-  const ticksX = [0.1, 1, 10, 100, 1000, 2000].map((micrograms) => `<g><line class="tick-mark" x1="${x(micrograms / 1_000_000)}" x2="${x(micrograms / 1_000_000)}" y1="${margin.top + plotHeight}" y2="${margin.top + plotHeight + 6}"/><text class="tick" x="${x(micrograms / 1_000_000)}" y="${margin.top + plotHeight + 22}" text-anchor="middle">${micrograms >= 1000 ? `${micrograms / 1000}k` : micrograms}</text></g>`).join("");
+  const ticksX = [1, 10, 100, 1000].map((micrograms) => `<g><line class="tick-mark" x1="${x(micrograms / 1_000_000)}" x2="${x(micrograms / 1_000_000)}" y1="${margin.top + plotHeight}" y2="${margin.top + plotHeight + 6}"/><text class="tick" x="${x(micrograms / 1_000_000)}" y="${margin.top + plotHeight + 22}" text-anchor="middle">${micrograms}</text></g>`).join("");
   const ticksY = [1, 5, 10, 15, 20].map((contact) => `<g><line class="grid-line" x1="${margin.left}" x2="${margin.left + plotWidth}" y1="${y(contact)}" y2="${y(contact)}"/><text class="tick" x="${margin.left - 12}" y="${y(contact) + 4}" text-anchor="end">${contact}</text></g>`).join("");
   return `<svg id="setting-figure" class="scientific-chart setting-chart" tabindex="0" role="img" aria-labelledby="setting-title setting-desc" data-chart="surface" data-columns="${exposures.length}" data-rows="${contacts.length}" viewBox="0 0 ${width} ${height}">
     <title id="setting-title">Setting surface for ${escapeXml(outputs.scenario.vaccine.label)}</title>
-    <desc id="setting-desc">Direct display-grid R_loc values over 0.1 to 2,000 micrograms per exposure and 1 to 20 close social contacts. Blue is below one, near-white is one, and red is above one. The black dashed internal line is the interpolated threshold. Status is evaluated directly over ${escapeXml(scope.label)}, not from the raster or display-domain corner.</desc>
-    <defs><linearGradient id="surface-scale" x1="0" x2="1"><stop offset="0" stop-color="${BLUE}"/><stop offset="0.5" stop-color="${WHITE}"/><stop offset="1" stop-color="${RED}"/></linearGradient></defs>
-    <text class="chart-kicker" x="${margin.left}" y="24">NONBINDING DISPLAY DOMAIN · PRODUCT-SPECIFIC MARGIN</text>
+    <desc id="setting-desc">Direct display-grid R_loc values over 1 to 1,000 micrograms of stool exposure per day and 1 to 20 close social contacts, on a color scale from 0.01 to 20. Blue is below one, near-white is one, and red is above one. The black dashed internal line is the interpolated threshold. Status is evaluated directly over ${escapeXml(scope.label)}, not from the raster or display-domain corner.</desc>
+    <defs><linearGradient id="surface-scale" x1="0" x2="1"><stop offset="0" stop-color="${BLUE}"/><stop offset="0.606" stop-color="${WHITE}"/><stop offset="1" stop-color="${RED}"/></linearGradient></defs>
+    <text class="chart-kicker" x="${margin.left}" y="24">R_LOC ACROSS SETTINGS · DECISION AT YOUR CHOSEN ANCHOR</text>
     <text class="chart-title" x="${margin.left}" y="51">Where does this candidate cross ${svgSub("R", "loc")} = 1?</text>
     <rect class="plot-bg" x="${margin.left}" y="${margin.top}" width="${plotWidth}" height="${plotHeight}"/>
     ${ticksY}${cells}
@@ -340,10 +341,10 @@ export function renderSettingSurface(outputs: TeachingView, view: ChartViewState
     <text class="side-label fail-side" x="${margin.left + plotWidth - 15}" y="${margin.top + 22}" text-anchor="end">FAILING SIDE · greater transmission pressure</text>
     ${scopeMark}
     ${anchors}${ticksX}
-    <text class="axis-label" x="${margin.left + plotWidth / 2}" y="${height - 17}" text-anchor="middle">Linked stool-equivalent exposure, T (µg/exposure · log scale)</text>
+    <text class="axis-label" x="${margin.left + plotWidth / 2}" y="${height - 17}" text-anchor="middle">Stool exposure per day (µg · log scale)</text>
     <text class="axis-label" transform="translate(20 ${margin.top + plotHeight / 2}) rotate(-90)" text-anchor="middle">Close social contacts, ${svgSub("N", "s")}</text>
-    <g class="surface-legend" transform="translate(${margin.left + plotWidth - 236} 34)"><rect x="0" y="0" width="166" height="11" fill="url(#surface-scale)"/><text x="0" y="25">0.01</text><text x="83" y="25" text-anchor="middle">${svgSub("R", "loc")} = 1</text><text x="166" y="25" text-anchor="end">100</text></g>
-    <g class="chart-readout" transform="translate(${margin.left + 6} ${margin.top + 10})"><rect x="0" y="0" width="250" height="43"/><text x="10" y="17">INSPECTED DISPLAY CELL</text><text x="10" y="34">${formatMicrograms(activePoint.Tih)} µg/exposure · ${svgSub("N", "s")} ${activePoint.Ns} · ${svgSub("R", "loc")} ${formatNumber(activePoint.rLoc)}</text></g>
+    <g class="surface-legend" transform="translate(${margin.left + plotWidth - 236} 34)"><rect x="0" y="0" width="166" height="11" fill="url(#surface-scale)"/><text x="0" y="25">0.01</text><text x="101" y="25" text-anchor="middle">${svgSub("R", "loc")} = 1</text><text x="166" y="25" text-anchor="end">20</text></g>
+    <g class="chart-readout" transform="translate(${margin.left + 6} ${margin.top + 10})"><rect x="0" y="0" width="250" height="43"/><text x="10" y="17">INSPECTED DISPLAY CELL</text><text x="10" y="34">${formatMicrograms(activePoint.Tih)} µg/day · ${svgSub("N", "s")} ${activePoint.Ns} · ${svgSub("R", "loc")} ${formatNumber(activePoint.rLoc)}</text></g>
     <text class="interpolation-note" x="${margin.left + plotWidth}" y="${height - 2}" text-anchor="end">Status: direct over decision scope. Contour: interpolated display context.</text>
   </svg>`;
 }
@@ -484,7 +485,7 @@ function linearTicks(values: number[], scale: (value: number) => number, axis: n
 }
 
 function surfaceColor(rLoc: number): string {
-  return scaleLinear<string>().domain([-2, 0, 2]).range([BLUE, WHITE, RED]).clamp(true)(Math.log10(Math.max(rLoc, 1e-12)));
+  return scaleLinear<string>().domain([-2, 0, Math.log10(20)]).range([BLUE, WHITE, RED]).clamp(true)(Math.log10(Math.max(rLoc, 1e-12)));
 }
 
 function selectedExactMark(cx: number, cy: number, rightBoundary: number, plotTop: number, plotBottom: number): string {
@@ -495,8 +496,10 @@ function selectedExactMark(cx: number, cy: number, rightBoundary: number, plotTo
   return `<circle class="selected-exact" cx="${cx}" cy="${cy}" r="8"/><text class="selection-label" x="${lx}" y="${ly}" text-anchor="${anchor}">selected exact</text>`;
 }
 
-function anchorShortLabel(id: string): string {
-  return id === "low" ? "Low" : id === "houston" ? "Houston / Louisiana" : id === "matlab" ? "Matlab · daily-exposure hybrid" : "UP / Bihar high";
+function anchorShortLabel(id: string): [string, string] {
+  return id === "houston" ? ["Houston/Louisiana", "1960"]
+    : id === "matlab" ? ["Matlab, Bangladesh", "2016"]
+    : ["UP/Bihar", "2003–2008"];
 }
 
 function formatMicrograms(grams: number): string {

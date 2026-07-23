@@ -51,8 +51,8 @@ export function validateModelOutputs(value: unknown): asserts value is ModelOutp
   for (const key of ["qAcq", "qShed", "qIndex", "effectiveFirstDoseTake"] as const) finiteRange(metrics[key], 0, 1, `PointMetrics.${key}`);
   for (const key of ["rLocEnvelopeMax", "naiveRLocEnvelopeMax", "assessmentAgeDays", "assessmentLagDays", "indexReferenceExposure"] as const) finiteRange(metrics[key], 0, Number.MAX_VALUE, `PointMetrics.${key}`);
   if (metrics.rLocSelectedSetting !== null) finiteRange(metrics.rLocSelectedSetting, 0, Number.MAX_VALUE, "PointMetrics.rLocSelectedSetting");
-  const anchors = requireRecord(metrics.rLocAnchors, "rLocAnchors"); exactKeys(anchors, ["low", "houston", "matlab", "up-bihar"], "rLocAnchors");
-  for (const key of ["low", "houston", "matlab", "up-bihar"] as const) finiteRange(anchors[key], 0, Number.MAX_VALUE, `rLocAnchors.${key}`);
+  const anchors = requireRecord(metrics.rLocAnchors, "rLocAnchors"); exactKeys(anchors, ["houston", "matlab", "up-bihar"], "rLocAnchors");
+  for (const key of ["houston", "matlab", "up-bihar"] as const) finiteRange(anchors[key], 0, Number.MAX_VALUE, `rLocAnchors.${key}`);
 
   if (!Array.isArray(value.settingSurface)) throw new Error("settingSurface must be an array");
   for (const [index, candidate] of value.settingSurface.entries()) {
@@ -208,7 +208,7 @@ function validateSetting(value: unknown): asserts value is SettingV1 {
   if (!isRecord(value)) throw new Error("Setting must be an object");
   exactKeys(value, ["id", "Tih", "Ths", "dIh", "dHs", "Ns"], "SettingV1");
   if (value.id === "global") throw new Error("Legacy 'global' setting state is no longer supported; select an explicit probe and decision scope");
-  if (!["low", "houston", "matlab", "up-bihar", "custom"].includes(value.id as string)) throw new Error("Invalid setting id");
+  if (!["houston", "matlab", "up-bihar", "custom"].includes(value.id as string)) throw new Error("Invalid setting id");
   validateUnitValue(value.Tih, "grams/exposure", "per_exposure", "Tih");
   validateUnitValue(value.Ths, "grams/exposure", "per_exposure", "Ths");
   validateUnitValue(value.dIh, "exposures/person/day", "per_day", "dIh");

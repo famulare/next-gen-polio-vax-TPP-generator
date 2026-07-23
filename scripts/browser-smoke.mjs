@@ -154,8 +154,8 @@ try {
   if (await page.locator("#within-host-figure .teaching-panel").count() !== 4) throw new Error("The dose-response figure must be separate; within-host must stay four panels");
   if (!(await page.locator(".motif-svg").count())) throw new Error("Transmission motif illustration did not render");
   if (!(await page.locator("#effect-figure").count()) || !(await page.locator("#product-figure").count()) || !(await page.locator("#setting-figure").count())) throw new Error("One or more decision or design figures did not render");
-  if (await page.locator("#setting-figure [data-surface-column]").count() !== 1620) throw new Error("Setting surface is not 81 × 20");
-  if (await page.locator("#setting-figure").getAttribute("data-columns") !== "81" || await page.locator("#setting-figure").getAttribute("data-rows") !== "20") throw new Error("Setting surface dimensions are not declared");
+  if (await page.locator("#setting-figure [data-surface-column]").count() !== 1220) throw new Error("Setting surface is not 61 × 20");
+  if (await page.locator("#setting-figure").getAttribute("data-columns") !== "61" || await page.locator("#setting-figure").getAttribute("data-rows") !== "20") throw new Error("Setting surface dimensions are not declared");
   if (await page.locator("#product-figure [data-design-key]").count() !== 2601 || await page.locator("#effect-figure [data-design-key]").count() !== 2601) throw new Error("Linked maps do not render the same 2,601 designs");
   if (!(await page.locator("#frontier-summary").textContent())?.includes("92 of 2,601") || !(await page.locator("#frontier-summary").textContent())?.includes("8 lie")) throw new Error("Default frontier summary is wrong");
   if (!(await page.locator("#frontier-summary").textContent())?.includes("qindex") || !(await page.locator("#frontier-summary").textContent())?.includes("direct Rloc,max")) throw new Error("Linked-map summary omits the selected diagnostic decomposition or direct result");
@@ -165,9 +165,9 @@ try {
   let identity = await page.locator("#result-status").getAttribute("data-model-identity");
   // One decision-scope selector both decides and inspects the same named setting, and
   // auto-commits (no manual step): changing it changes the committed identity and verdict.
-  await page.selectOption("#scope", "low");
+  await page.selectOption("#scope", "houston");
   await awaitCommit(page, identity);
-  if (!(await page.locator("#scope-summary").textContent())?.includes("Low transmission")) throw new Error("Decision-scope change did not update the scope summary");
+  if (!(await page.locator("#scope-summary").textContent())?.includes("Houston/Louisiana 1960")) throw new Error("Decision-scope change did not update the scope summary");
   if (await page.locator("[data-export]").first().isDisabled()) throw new Error("Committed decision-scope change left export disabled");
   identity = await page.locator("#result-status").getAttribute("data-model-identity");
   await page.selectOption("#scope", "up-bihar");
@@ -310,7 +310,7 @@ try {
     }
     if (!svg.includes("Noto Sans") || !svg.includes("Noto Serif") || !svg.includes("data:font/woff2;base64,")) throw new Error(`Standalone ${kind} SVG did not embed the screen typography`);
     if (!svg.includes(palette.orange) || !svg.includes(palette.magenta) || !svg.includes(palette.darkBlue) || !svg.includes(palette.darkOrange) || !svg.includes(palette.turquoise)) throw new Error(`Standalone ${kind} SVG does not share the screen data palette`);
-    if (kind === "setting" && !["0.01", "loc</tspan> = 1", "100", palette.surfaceBlue, palette.surfaceWhite, palette.surfaceRed].every((phrase) => svg.includes(phrase))) throw new Error("Standalone setting SVG omitted its fixed scientific scale");
+    if (kind === "setting" && !["0.01", "loc</tspan> = 1", ">20<", palette.surfaceBlue, palette.surfaceWhite, palette.surfaceRed].every((phrase) => svg.includes(phrase))) throw new Error("Standalone setting SVG omitted its fixed scientific scale");
   }
   await page.locator("#share").click();
   await page.waitForFunction(() => document.getElementById("export-status")?.textContent?.includes("Canonical scenario link"));

@@ -9,9 +9,15 @@ import {
   type PrevalenceMotifOutput,
   type VarianceConstraint
 } from "../src/model/calibration";
-import { DEFAULTS, PARAMETERS, SETTING_DISPLAY_DOMAIN, vaccineDefaults } from "../src/model/parameters";
+import { DEFAULTS, PARAMETERS, vaccineDefaults } from "../src/model/parameters";
 import { initialImmuneState } from "../src/model/schedule";
 import type { ImmuneState, SettingV1 } from "../src/model/types";
+
+// The Matlab/India joint calibration searches a fixed 0.1–2000 µg exposure range. This is
+// deliberately independent of the (narrower) nonbinding setting-surface display domain, so
+// narrowing the heatmap does not shift the committed calibration fit.
+const CALIBRATION_EXPOSURE_MIN_GRAMS = 0.1 / 1_000_000;
+const CALIBRATION_EXPOSURE_MAX_GRAMS = 2000 / 1_000_000;
 
 const projectRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const fixturePath = resolve(projectRoot, "reference/fixtures/cessation-calibration-prevalence-v1.json");
@@ -321,8 +327,8 @@ function fitTih(
   contactMeanLog2NAb = sourceCase.browserStateMapping.contactMeanLog2NAb
 ): { tihGramsPerExposure: number; evaluated: EvaluatedCase } {
   let best: { tihGramsPerExposure: number; evaluated: EvaluatedCase } | undefined;
-  const log10Minimum = Math.log10(SETTING_DISPLAY_DOMAIN.exposure.min);
-  const log10Maximum = Math.log10(SETTING_DISPLAY_DOMAIN.exposure.max);
+  const log10Minimum = Math.log10(CALIBRATION_EXPOSURE_MIN_GRAMS);
+  const log10Maximum = Math.log10(CALIBRATION_EXPOSURE_MAX_GRAMS);
   const steps = Math.ceil((log10Maximum - log10Minimum) / FIT_LOG10_TIH_STEP);
   const candidates = new Set<number>([sourceCase.TihGramsPerExposure]);
   for (let index = 0; index <= steps; index += 1) candidates.add(10 ** Math.min(log10Minimum + index * FIT_LOG10_TIH_STEP, log10Maximum));
@@ -384,7 +390,7 @@ function fitIndiaContactMeanAndTih(
     throw new Error("Joint contact fit requires a campaign-history distribution for household and social contacts");
   }
   const coarseMeans = inclusiveGrid(0, constraint.maximumMeanLog2NAb, INDIA_JOINT_COARSE_MEAN_STEP_LOG2, [mapping.contactMeanLog2NAb]);
-  const coarseTihs = log10DoseGrid(SETTING_DISPLAY_DOMAIN.exposure.min, SETTING_DISPLAY_DOMAIN.exposure.max, INDIA_JOINT_COARSE_TIH_STEP_LOG10, [sourceCase.TihGramsPerExposure]);
+  const coarseTihs = log10DoseGrid(CALIBRATION_EXPOSURE_MIN_GRAMS, CALIBRATION_EXPOSURE_MAX_GRAMS, INDIA_JOINT_COARSE_TIH_STEP_LOG10, [sourceCase.TihGramsPerExposure]);
   const coarseProfile: JointContactTihFit["diagnostics"]["coarseGrid"]["profileByContactMean"] = [];
   let coarseBest: JointCandidate | undefined;
   for (const contactMeanLog2NAb of coarseMeans) {
@@ -406,8 +412,8 @@ function fitIndiaContactMeanAndTih(
 
   const refinedMeanMinimum = Math.max(0, coarseBest.contactMeanLog2NAb - INDIA_JOINT_REFINE_MEAN_HALF_WIDTH_LOG2);
   const refinedMeanMaximum = Math.min(constraint.maximumMeanLog2NAb, coarseBest.contactMeanLog2NAb + INDIA_JOINT_REFINE_MEAN_HALF_WIDTH_LOG2);
-  const refinedLog10TihMinimum = Math.max(Math.log10(SETTING_DISPLAY_DOMAIN.exposure.min), Math.log10(coarseBest.tihGramsPerExposure) - INDIA_JOINT_REFINE_TIH_HALF_WIDTH_LOG10);
-  const refinedLog10TihMaximum = Math.min(Math.log10(SETTING_DISPLAY_DOMAIN.exposure.max), Math.log10(coarseBest.tihGramsPerExposure) + INDIA_JOINT_REFINE_TIH_HALF_WIDTH_LOG10);
+  const refinedLog10TihMinimum = Math.max(Math.log10(CALIBRATION_EXPOSURE_MIN_GRAMS), Math.log10(coarseBest.tihGramsPerExposure) - INDIA_JOINT_REFINE_TIH_HALF_WIDTH_LOG10);
+  const refinedLog10TihMaximum = Math.min(Math.log10(CALIBRATION_EXPOSURE_MAX_GRAMS), Math.log10(coarseBest.tihGramsPerExposure) + INDIA_JOINT_REFINE_TIH_HALF_WIDTH_LOG10);
   const refinedMeans = inclusiveGrid(refinedMeanMinimum, refinedMeanMaximum, INDIA_JOINT_REFINE_MEAN_STEP_LOG2, [coarseBest.contactMeanLog2NAb]);
   const refinedTihs = log10DoseGrid(10 ** refinedLog10TihMinimum, 10 ** refinedLog10TihMaximum, INDIA_JOINT_REFINE_TIH_STEP_LOG10, [coarseBest.tihGramsPerExposure]);
   const refinedCandidates: JointCandidate[] = [];
@@ -546,8 +552,8 @@ function buildReport(fixture: SourceFixture) {
       tih: {
         fittedAgainst: "secondary prevalence",
         gridStepLog10: FIT_LOG10_TIH_STEP,
-        minimumGramsPerExposure: SETTING_DISPLAY_DOMAIN.exposure.min,
-        maximumGramsPerExposure: SETTING_DISPLAY_DOMAIN.exposure.max
+        minimumGramsPerExposure: CALIBRATION_EXPOSURE_MIN_GRAMS,
+        maximumGramsPerExposure: CALIBRATION_EXPOSURE_MAX_GRAMS
       },
       tieBreak: "lowest candidate value for one-parameter fits"
     },

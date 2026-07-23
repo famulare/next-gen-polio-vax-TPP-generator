@@ -94,8 +94,8 @@ export function validateDiagnosticGridManifest(value: unknown): asserts value is
 
 export function validateSettingManifest(value: unknown): void {
   const root = record(value, "SettingManifestV2"); exact(root, ["schemaVersion", "version", "anchors", "matlabInterval", "defaultDecisionScope", "surfaceDisplayDomain"], "SettingManifestV2");
-  literal(root.schemaVersion, "SettingManifestV2", "setting schemaVersion"); literal(root.version, "settings-2.0.0", "setting version");
-  if (!Array.isArray(root.anchors) || root.anchors.length !== 4) throw new Error("Setting manifest must contain four anchors");
+  literal(root.schemaVersion, "SettingManifestV2", "setting schemaVersion"); literal(root.version, "settings-2.1.0", "setting version");
+  if (!Array.isArray(root.anchors) || root.anchors.length !== 3) throw new Error("Setting manifest must contain three anchors");
   for (const [index, candidate] of root.anchors.entries()) {
     const anchor = record(candidate, `anchors[${index}]`);
     const allowed = ["id", "label", "T_ih", "T_hs", "dIh", "dHs", "Ns", "kind", ...(anchor.kind === "hybrid" ? ["interval", "tooltip"] : [])];
@@ -109,7 +109,7 @@ export function validateSettingManifest(value: unknown): void {
   const display = record(root.surfaceDisplayDomain, "surfaceDisplayDomain"); exact(display, ["linkedExposure", "exposure", "contacts", "dIh", "dHs"], "surfaceDisplayDomain"); literal(display.linkedExposure, true, "surfaceDisplayDomain.linkedExposure");
   const exposure = record(display.exposure, "surfaceDisplayDomain.exposure"); exact(exposure, ["count", "min", "max", "scale", "unit", "basis"], "surfaceDisplayDomain.exposure"); integer(exposure.count, 2, 1000, "surfaceDisplayDomain.exposure.count"); positive(exposure.min, "surfaceDisplayDomain.exposure.min"); positive(exposure.max, "surfaceDisplayDomain.exposure.max"); if ((exposure.max as number) <= (exposure.min as number)) throw new Error("surfaceDisplayDomain.exposure.max must exceed min"); literal(exposure.scale, "logarithmic", "surfaceDisplayDomain.exposure.scale"); literal(exposure.unit, "micrograms/exposure", "surfaceDisplayDomain.exposure.unit"); literal(exposure.basis, "per_exposure", "surfaceDisplayDomain.exposure.basis");
   const contacts = record(display.contacts, "surfaceDisplayDomain.contacts"); exact(contacts, ["min", "max", "step"], "surfaceDisplayDomain.contacts"); integer(contacts.min, 1, 1000, "surfaceDisplayDomain.contacts.min"); integer(contacts.max, contacts.min as number, 1000, "surfaceDisplayDomain.contacts.max"); integer(contacts.step, 1, 1000, "surfaceDisplayDomain.contacts.step");
-  if (exposure.count !== 81 || exposure.min !== 0.1 || exposure.max !== 2000) throw new Error("surfaceDisplayDomain exposure grid must be the committed 81-column 0.1-2000 microgram domain");
+  if (exposure.count !== 61 || exposure.min !== 1 || exposure.max !== 1000) throw new Error("surfaceDisplayDomain exposure grid must be the committed 61-column 1-1000 microgram domain");
   if (contacts.min !== 1 || contacts.max !== 20 || contacts.step !== 1) throw new Error("surfaceDisplayDomain contacts must be the committed integer range 1-20");
   unitValueExact(display.dIh, "surfaceDisplayDomain.dIh", "exposures/person/day", "per_day");
   unitValueExact(display.dHs, "surfaceDisplayDomain.dHs", "exposures/person/day", "per_day");

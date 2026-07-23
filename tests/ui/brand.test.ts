@@ -33,7 +33,7 @@ test("scientific R_loc scale remains separate from the visual-system palette", (
   assert.match(charts, /const WHITE = SCIENTIFIC_SURFACE_COLORS\.threshold/);
   assert.match(charts, /const RED = SCIENTIFIC_SURFACE_COLORS\.aboveThreshold/);
   assert.match(charts, /<stop offset="0" stop-color="\$\{BLUE\}"\/>/);
-  assert.match(charts, /<stop offset="0\.5" stop-color="\$\{WHITE\}"\/>/);
+  assert.match(charts, /<stop offset="0\.606" stop-color="\$\{WHITE\}"\/>/);
   assert.match(charts, /<stop offset="1" stop-color="\$\{RED\}"\/>/);
 });
 

@@ -45,7 +45,7 @@ test("presentation derives fail, tie, and empty-frontier branches from model out
 test("scenarioWithDecisionScope changes the envelope without touching the setting", () => {
   const scenario = defaultScenario();
   assert.equal(describeDecisionScope(scenario.envelope).id, "up-bihar");
-  const lowScope = scenarioWithDecisionScope(scenario, "low");
-  assert.equal(describeDecisionScope(lowScope.envelope).id, "low");
-  assert.equal(lowScope.setting.id, "up-bihar");
+  const houstonScope = scenarioWithDecisionScope(scenario, "houston");
+  assert.equal(describeDecisionScope(houstonScope.envelope).id, "houston");
+  assert.equal(houstonScope.setting.id, "up-bihar");
 });

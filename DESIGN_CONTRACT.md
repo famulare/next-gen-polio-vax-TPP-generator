@@ -29,7 +29,7 @@ and exact Cessation `b2=ln(1.164)`, while the India low-dose branch and rounded
 shedding constants remain source diagnostics rather than production
 substitutions. Each motif link receives an independent post-infection horizon;
 the default is increased from 100 to 120 days because 100 days failed the
-Section 9.4 tail discriminator at the low anchor. Broad hypothetical-product
+Section 9.4 tail discriminator at low exposure. Broad hypothetical-product
 hard bounds are versioned in `parameters.json`. Interaction amendment
 2026-07-17: the setting surface is the opening and visually dominant result,
 followed by the simultaneously visible linked requirement and product-design
@@ -122,7 +122,16 @@ dialed HID50; fixed the shedding-index bar axis at a 10^1 TCID50/g lower bound;
 redrew the transmission motif with vertically stacked household glyphs (fan-out),
 centered node names, and its caption lifted to running text above the figure; and
 added a hero "how to use" paragraph and a dynamic within-host assessment-age
-readout. These are display/interaction only. This
+readout. These are display/interaction only. A further pass reworked the R_loc
+setting-surface heatmap: the "low transmission" named anchor is removed (three
+anchors remain — Houston/Louisiana, Matlab, UP/Bihar — each labeled with its
+study year, as two-line on-surface labels); the nonbinding exposure display
+domain narrows to 1–1,000 µg/day and its computed grid shrinks to 61 columns
+(the settings manifest bumps to `settings-2.1.0`); the R_loc color scale spans
+0.01 to 20 (was 0.01 to 100) with white held exactly at R_loc = 1; and the
+axis, kicker, and legend are relabeled in plainer language. The setting surface
+is a nonbinding display; no equation, comparator, success rule, or within-host
+kernel changes. This
 supersedes the earlier two-tier "Update the model" commit gate, the
 three-distinct-objects control model, and any custom-envelope / axis-unlinking
 UI affordance (§10.3, §13.8, §18.17, §18.20). Every 1.9 change
@@ -261,7 +270,7 @@ silently equate `R_loc` with a complete `R_e`.
 - Age-dependent shedding, immune waning, and immune boosting.
 - Setting variation in fecal-oral exposure, close-contact frequency, and number
   of close social contacts.
-- Named anchors for low transmission, Houston/Louisiana, Matlab, and UP/Bihar.
+- Named anchors for Houston/Louisiana, Matlab, and UP/Bihar.
 - Deterministic propagation of probability mass and a deterministic fixed
   parameter ensemble for uncertainty/sensitivity.
 - One to three linked visuals, with the setting surface opening and visually
@@ -831,7 +840,7 @@ that these coordinates are a physical upper bound on transmission conditions.
 
 The separate, nonbinding setting-surface display domain is:
 
-- linked fecal-oral exposure `T`: 0.1 to 2,000 micrograms/exposure;
+- linked fecal-oral stool exposure `T`: 1 to 1,000 micrograms/day;
 - close social contacts `N_s`: 1 to 20;
 - `D_ih = 1` exposure/day;
 - `D_hs = 8.9685` exposures/day;
@@ -1121,8 +1130,8 @@ it, the direct UP/Bihar decision result (order per the 1.9 amendment):
 
 - x-axis: fecal-oral exposure/sanitation, log scale;
 - y-axis: number of close social contacts;
-- fill: `log10(R_loc)` on a fixed blue -> near-white -> red scale, with
-  `R_loc = 1` at the near-white center;
+- fill: `log10(R_loc)` on a fixed blue -> near-white -> red scale spanning
+  `R_loc` 0.01 to 20, with `R_loc = 1` at the near-white transition;
 - a strong `R_loc = 1` contour plus a non-color cue that distinguishes the
   passing and failing sides;
 - named anchor points, including a Matlab hybrid anchor whose daily-exposure

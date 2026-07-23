@@ -4,7 +4,7 @@ export const ROUTINE_DAYS = [42, 70, 98] as const;
 
 export type Bins = number[];
 export type ProductId = "sabin2" | "ipv" | "hypothetical";
-export type SettingId = "low" | "houston" | "matlab" | "up-bihar" | "custom";
+export type SettingId = "houston" | "matlab" | "up-bihar" | "custom";
 export type AnchorSettingId = Exclude<SettingId, "custom">;
 export type SuccessRule = "point";
 

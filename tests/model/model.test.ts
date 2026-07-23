@@ -904,9 +904,9 @@ test("URL state round-trips every scientific control family and named/custom sco
     editedProduct,
     scenarioWithProduct(base, "sabin2"),
     scenarioWithProduct(base, "ipv"),
-    ...(["low", "houston", "matlab", "up-bihar"] as const).map((id) => scenarioWithSetting(base, id)),
+    ...(["houston", "matlab", "up-bihar"] as const).map((id) => scenarioWithSetting(base, id)),
     customProbe,
-    ...(["low", "houston", "matlab", "up-bihar"] as const).map((id) => scenarioWithDecisionScope(base, id)),
+    ...(["houston", "matlab", "up-bihar"] as const).map((id) => scenarioWithDecisionScope(base, id)),
     customScope
   ];
   for (const scenario of variants) {
@@ -927,9 +927,9 @@ test("scenario validation preserves fixed product and named-setting identities",
     /identity does not match/
   );
 
-  const low = scenarioWithSetting(scenario, "low");
+  const houston = scenarioWithSetting(scenario, "houston");
   assert.throws(
-    () => validateScenario({ ...low, setting: { ...low.setting, Ns: low.setting.Ns + 1 } }),
+    () => validateScenario({ ...houston, setting: { ...houston.setting, Ns: houston.setting.Ns + 1 } }),
     /does not match the bundled named setting/
   );
   assert.throws(
@@ -989,7 +989,7 @@ test("default decision scope is direct UP/Bihar and owns the committed frontier 
 test("changing only the setting probe preserves classification and scientific identity", () => {
   const scenario = defaultScenario();
   const baseline = evaluateScenario(scenario);
-  for (const id of ["low", "houston", "matlab"] as const) {
+  for (const id of ["houston", "matlab"] as const) {
     const probed = evaluateScenario(scenarioWithSetting(scenario, id));
     assert.notEqual(probed.metrics.rLocSelectedSetting, baseline.metrics.rLocSelectedSetting);
     assert.equal(probed.metrics.rLocEnvelopeMax, baseline.metrics.rLocEnvelopeMax);
@@ -1003,11 +1003,11 @@ test("changing only the setting probe preserves classification and scientific id
 test("changing decision scope invalidates every scope-dependent result", () => {
   const scenario = defaultScenario();
   const baseline = evaluateScenario(scenario);
-  const lowScope = evaluateScenario(scenarioWithDecisionScope(scenario, "low"));
-  assert.notEqual(lowScope.metrics.rLocEnvelopeMax, baseline.metrics.rLocEnvelopeMax);
-  assert.notDeepEqual(lowScope.frontier, baseline.frontier);
-  assert.notEqual(lowScope.modelIdentity, baseline.modelIdentity);
-  assert.deepEqual(lowScope.settingSurface, baseline.settingSurface);
+  const houstonScope = evaluateScenario(scenarioWithDecisionScope(scenario, "houston"));
+  assert.notEqual(houstonScope.metrics.rLocEnvelopeMax, baseline.metrics.rLocEnvelopeMax);
+  assert.notDeepEqual(houstonScope.frontier, baseline.frontier);
+  assert.notEqual(houstonScope.modelIdentity, baseline.modelIdentity);
+  assert.deepEqual(houstonScope.settingSurface, baseline.settingSurface);
 });
 
 test("the light projection is a faithful, frontier-free preview of the full evaluation", () => {
@@ -1027,11 +1027,11 @@ test("the light-projection identity is the UI stale predicate: scientific edits 
   const scenario = defaultScenario();
   const baseline = evaluateScenarioLight(scenario).diagnostics.modelIdentity;
   // A probe-only change never changes identity -> the committed frontier stays valid (non-stale).
-  for (const id of ["low", "houston", "matlab"] as const) {
+  for (const id of ["houston", "matlab"] as const) {
     assert.equal(evaluateScenarioLight(scenarioWithSetting(scenario, id)).diagnostics.modelIdentity, baseline);
   }
   // Scientific edits change identity -> the committed frontier is stale until an explicit commit.
-  assert.notEqual(evaluateScenarioLight(scenarioWithDecisionScope(scenario, "low")).diagnostics.modelIdentity, baseline);
+  assert.notEqual(evaluateScenarioLight(scenarioWithDecisionScope(scenario, "houston")).diagnostics.modelIdentity, baseline);
   const weaker = structuredClone(scenario);
   weaker.vaccine = { ...weaker.vaccine, takeContext: 0.2 };
   assert.notEqual(evaluateScenarioLight(weaker).diagnostics.modelIdentity, baseline);
@@ -1066,10 +1066,10 @@ test("full outputs expose required grid sizes and explicit uncertainty absence",
   const outputs = evaluateScenario(scenario);
   assert.equal(outputs.schemaVersion, "ModelOutputsV1");
   assert.equal(outputs.frontier.points.length, 2601);
-  assert.equal(outputs.settingSurface.length, 81 * 20);
-  assert.equal(new Set(outputs.settingSurface.map((point) => point.Tih)).size, 81);
+  assert.equal(outputs.settingSurface.length, 61 * 20);
+  assert.equal(new Set(outputs.settingSurface.map((point) => point.Tih)).size, 61);
   assert.equal(new Set(outputs.settingSurface.map((point) => point.Ns)).size, 20);
-  assert.equal(new Set(outputs.settingSurface.map((point) => `${point.Tih}:${point.Ns}`)).size, 81 * 20);
+  assert.equal(new Set(outputs.settingSurface.map((point) => `${point.Tih}:${point.Ns}`)).size, 61 * 20);
   assert.equal(Math.max(...outputs.settingSurface.map((point) => point.Ns)), 20);
   assert.ok(outputs.settingSurface.every((point) => point.Ns <= 20));
   assert.equal(outputs.uncertainty.available, false);
@@ -1313,7 +1313,7 @@ test("all committed scientific manifests and generated outputs have strict runti
   assert.throws(() => validateFrontierGridManifest({ ...frontierGrid, takeContext: { ...frontierGrid.takeContext, count: 1 } }), /integer/);
   assert.throws(() => validateFrontierGridManifest({ ...frontierGrid, version: "frontier-grid-1.0.0" }), /must equal/);
   assert.throws(() => validateDiagnosticGridManifest({ ...diagnosticGrid, challengeDose: { ...diagnosticGrid.challengeDose, count: 40 } }), /committed/);
-  assert.throws(() => validateSettingManifest({ ...settings, anchors: settings.anchors.slice(1) }), /four anchors/);
+  assert.throws(() => validateSettingManifest({ ...settings, anchors: settings.anchors.slice(1) }), /three anchors/);
   assert.throws(() => validateSettingManifest({ ...settings, version: "settings-1.0.0" }), /must equal/);
   assert.throws(() => validateSettingManifest({ ...settings, surfaceDisplayDomain: { ...settings.surfaceDisplayDomain, exposure: { ...settings.surfaceDisplayDomain.exposure, unit: "grams/exposure" } } }), /must equal/);
   assert.throws(() => validateSettingManifest({ ...settings, surfaceDisplayDomain: { ...settings.surfaceDisplayDomain, contacts: { ...settings.surfaceDisplayDomain.contacts, max: 40 } } }), /does not|must|unknown|integer/);
