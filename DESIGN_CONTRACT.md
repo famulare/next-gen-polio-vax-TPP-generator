@@ -94,7 +94,15 @@ below the selected value, in place of the daily-burden curve (§13.2.4);
 motif shows the social-contact stage as household blocks (house 1, house 2, …,
 house N_s) to convey fan-out; and the effect-map Pareto boundary gains a light
 casing and heavier weight for legibility against the design cloud, keeping its
-turquoise identity. This
+turquoise identity. Typography is consolidated to a single readability floor: at the desktop
+reference layout, no on-screen text — HTML or in-figure — renders below the body
+size, with eyebrows and labels carrying hierarchy through weight and
+capitalization rather than a smaller size; each figure's SVG text is scaled by
+its viewBox-to-container ratio so tick, axis, legend, and note text all render at
+that floor uniformly across figures (narrow viewports scale the shared figures
+down proportionally); long rotated y-axis labels are shortened or wrapped so they neither
+overflow the plot nor collide with tick labels; and single-panel legends stack
+one item per row. This
 supersedes the earlier two-tier "Update the model" commit gate, the
 three-distinct-objects control model, and any custom-envelope / axis-unlinking
 UI affordance (§10.3, §13.8, §18.17, §18.20). Every 1.9 change
