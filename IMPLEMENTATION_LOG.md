@@ -86,8 +86,9 @@ does not replace source provenance, git history, or verification output.
   approval; every claim, hedge, scope qualifier, the PLoS Biology 2018 basis, the
   close-contact `R_loc`-below-one sufficiency ("likely"), and the 100- to
   1,000-fold shedding-index target are preserved. (2) The product-parameter
-  disclosure is closed by default per the plan; starting it expanded is a
-  one-attribute change. (3) Manual cross-browser (Safari/Firefox) and
+  disclosure ships open by default at Mike's explicit request, overriding the
+  plan's closed-by-default; the disclosure affordance and keyboard toggle are
+  retained. (3) Manual cross-browser (Safari/Firefox) and
   screen-reader review of the two new `<details>` disclosures is deferred. No
   release classification is claimed.
 

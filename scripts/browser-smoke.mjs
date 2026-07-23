@@ -222,16 +222,16 @@ try {
   if (await page.locator("#take").isDisabled() || await page.locator("#hypothetical-controls").evaluate((element) => element.hidden)) throw new Error("Hypothetical product controls were not restored");
   console.log("Browser smoke: product controls checked");
 
-  // Progressive disclosure: the five product parameters start collapsed, open by
-  // keyboard, and keep the same control ids and editability.
+  // Progressive disclosure: the five product parameters open by default (owner
+  // choice), keep the same control ids and editability, and toggle by keyboard.
   const productDisclosure = page.locator(".product-disclosure");
-  if (await productDisclosure.evaluate((el) => el.open)) throw new Error("Product-parameter disclosure is open by default; it must start closed");
-  if (await page.locator("#take").isVisible()) throw new Error("Product parameters are visible while their disclosure is closed");
-  await page.locator(".product-disclosure > summary").focus();
-  await page.keyboard.press("Enter");
-  if (!(await productDisclosure.evaluate((el) => el.open)) || !(await page.locator("#take").isVisible())) throw new Error("Keyboard did not open the product-parameter disclosure");
+  if (!(await productDisclosure.evaluate((el) => el.open))) throw new Error("Product-parameter disclosure should start open");
+  if (!(await page.locator("#take").isVisible())) throw new Error("Product parameters are not visible while their disclosure is open");
   for (const id of ["take", "mu", "alpha", "hid50", "dose-log"]) if (await page.locator(`#${id}`).count() !== 1) throw new Error(`Disclosed product controls lost #${id}`);
   if (await page.locator("#take").isDisabled()) throw new Error("Disclosed hypothetical controls are not editable");
+  await page.locator(".product-disclosure > summary").focus();
+  await page.keyboard.press("Enter");
+  if (await productDisclosure.evaluate((el) => el.open) || await page.locator("#take").isVisible()) throw new Error("Keyboard did not collapse the product-parameter disclosure");
   await page.keyboard.press("Enter");
   console.log("Browser smoke: product-parameter disclosure checked");
 
