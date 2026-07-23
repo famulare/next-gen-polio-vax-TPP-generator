@@ -31,6 +31,16 @@ const palette = {
   surfaceRed: "#B2182B"
 };
 assert.match(artifactHtml, /font-src data:/, "Artifact CSP must permit only inline data fonts");
+// Pre-refactor known mobile SVG text clipping, recorded before the responsive-figures phase
+// so regressions are distinguishable from the existing failures. Each value is the current
+// worst tolerated text overflow (px) for that SVG id; the check fails if any SVG exceeds its
+// budget (a regression) or if an unlisted SVG overflows beyond SVG_TEXT_ANTIALIAS_TOLERANCE_PX.
+// These budgets are tightened toward zero and removed as each mobile figure is rebuilt.
+const MOBILE_SVG_TEXT_CLIP_BASELINE = {
+  "within-host-mobile-figure": 260,
+  "immunity-distribution-mobile-figure": 120
+};
+const SVG_TEXT_ANTIALIAS_TOLERANCE_PX = 4;
 const nodeDiagnosticRun = spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e", "import { defaultScenario, evaluateScenario } from './src/model/model.ts'; process.stdout.write(JSON.stringify(evaluateScenario(defaultScenario()).diagnostics));"], { cwd: root, encoding: "utf8" });
 if (nodeDiagnosticRun.status !== 0) throw new Error(`Node diagnostic evaluation failed: ${nodeDiagnosticRun.stderr}`);
 const nodeDiagnostics = JSON.parse(nodeDiagnosticRun.stdout);
@@ -134,6 +144,32 @@ try {
     return sections.indexOf(document.getElementById("decision")) > sections.indexOf(document.getElementById("transmission"));
   });
   if (!resultAfterTransmission) throw new Error("Direct verdict appears before the transmission lesson");
+  // Amended six-part opening order (contract §13.1, 1.9): title/lede -> What this is ->
+  // How to use it -> cohort comparison -> prototype qualification -> first teaching figure.
+  const openingSequence = await page.evaluate(() => {
+    const before = (a, b) => {
+      const first = document.querySelector(a);
+      const second = document.querySelector(b);
+      if (!first || !second) return null;
+      return Boolean(first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING);
+    };
+    const orienting = [...document.querySelectorAll(".hero .orienting")];
+    return {
+      orientingCount: orienting.length,
+      whatThisIs: (orienting[0]?.textContent ?? "").includes("What this is"),
+      howToUse: (orienting[1]?.textContent ?? "").includes("How to use it"),
+      h1BeforeLede: before(".hero h1", ".hero .lede"),
+      ledeBeforeOrienting: before(".hero .lede", ".hero .orienting"),
+      orientingBeforeComparison: before(".hero .orienting", "#opening-comparison"),
+      comparisonBeforeBanner: before("#opening-comparison", ".prototype-banner"),
+      comparisonBeforeFirstFigure: before("#opening-comparison", "#within-host-figure")
+    };
+  });
+  if (openingSequence.orientingCount !== 2 || !openingSequence.whatThisIs || !openingSequence.howToUse) throw new Error("Opening lacks the concise What-this-is then How-to-use orientation pair");
+  for (const [key, ok] of Object.entries(openingSequence)) {
+    if (key === "orientingCount" || key === "whatThisIs" || key === "howToUse") continue;
+    if (!ok) throw new Error(`Amended opening order violated at ${key}`);
+  }
   const prematureVerdict = await page.evaluate(() => [...document.querySelectorAll("section")]
     .filter((section) => section.id !== "decision" && section.compareDocumentPosition(document.getElementById("decision")) & Node.DOCUMENT_POSITION_FOLLOWING)
     .some((section) => /clears the hardest known|does not meet|meets the direct criterion/i.test(section.textContent ?? "")));
@@ -324,6 +360,7 @@ try {
 
   await page.setViewportSize({ width: 360, height: 900 });
   await assertNoHorizontalOverflow(page, "360 px viewport");
+  await assertSvgTextWithinViewBox(page, "360 px viewport", MOBILE_SVG_TEXT_CLIP_BASELINE);
   await page.emulateMedia({ reducedMotion: "reduce", colorScheme: "light" });
   if (await page.evaluate(() => getComputedStyle(document.documentElement).scrollBehavior) !== "auto") throw new Error("Reduced-motion mode did not disable smooth scrolling");
   await page.locator("#product").focus();
@@ -441,6 +478,34 @@ async function assertNoHorizontalOverflow(page, label) {
   // user-visible overflow; larger scroll ranges still fail this smoke check.
   const meaningfulOverflow = overflow.scrollWidth - overflow.viewportWidth > 1 || overflow.scrollableOverflowPx > 1;
   if (meaningfulOverflow) throw new Error(`${label} has horizontal overflow: ${JSON.stringify(overflow)}`);
+}
+
+// Unlike assertNoHorizontalOverflow (which deliberately skips SVG descendants), this inspects
+// every visible SVG text/tspan against its owning SVG's rendered box, so text that is merely
+// clipped by an overflow:hidden ancestor is still detected as out of bounds (contract §13.9,
+// plan §10 responsive matrix).
+async function assertSvgTextWithinViewBox(page, label, baseline = {}) {
+  const measured = await page.evaluate(() => {
+    const svgs = [...document.querySelectorAll("svg")].filter((svg) => svg.getClientRects().length > 0);
+    return svgs.map((svg) => {
+      const box = svg.getBoundingClientRect();
+      const id = svg.id || (svg.getAttribute("class") || "svg").split(" ")[0];
+      let worst = 0;
+      let sample = "";
+      for (const text of svg.querySelectorAll("text, tspan")) {
+        if (text.getClientRects().length === 0) continue;
+        const rect = text.getBoundingClientRect();
+        if (rect.width === 0 && rect.height === 0) continue;
+        const over = Math.max(box.left - rect.left, rect.right - box.right, box.top - rect.top, rect.bottom - box.bottom);
+        if (over > worst) { worst = over; sample = (text.textContent || "").slice(0, 40); }
+      }
+      return { id, worst: Math.round(worst), sample };
+    });
+  });
+  for (const { id, worst, sample } of measured) {
+    const budget = baseline[id] ?? SVG_TEXT_ANTIALIAS_TOLERANCE_PX;
+    if (worst > budget) throw new Error(`${label}: SVG text overflows its viewport in #${id} by ${worst}px (budget ${budget}px), e.g. "${sample}"`);
+  }
 }
 
 function contrastRatio(foreground, background) {
