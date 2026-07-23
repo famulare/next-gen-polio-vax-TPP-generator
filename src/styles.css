@@ -287,6 +287,7 @@ fieldset > p { color: var(--muted); font-size: var(--fs-body); }
 .immunity-reference { fill: #F85C02; }
 .immunity-candidate { fill: #6C1446; }
 .immunity-chart-mobile { display: none; }
+.dose-response-mobile { display: none; }
 .surface-cell, .design-cell { stroke: none; }
 .surface-cell.is-inspected { stroke: #6C1446; stroke-width: 2; vector-effect: non-scaling-stroke; }
 .threshold-line { fill: none; stroke: #111; stroke-width: 2.2; stroke-dasharray: 7 5; vector-effect: non-scaling-stroke; }
@@ -316,7 +317,8 @@ fieldset > p { color: var(--muted); font-size: var(--fs-body); }
 
 .motif-intro { max-width: 820px; margin: 4px 0 16px; color: var(--muted); font-size: var(--fs-body); }
 .motif-figure { margin: 14px 0 40px; }
-.motif-svg { display: block; width: min(100%, 900px); height: auto; margin-inline: auto; overflow: visible; }
+.motif-svg { display: block; width: min(100%, 900px); height: auto; margin-inline: 0; overflow: visible; }
+.motif-mobile { display: none; width: min(100%, 400px); }
 .motif-frame { fill: none; stroke: var(--line-dark); stroke-dasharray: 4 4; }
 .motif-frame-label { fill: var(--faint); font-family: var(--sans); font-size: calc(16px * var(--u, 1)); font-weight: 800; letter-spacing: .1em; }
 .motif-node { fill: var(--paper-deep); stroke: var(--ink); stroke-width: 2; }
@@ -364,6 +366,10 @@ fieldset > p { color: var(--muted); font-size: var(--fs-body); }
   .teaching-chart-mobile { display: block; }
   .immunity-chart { display: none; }
   .immunity-chart-mobile { display: block; }
+  .dose-response-desktop { display: none; }
+  .dose-response-mobile { display: block; }
+  .motif-desktop { display: none; }
+  .motif-mobile { display: block; }
   .pathway article { grid-template-columns: 1fr; }
   .mechanism-values article { grid-template-columns: 1fr; gap: 2px; }
   .linked-maps { grid-template-columns: 1fr; }

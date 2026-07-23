@@ -34,13 +34,13 @@ function withinHostFigure(outputs: TeachingView, mobile: boolean): string {
   if (diagnosticHorizonDays === undefined) throw new Error("Within-host diagnostic grid has no shedding time points");
   const timeTicks = [1, 30, 60, 90, diagnosticHorizonDays].filter((day, index, values) => day <= diagnosticHorizonDays && values.indexOf(day) === index);
   const width = mobile ? 360 : 1200;
-  const height = mobile ? 1336 : 880;
+  const height = mobile ? 1476 : 880;
   const panels = mobile
     ? [
-        { x: 12, y: 92, width: 336, height: 258 },
-        { x: 12, y: 394, width: 336, height: 258 },
-        { x: 12, y: 696, width: 336, height: 258 },
-        { x: 12, y: 998, width: 336, height: 258 }
+        { x: 12, y: 116, width: 336, height: 300 },
+        { x: 12, y: 448, width: 336, height: 300 },
+        { x: 12, y: 780, width: 336, height: 300 },
+        { x: 12, y: 1112, width: 336, height: 300 }
       ]
     : [
         { x: 58, y: 94, width: 490, height: 340 },
@@ -95,16 +95,20 @@ function withinHostFigure(outputs: TeachingView, mobile: boolean): string {
   const id = mobile ? "within-host-mobile-figure" : "within-host-figure";
   const titleId = mobile ? "within-host-mobile-title" : "within-host-title";
   const descId = mobile ? "within-host-mobile-desc" : "within-host-desc";
+  const kickerText = "ONE REFERENCE SETTING · TWO COHORTS · NO DECISION RULE YET";
+  const kicker = mobile
+    ? tspanLines("chart-kicker", 12, 24, wrapChars(kickerText, 30))
+    : `<text class="chart-kicker" x="58" y="25">${kickerText}</text>`;
   const headline = mobile
-    ? `<text class="chart-title" x="12" y="47">How a WPV exposure becomes</text><text class="chart-title" x="12" y="69">infectious shedding—or not</text>`
+    ? `<text class="chart-title" x="12" y="74">How a WPV exposure becomes</text><text class="chart-title" x="12" y="96">infectious shedding—or not</text>`
     : `<text class="chart-title" x="58" y="54">How a WPV exposure becomes—or fails to become—infectious shedding</text>`;
   const legend = mobile
-    ? `<g class="teaching-legend" transform="translate(12 ${height - 42})"><line x1="0" x2="28" y1="0" y2="0" class="teaching-reference"/><text x="36" y="4">Naive reference</text><line x1="160" x2="188" y1="0" y2="0" class="teaching-candidate"/><text x="196" y="4">Selected cohort</text><text x="0" y="23">Named conditioning; full distributions stay in the model.</text></g>`
+    ? `<g class="teaching-legend" transform="translate(12 ${height - 60})"><line x1="0" x2="28" y1="0" y2="0" class="teaching-reference"/><text x="36" y="4">Naive reference</text><line x1="180" x2="208" y1="0" y2="0" class="teaching-candidate"/><text x="216" y="4">Selected cohort</text>${tspanLines("", 0, 24, wrapChars("Named conditioning; full distributions stay in the model.", 40))}</g>`
     : `<g class="teaching-legend" transform="translate(58 ${height - 44})"><line x1="0" x2="28" y1="0" y2="0" class="teaching-reference"/><text x="36" y="4">Naive reference</text><line x1="165" x2="193" y1="0" y2="0" class="teaching-candidate"/><text x="201" y="4">Selected vaccinated cohort</text><text x="440" y="4">Curves are conditioned as named; full immunity distributions remain in the calculation.</text></g>`;
   return `<svg id="${id}" class="scientific-chart teaching-chart${mobile ? " teaching-chart-mobile" : ""}" role="img" aria-labelledby="${titleId} ${descId}" viewBox="0 0 ${width} ${height}">
     <title id="${titleId}">Within-host components of the WPV transmission model</title>
     <desc id="${descId}">Four panels compare a naive reference cohort with the selected vaccinated cohort at the same assessment age. They show productive WPV acquisition by challenge dose, including the marked one-WPV-HID50 reference; probability of still shedding conditional on acquisition; expected concentration conditional on still shedding; and the shedding index at the reference challenge — acquisition probability times the burden integral B — as paired log-scale bars for the two cohorts. The calculation preserves the joint expectation rather than using an average-person approximation.</desc>
-    <text class="chart-kicker" x="${mobile ? 12 : 58}" y="25">ONE REFERENCE SETTING · TWO COHORTS · NO DECISION RULE YET</text>
+    ${kicker}
     ${headline}
     ${acquisition}${survival}${concentration}${sheddingIndex}
     ${legend}
@@ -117,8 +121,8 @@ export function renderImmunityDistribution(outputs: TeachingView): string {
 
 function immunityDistributionFigure(outputs: TeachingView, mobile: boolean): string {
   const width = mobile ? 360 : 820;
-  const height = mobile ? 410 : 450;
-  const margin = mobile ? { top: 110, right: 15, bottom: 62, left: 80 } : { top: 92, right: 30, bottom: 62, left: 76 };
+  const height = mobile ? 452 : 474;
+  const margin = mobile ? { top: 132, right: 14, bottom: 56, left: 54 } : { top: 130, right: 30, bottom: 62, left: 76 };
   const plotWidth = width - margin.left - margin.right;
   const plotHeight = height - margin.top - margin.bottom;
   const reference = outputs.diagnostics.reference.immunityBins;
@@ -138,27 +142,36 @@ function immunityDistributionFigure(outputs: TeachingView, mobile: boolean): str
   const id = mobile ? "immunity-distribution-mobile-figure" : "immunity-distribution-figure";
   const titleId = mobile ? "immunity-distribution-mobile-title" : "immunity-distribution-title";
   const descId = mobile ? "immunity-distribution-mobile-desc" : "immunity-distribution-desc";
+  const kicker = mobile
+    ? tspanLines("chart-kicker", 12, 22, wrapChars("SCHEDULE OUTPUT BEFORE WPV EXPOSURE", 24))
+    : `<text class="chart-kicker" x="${margin.left}" y="23">SCHEDULE OUTPUT BEFORE WPV EXPOSURE</text>`;
   const title = mobile
-    ? `<text class="chart-title" x="${margin.left}" y="48">The selected schedule creates a</text><text class="chart-title" x="${margin.left}" y="70">cohort distribution of immunities</text>`
-    : `<text class="chart-title" x="${margin.left}" y="49">The selected schedule creates a distribution of immunities</text><text class="chart-title" x="${margin.left}" y="71">for a cohort of children with the same life histories and host factors</text>`;
+    ? tspanLines("chart-title", 12, 62, wrapChars("The selected schedule creates a cohort distribution of immunities", 27), 1.1)
+    : tspanLines("chart-title", margin.left, 54, wrapChars("The selected schedule creates a distribution of immunities for a cohort of children with the same life histories and host factors", 52), 1.1);
   const legend = mobile
-    ? `<g class="teaching-legend" transform="translate(${margin.left} 83)"><rect class="immunity-reference" x="0" y="-8" width="13" height="13"/><text x="20" y="3">Naive</text><rect class="immunity-candidate" x="85" y="-8" width="13" height="13"/><text x="105" y="3">Selected</text></g>`
+    ? `<g class="teaching-legend" transform="translate(12 122)"><rect class="immunity-reference" x="0" y="-10" width="13" height="13"/><text x="20" y="1">Naive</text><rect class="immunity-candidate" x="92" y="-10" width="13" height="13"/><text x="112" y="1">Selected</text></g>`
     : `<g class="teaching-legend" transform="translate(${margin.left + plotWidth - 150} ${margin.top + 16})"><rect class="immunity-reference" x="0" y="-10" width="14" height="14"/><text x="22" y="1">Naive reference</text><rect class="immunity-candidate" x="0" y="10" width="14" height="14"/><text x="22" y="21">Selected</text></g>`;
   return `<svg id="${id}" class="scientific-chart immunity-chart${mobile ? " immunity-chart-mobile" : ""}" role="img" aria-labelledby="${titleId} ${descId}" viewBox="0 0 ${width} ${height}">
     <title id="${titleId}">Schedule-derived mucosal immunity distribution</title>
     <desc id="${descId}">Paired bars compare the naive reference distribution and the selected vaccinated cohort's marginal mucosal immunity distribution before WPV exposure. The production calculation retains take history and dose conditioning rather than using this marginal display as an average person.</desc>
-    <text class="chart-kicker" x="${margin.left}" y="23">SCHEDULE OUTPUT BEFORE WPV EXPOSURE</text>${title}
+    ${kicker}${title}
     <rect class="plot-bg" x="${margin.left}" y="${margin.top}" width="${plotWidth}" height="${plotHeight}"/>${yTicks}${bars}${xTicks}
-    <text class="axis-label" x="${margin.left + plotWidth / 2}" y="${height - 14}" text-anchor="middle">Mucosal-immunity bin (log2 NAb-equivalent)</text>${rotatedYLabel("axis-label", 16, margin.top + plotHeight / 2, "Cohort probability")}
+    ${mobile
+      ? tspanLines("axis-label", margin.left + plotWidth / 2, height - 30, ["Mucosal-immunity bin", "(log2 NAb-equivalent)"], 1.1, `text-anchor="middle"`)
+      : `<text class="axis-label" x="${margin.left + plotWidth / 2}" y="${height - 14}" text-anchor="middle">Mucosal-immunity bin (log2 NAb-equivalent)</text>`}${rotatedYLabel("axis-label", 16, margin.top + plotHeight / 2, "Cohort probability")}
     ${legend}
   </svg>`;
 }
 
 export function renderVaccineDoseResponse(view: TeachingView): string {
+  return `${doseResponseFigure(view, false)}${doseResponseFigure(view, true)}`;
+}
+
+function doseResponseFigure(view: TeachingView, mobile: boolean): string {
   const vaccine = view.scenario.vaccine;
-  const width = 820;
-  const height = 360;
-  const margin = { top: 66, right: 30, bottom: 64, left: 70 };
+  const width = mobile ? 360 : 820;
+  const height = mobile ? 432 : 360;
+  const margin = mobile ? { top: 118, right: 16, bottom: 60, left: 52 } : { top: 66, right: 30, bottom: 64, left: 70 };
   const plotWidth = width - margin.left - margin.right;
   const plotHeight = height - margin.top - margin.bottom;
   const doseGrid = Array.from({ length: 73 }, (_, index) => 10 ** ((index / 72) * 9));
@@ -167,21 +180,35 @@ export function renderVaccineDoseResponse(view: TeachingView): string {
   const y = scaleLinear().domain([0, 1]).range([margin.top + plotHeight, margin.top]);
   const path = (curve: { points: { dose: number; take: number }[] }) => line<{ dose: number; take: number }>().x((point) => x(point.dose)).y((point) => y(point.take))(curve.points) ?? "";
   const yTicks = [0, 0.25, 0.5, 0.75, 1].map((value) => `<g><line class="grid-line" x1="${margin.left}" x2="${margin.left + plotWidth}" y1="${y(value)}" y2="${y(value)}"/><text class="tick" x="${margin.left - 10}" y="${y(value) + 3}" text-anchor="end">${formatPercentTick(value)}</text></g>`).join("");
-  const xTicks = [1, 1e2, 1e4, 1e6, 1e8].map((dose) => `<g><line class="tick-mark" x1="${x(dose)}" x2="${x(dose)}" y1="${margin.top + plotHeight}" y2="${margin.top + plotHeight + 6}"/><text class="tick" x="${x(dose)}" y="${margin.top + plotHeight + 22}" text-anchor="middle">${powerLabel(dose)}</text></g>`).join("");
+  const xTicks = (mobile ? [1, 1e3, 1e6, 1e9] : [1, 1e2, 1e4, 1e6, 1e8]).map((dose) => `<g><line class="tick-mark" x1="${x(dose)}" x2="${x(dose)}" y1="${margin.top + plotHeight}" y2="${margin.top + plotHeight + 6}"/><text class="tick" x="${x(dose)}" y="${margin.top + plotHeight + 22}" text-anchor="middle">${powerLabel(dose)}</text></g>`).join("");
   const doseMark = vaccine.dose > 0
     ? `<line class="teaching-reference-dose" x1="${x(vaccine.dose)}" x2="${x(vaccine.dose)}" y1="${margin.top}" y2="${margin.top + plotHeight}"/><text class="teaching-reference-dose-label" x="${x(vaccine.dose) + 5}" y="${margin.top + 12}">selected dose</text>`
     : "";
-  return `<svg id="dose-response-figure" class="scientific-chart" role="img" aria-labelledby="dose-response-title dose-response-desc" viewBox="0 0 ${width} ${height}">
-    <title id="dose-response-title">Vaccine take by administered dose and prior immunity</title>
-    <desc id="dose-response-desc">Productive vaccine take as a function of administered dose for a naive recipient (mucosal-immunity bin 0) and a primed recipient (bin 6), shaped by vaccine alpha, beta, and take context. Take rises with dose and falls with prior immunity. This is the take that seeds the cohort immunity distribution and therefore the downstream acquisition and shedding reductions; it does not change the fixed WPV challenge equation.</desc>
-    <text class="chart-kicker" x="${margin.left}" y="24">RECEIVED DOSE → PRODUCTIVE VACCINE TAKE</text>
-    <text class="chart-title" x="${margin.left}" y="49">How dose and prior immunity set vaccine take</text>
+  const id = mobile ? "dose-response-mobile-figure" : "dose-response-figure";
+  const titleId = mobile ? "dose-response-mobile-title" : "dose-response-title";
+  const descId = mobile ? "dose-response-mobile-desc" : "dose-response-desc";
+  const kicker = mobile
+    ? tspanLines("chart-kicker", 12, 22, wrapChars("RECEIVED DOSE → PRODUCTIVE VACCINE TAKE", 26))
+    : `<text class="chart-kicker" x="${margin.left}" y="24">RECEIVED DOSE → PRODUCTIVE VACCINE TAKE</text>`;
+  const title = mobile
+    ? tspanLines("chart-title", 12, 62, wrapChars("How dose and prior immunity set vaccine take", 26), 1.1)
+    : `<text class="chart-title" x="${margin.left}" y="49">How dose and prior immunity set vaccine take</text>`;
+  const legend = mobile
+    ? `<g class="teaching-legend" transform="translate(12 100)"><line x1="0" x2="24" y1="0" y2="0" class="teaching-reference"/><text x="30" y="4">Naive (bin 0)</text><line x1="150" x2="174" y1="0" y2="0" class="teaching-candidate"/><text x="180" y="4">Primed (bin 6)</text></g>`
+    : `<g class="teaching-legend" transform="translate(${margin.left + plotWidth - 210} 32)"><line x1="0" x2="26" y1="0" y2="0" class="teaching-reference"/><text x="34" y="4">Naive recipient (bin 0)</text><line x1="0" x2="26" y1="20" y2="20" class="teaching-candidate"/><text x="34" y="24">Primed recipient (bin 6)</text></g>`;
+  const xAxisLabel = mobile
+    ? tspanLines("axis-label", margin.left + plotWidth / 2, height - 26, ["Administered dose", "(TCID50, log scale)"], 1.1, `text-anchor="middle"`)
+    : `<text class="axis-label" x="${margin.left + plotWidth / 2}" y="${height - 16}" text-anchor="middle">Administered dose (TCID50, log scale)</text>`;
+  return `<svg id="${id}" class="scientific-chart ${mobile ? "dose-response-mobile" : "dose-response-desktop"}" role="img" aria-labelledby="${titleId} ${descId}" viewBox="0 0 ${width} ${height}">
+    <title id="${titleId}">Vaccine take by administered dose and prior immunity</title>
+    <desc id="${descId}">Productive vaccine take as a function of administered dose for a naive recipient (mucosal-immunity bin 0) and a primed recipient (bin 6), shaped by vaccine alpha, beta, and take context. Take rises with dose and falls with prior immunity. This is the take that seeds the cohort immunity distribution and therefore the downstream acquisition and shedding reductions; it does not change the fixed WPV challenge equation.</desc>
+    ${kicker}${title}
     <rect class="plot-bg" x="${margin.left}" y="${margin.top}" width="${plotWidth}" height="${plotHeight}"/>
     ${yTicks}${xTicks}${doseMark}
     <path class="teaching-reference" fill="none" stroke="${REFERENCE}" stroke-width="2.5" d="${path(naive!)}"/>
     <path class="teaching-candidate" fill="none" stroke="${CANDIDATE}" stroke-width="2.5" d="${path(primed!)}"/>
-    <text class="axis-label" x="${margin.left + plotWidth / 2}" y="${height - 16}" text-anchor="middle">Administered dose (TCID50, log scale)</text><text class="axis-label" transform="translate(18 ${margin.top + plotHeight / 2}) rotate(-90)" text-anchor="middle">Productive vaccine take</text>
-    <g class="teaching-legend" transform="translate(${margin.left + plotWidth - 210} 32)"><line x1="0" x2="26" y1="0" y2="0" class="teaching-reference"/><text x="34" y="4">Naive recipient (bin 0)</text><line x1="0" x2="26" y1="20" y2="20" class="teaching-candidate"/><text x="34" y="24">Primed recipient (bin 6)</text></g>
+    ${xAxisLabel}<text class="axis-label" transform="translate(${mobile ? 14 : 18} ${margin.top + plotHeight / 2}) rotate(-90)" text-anchor="middle">Productive vaccine take</text>
+    ${legend}
   </svg>`;
 }
 
@@ -199,8 +226,11 @@ function curvePanel(
   yTicks: number[],
   annotation: { note: string; referenceX?: number; referenceLabel?: string }
 ): string {
-  const titleY = panel.y;
-  const plot = { x: panel.x + 74, y: panel.y + 45, width: panel.width - 86, height: panel.height - 80 };
+  const titleLines = wrapChars(title, Math.max(8, Math.floor((panel.width - 6) / 11)));
+  const noteLines = wrapChars(annotation.note, Math.max(10, Math.floor((panel.width - 6) / 7.4)));
+  const noteTop = panel.y + titleLines.length * 20 + 3;
+  const plotTop = noteTop + noteLines.length * 15 + 6;
+  const plot = { x: panel.x + 74, y: plotTop, width: panel.width - 86, height: panel.y + panel.height - 35 - plotTop };
   const all = [...reference, ...candidate];
   const xDomain: [number, number] = scale === "log-dose"
     ? [Math.min(...all.map((point) => point.x)), Math.max(...all.map((point) => point.x))]
@@ -221,7 +251,7 @@ function curvePanel(
   const horizontal = displayedYTicks.map((value) => `<g><line class="grid-line" x1="${plot.x}" x2="${plot.x + plot.width}" y1="${yScale(value)}" y2="${yScale(value)}"/><text class="tick" x="${plot.x - 9}" y="${yScale(value) + 3}" text-anchor="end">${scale === "log-y" ? powerLabel(value) : formatPercentTick(value)}</text></g>`).join("");
   const vertical = xTicks.map((value) => `<g><line class="grid-line" x1="${xScale(value)}" x2="${xScale(value)}" y1="${plot.y}" y2="${plot.y + plot.height}"/><text class="tick" x="${xScale(value)}" y="${plot.y + plot.height + 18}" text-anchor="middle">${scale === "log-dose" ? powerLabel(value) : value}</text></g>`).join("");
   const referenceMarker = annotation.referenceX === undefined ? "" : `<line class="teaching-reference-dose" x1="${xScale(annotation.referenceX)}" x2="${xScale(annotation.referenceX)}" y1="${plot.y}" y2="${plot.y + plot.height}"/><text class="teaching-reference-dose-label" x="${xScale(annotation.referenceX) + 5}" y="${plot.y + 12}">${escapeXml(annotation.referenceLabel ?? "Reference")}</text>`;
-  return `<g class="teaching-panel"><text class="teaching-panel-title" x="${panel.x}" y="${titleY}">${escapeXml(title)}</text><text class="teaching-panel-note" x="${panel.x}" y="${panel.y + 23}">${escapeXml(annotation.note)}</text><rect class="plot-bg teaching-panel-bg" x="${plot.x}" y="${plot.y}" width="${plot.width}" height="${plot.height}"/>${horizontal}${vertical}${referenceMarker}<path class="teaching-reference" fill="none" stroke="${REFERENCE}" stroke-width="2.5" d="${path(reference)}"/><path class="teaching-candidate" fill="none" stroke="${CANDIDATE}" stroke-width="2.5" d="${path(candidate)}"/><text class="axis-label" x="${plot.x + plot.width / 2}" y="${panel.y + panel.height - 1}" text-anchor="middle">${escapeXml(xLabel)}</text>${rotatedYLabel("teaching-y-label", panel.x + 12, plot.y + plot.height / 2, yLabel)}</g>`;
+  return `<g class="teaching-panel">${tspanLines("teaching-panel-title", panel.x, panel.y, titleLines)}${tspanLines("teaching-panel-note", panel.x, noteTop, noteLines)}<rect class="plot-bg teaching-panel-bg" x="${plot.x}" y="${plot.y}" width="${plot.width}" height="${plot.height}"/>${horizontal}${vertical}${referenceMarker}<path class="teaching-reference" fill="none" stroke="${REFERENCE}" stroke-width="2.5" d="${path(reference)}"/><path class="teaching-candidate" fill="none" stroke="${CANDIDATE}" stroke-width="2.5" d="${path(candidate)}"/><text class="axis-label" x="${plot.x + plot.width / 2}" y="${panel.y + panel.height - 1}" text-anchor="middle">${escapeXml(xLabel)}</text>${rotatedYLabel("teaching-y-label", panel.x + 12, plot.y + plot.height / 2, yLabel)}</g>`;
 }
 
 function indexBarPanel(
@@ -232,8 +262,11 @@ function indexBarPanel(
   yLabel: string,
   note: string
 ): string {
-  const titleY = panel.y;
-  const plot = { x: panel.x + 74, y: panel.y + 45, width: panel.width - 86, height: panel.height - 80 };
+  const titleLines = wrapChars(title, Math.max(8, Math.floor((panel.width - 6) / 11)));
+  const noteLines = wrapChars(note, Math.max(10, Math.floor((panel.width - 6) / 7.4)));
+  const noteTop = panel.y + titleLines.length * 20 + 3;
+  const plotTop = noteTop + noteLines.length * 15 + 6;
+  const plot = { x: panel.x + 74, y: plotTop, width: panel.width - 86, height: panel.y + panel.height - 35 - plotTop };
   const positiveMax = Math.max(referenceValue, candidateValue, Number.MIN_VALUE);
   const floorExp = 1; // fixed lower limit of 10^1 TCID50/g
   const ceilExp = Math.max(floorExp + 1, Math.ceil(Math.log10(positiveMax)));
@@ -248,13 +281,34 @@ function indexBarPanel(
     const top = yScale(Math.max(value, floorValue));
     return `<rect class="teaching-index-bar" fill="${fill}" x="${left}" y="${top}" width="${barWidth}" height="${Math.max(0, bottom - top)}"><title>${escapeXml(label)}: ${formatScientific(value)} TCID50-days/g</title></rect><text class="tick teaching-bar-value" x="${center}" y="${top - 7}" text-anchor="middle">${formatScientific(value)}</text><text class="axis-label" x="${center}" y="${bottom + 20}" text-anchor="middle">${escapeXml(label)}</text>`;
   };
-  return `<g class="teaching-panel"><text class="teaching-panel-title" x="${panel.x}" y="${titleY}">${escapeXml(title)}</text><text class="teaching-panel-note" x="${panel.x}" y="${panel.y + 23}">${escapeXml(note)}</text><rect class="plot-bg teaching-panel-bg" x="${plot.x}" y="${plot.y}" width="${plot.width}" height="${plot.height}"/>${horizontal}${bar(referenceValue, plot.x + plot.width * 0.32, REFERENCE, "Naive reference")}${bar(candidateValue, plot.x + plot.width * 0.68, CANDIDATE, "Selected")}${rotatedYLabel("teaching-y-label", panel.x + 12, plot.y + plot.height / 2, yLabel)}</g>`;
+  return `<g class="teaching-panel">${tspanLines("teaching-panel-title", panel.x, panel.y, titleLines)}${tspanLines("teaching-panel-note", panel.x, noteTop, noteLines)}<rect class="plot-bg teaching-panel-bg" x="${plot.x}" y="${plot.y}" width="${plot.width}" height="${plot.height}"/>${horizontal}${bar(referenceValue, plot.x + plot.width * 0.32, REFERENCE, "Naive reference")}${bar(candidateValue, plot.x + plot.width * 0.68, CANDIDATE, "Selected")}${rotatedYLabel("teaching-y-label", panel.x + 12, plot.y + plot.height / 2, yLabel)}</g>`;
 }
 
 function formatScientific(value: number): string { return formatNumber(value); }
 
 // SVG subscript: a baseline-shifted, smaller tspan for in-figure variable subscripts.
 function svgSub(base: string, subscript: string): string { return `${base}<tspan baseline-shift="sub" font-size="0.72em">${subscript}</tspan>`; }
+
+// Greedy character-budget wrap into explicit lines (no runtime text measurement).
+// A generous budget (wide panels) returns a single line, so desktop layout is
+// unchanged; a tight budget (narrow mobile panels) wraps.
+function wrapChars(text: string, maxChars: number): string[] {
+  const words = text.split(/\s+/);
+  const lines: string[] = [];
+  let line = "";
+  for (const word of words) {
+    const next = line ? `${line} ${word}` : word;
+    if (line && next.length > maxChars) { lines.push(line); line = word; } else { line = next; }
+  }
+  if (line) lines.push(line);
+  return lines.length ? lines : [text];
+}
+
+// Emit a multi-line SVG <text> with explicit <tspan> lines sharing an x anchor.
+function tspanLines(cls: string, x: number, y: number, lines: string[], dyEm = 1.15, attrs = ""): string {
+  const body = lines.map((line, index) => `<tspan x="${x}"${index ? ` dy="${dyEm}em"` : ""}>${escapeXml(line)}</tspan>`).join("");
+  return `<text class="${cls}" x="${x}" y="${y}"${attrs ? ` ${attrs}` : ""}>${body}</text>`;
+}
 
 function splitLabel(label: string, maxChars = 40): [string] | [string, string] {
   if (label.length <= maxChars) return [label];

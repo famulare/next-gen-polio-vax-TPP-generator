@@ -31,15 +31,11 @@ const palette = {
   surfaceRed: "#B2182B"
 };
 assert.match(artifactHtml, /font-src data:/, "Artifact CSP must permit only inline data fonts");
-// Pre-refactor known mobile SVG text clipping, recorded before the responsive-figures phase
-// so regressions are distinguishable from the existing failures. Each value is the current
-// worst tolerated text overflow (px) for that SVG id; the check fails if any SVG exceeds its
-// budget (a regression) or if an unlisted SVG overflows beyond SVG_TEXT_ANTIALIAS_TOLERANCE_PX.
-// These budgets are tightened toward zero and removed as each mobile figure is rebuilt.
-const MOBILE_SVG_TEXT_CLIP_BASELINE = {
-  "within-host-mobile-figure": 260,
-  "immunity-distribution-mobile-figure": 120
-};
+// After the responsive-figures phase every mobile figure fits its own viewport, so the
+// per-figure clip budgets are emptied: every visible SVG must keep its text within
+// SVG_TEXT_ANTIALIAS_TOLERANCE_PX of the owning SVG box. Any regression re-introduces an
+// overflow and fails this check.
+const MOBILE_SVG_TEXT_CLIP_BASELINE = {};
 const SVG_TEXT_ANTIALIAS_TOLERANCE_PX = 4;
 const nodeDiagnosticRun = spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e", "import { defaultScenario, evaluateScenario } from './src/model/model.ts'; process.stdout.write(JSON.stringify(evaluateScenario(defaultScenario()).diagnostics));"], { cwd: root, encoding: "utf8" });
 if (nodeDiagnosticRun.status !== 0) throw new Error(`Node diagnostic evaluation failed: ${nodeDiagnosticRun.stderr}`);
@@ -197,6 +193,7 @@ try {
   if (!(await page.locator("#frontier-summary").textContent())?.includes("qindex") || !(await page.locator("#frontier-summary").textContent())?.includes("direct Rloc,max")) throw new Error("Linked-map summary omits the selected diagnostic decomposition or direct result");
   if (await page.locator("[data-export]").first().isDisabled()) throw new Error("Exports were not enabled for the committed default");
   if (await page.locator("#transaction-status").getAttribute("aria-live") !== "polite") throw new Error("Committed results lack a concise live announcement");
+  await assertSvgTextWithinViewBox(page, "desktop viewport");
 
   let identity = await page.locator("#result-status").getAttribute("data-model-identity");
   // One decision-scope selector both decides and inspects the same named setting, and

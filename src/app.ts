@@ -493,7 +493,7 @@ function shell(): string {
       <p class="eyebrow">THE CLOSE-CONTACT MOTIF</p>
       <p class="motif-intro">A breakthrough index child exposes a household child, who exposes N<sub>s</sub> close social contacts in other households. R<sub>loc</sub> counts expected infections along this motif only.</p>
       <figure class="motif-figure wide-breakout">
-        <svg viewBox="0 0 820 290" class="scientific-chart motif-svg" role="img" aria-label="A breakthrough index child transmits within one household to a household child, who then exposes N_s close social contacts in other households. The motif endpoint is R_loc, the expected infections along this motif, not a complete-population reproduction number.">
+        <svg viewBox="0 0 820 290" class="scientific-chart motif-svg motif-desktop" role="img" aria-label="A breakthrough index child transmits within one household to a household child, who then exposes N_s close social contacts in other households. The motif endpoint is R_loc, the expected infections along this motif, not a complete-population reproduction number.">
           <defs><marker id="motif-arrow" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="motif-arrowhead" d="M0 0 L10 5 L0 10 z"/></marker></defs>
           <rect class="motif-frame" x="36" y="40" width="410" height="180" rx="8"/><text class="motif-frame-label" x="50" y="60">ONE HOUSEHOLD</text>
           <rect class="motif-frame" x="516" y="40" width="268" height="180" rx="8"/><text class="motif-frame-label" x="530" y="60">OTHER HOUSEHOLDS</text>
@@ -507,6 +507,24 @@ function shell(): string {
             <text class="motif-name" x="548" y="178" text-anchor="middle">⋮</text>
             <g class="motif-house"><path class="motif-house-roof" d="M 534 186 L 548 172 L 562 186 Z"/><rect class="motif-house-body" x="536" y="186" width="24" height="20" rx="2"/></g><text class="motif-house-label" x="576" y="202">house ${svgSub("N", "s")}</text></g>
           <text class="motif-foot" x="12" y="258">Endpoint: ${svgSub("R", "loc")} = expected infections along this one motif — not a complete-population ${svgSub("R", "e")}.</text>
+        </svg>
+        <svg viewBox="0 0 360 600" class="scientific-chart motif-svg motif-mobile" role="img" aria-label="A breakthrough index child transmits within one household to a household child, who then exposes N_s close social contacts in other households. The motif endpoint is R_loc, the expected infections along this motif, not a complete-population reproduction number.">
+          <defs><marker id="motif-arrow-m" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="motif-arrowhead" d="M0 0 L10 5 L0 10 z"/></marker></defs>
+          <rect class="motif-frame" x="20" y="34" width="320" height="180" rx="8"/><text class="motif-frame-label" x="34" y="56">ONE HOUSEHOLD</text>
+          <g><rect class="motif-node motif-node-index" x="100" y="70" width="160" height="46" rx="8"/><text class="motif-name" x="180" y="99" text-anchor="middle">Index child</text></g>
+          <line class="motif-arrow" x1="180" y1="116" x2="180" y2="150" marker-end="url(#motif-arrow-m)"/><text class="motif-link" x="196" y="137">${svgSub("T", "ih")} · ${svgSub("d", "ih")}</text>
+          <g><rect class="motif-node" x="100" y="150" width="160" height="46" rx="8"/><text class="motif-name" x="180" y="179" text-anchor="middle">Household child</text></g>
+          <rect class="motif-frame" x="20" y="238" width="320" height="256" rx="8"/><text class="motif-frame-label" x="34" y="260">OTHER HOUSEHOLDS</text>
+          <text class="motif-link" x="196" y="228">${svgSub("T", "hs")} · ${svgSub("d", "hs")}</text>
+          <line class="motif-arrow" x1="180" y1="196" x2="164" y2="300" marker-end="url(#motif-arrow-m)"/>
+          <line class="motif-arrow" x1="180" y1="196" x2="164" y2="362" marker-end="url(#motif-arrow-m)"/>
+          <line class="motif-arrow" x1="180" y1="196" x2="164" y2="444" marker-end="url(#motif-arrow-m)"/>
+          <g class="motif-fanout"><text class="motif-name" x="180" y="286" text-anchor="middle">Close social contacts</text>
+            <g class="motif-house"><path class="motif-house-roof" d="M 150 316 L 164 302 L 178 316 Z"/><rect class="motif-house-body" x="152" y="316" width="24" height="20" rx="2"/></g><text class="motif-house-label" x="190" y="332">house 1</text>
+            <g class="motif-house"><path class="motif-house-roof" d="M 150 378 L 164 364 L 178 378 Z"/><rect class="motif-house-body" x="152" y="378" width="24" height="20" rx="2"/></g><text class="motif-house-label" x="190" y="394">house 2</text>
+            <text class="motif-name" x="164" y="428" text-anchor="middle">⋮</text>
+            <g class="motif-house"><path class="motif-house-roof" d="M 150 456 L 164 442 L 178 456 Z"/><rect class="motif-house-body" x="152" y="456" width="24" height="20" rx="2"/></g><text class="motif-house-label" x="190" y="472">house ${svgSub("N", "s")}</text></g>
+          <text class="motif-foot" x="12" y="524"><tspan x="12">Endpoint: ${svgSub("R", "loc")} = expected infections</tspan><tspan x="12" dy="1.2em">along this one motif — not a</tspan><tspan x="12" dy="1.2em">complete-population ${svgSub("R", "e")}.</tspan></text>
         </svg>
       </figure>
       <div class="transmission-handshake"><p class="eyebrow">What happens on each link</p><p><strong>Infectious survival and stool concentration</strong> from the index child, multiplied by <strong>grams of stool per exposure</strong>, determine a recipient's daily oral WPV dose. The recipient's full immunity distribution determines acquisition at that dose. Repeated daily exposures compose as cumulative escape, not as one exposure to an average child. Setting exposure is a <span class="prov-tag" data-kind="scenario-input">scenario input</span> and the contact structure is inherited; R<sub>loc</sub> is <span class="prov-tag" data-kind="derived">derived</span>.</p><dl><div><dt>UP/Bihar index → household</dt><dd>${formatMicrograms(upBihar.Tih.value)} µg stool-equivalent/exposure × ${formatExposureFrequency(upBihar.dIh.value)}</dd></div><div><dt>Household → social contact</dt><dd>${formatMicrograms(upBihar.Ths.value)} µg stool-equivalent/exposure × ${formatExposureFrequency(upBihar.dHs.value)}</dd></div><div><dt>Social-contact motif</dt><dd>N<sub>s</sub> = ${upBihar.Ns} family-like child contacts</dd></div><div><dt>Index conditioning</dt><dd>Actual breakthrough after one WPV HID50, not a random vaccinated child</dd></div></dl><p class="transmission-equation">R<sub>loc</sub> = N<sub>s</sub> × P(one close social contact is infected).</p></div>
