@@ -232,7 +232,8 @@ fieldset > p { color: var(--muted); font-size: var(--fs-small); }
 .surface-cell, .design-cell { stroke: none; }
 .surface-cell.is-inspected { stroke: #6C1446; stroke-width: 2; vector-effect: non-scaling-stroke; }
 .threshold-line { fill: none; stroke: #111; stroke-width: 2.2; stroke-dasharray: 7 5; vector-effect: non-scaling-stroke; }
-.pareto-line { fill: none; stroke: #295958; stroke-width: 3.4; vector-effect: non-scaling-stroke; paint-order: stroke; }
+.pareto-casing { fill: none; stroke: var(--paper); stroke-width: 8; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.pareto-line { fill: none; stroke: #295958; stroke-width: 4.4; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; paint-order: stroke; }
 .side-label { fill: var(--ink); font-size: 12px; font-weight: 800; letter-spacing: .7px; paint-order: stroke; stroke: rgba(247,247,242,.85); stroke-width: 3px; }
 .anchor-point { fill: var(--paper); stroke: var(--ink); stroke-width: 2; vector-effect: non-scaling-stroke; }
 .decision-anchor { fill: var(--ink); }
@@ -268,6 +269,9 @@ fieldset > p { color: var(--muted); font-size: var(--fs-small); }
 .motif-arrow { stroke: var(--ink); stroke-width: 2; }
 .motif-arrowhead { fill: var(--ink); }
 .motif-foot { fill: var(--faint); font-family: var(--sans); font-size: 11.5px; font-style: italic; }
+.motif-house-body { fill: var(--paper-deep); stroke: var(--ink); stroke-width: 2; }
+.motif-house-roof { fill: rgb(108 20 70 / 10%); stroke: var(--ink); stroke-width: 2; stroke-linejoin: round; }
+.motif-house-label { fill: var(--muted); font-family: var(--sans); font-size: 12px; font-weight: 700; }
 .motif-readout { max-width: 760px; margin: 0 0 40px; padding: 18px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .motif-readout label { flex-direction: row; align-items: center; flex-wrap: wrap; gap: 14px; margin: 0 0 10px; font-size: var(--fs-small); }
 .motif-readout input[type="range"] { max-width: 320px; }

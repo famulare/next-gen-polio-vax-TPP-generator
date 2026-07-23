@@ -86,7 +86,15 @@ uniformly to on-screen and in-figure text. Percentages use the same convention
 but never round a genuine sub-100% value up to "100%" (near the ceiling they
 keep one truthful decimal). Integer counts, base-10 exponents on log axes, and
 per-day exposure-frequency labels keep their existing form, and no serialized
-value, cache key, or model computation is affected. This
+value, cache key, or model computation is affected. Within-host panel 4 now
+presents the same integrated shedding index (`P(acquisition) * B`) as paired
+reference-versus-selected bars on a base-10 log axis floored at the power of ten
+below the selected value, in place of the daily-burden curve (§13.2.4);
+"shedding index" replaces the "source-paper-style index" label; the transmission
+motif shows the social-contact stage as household blocks (house 1, house 2, …,
+house N_s) to convey fan-out; and the effect-map Pareto boundary gains a light
+casing and heavier weight for legibility against the design cloud, keeping its
+turquoise identity. This
 supersedes the earlier two-tier "Update the model" commit gate, the
 three-distinct-objects control model, and any custom-envelope / axis-unlinking
 UI affordance (§10.3, §13.8, §18.17, §18.20). Every 1.9 change
@@ -144,9 +152,10 @@ show which combinations are sufficient for the selected scope. If no evaluated
 design passes, the absence of a Pareto frontier is an explicit result rather
 than a reason to draw a substitute line.
 
-The source-paper-style shedding index is the expected total amount shed after
-a specified oral challenge: probability of acquisition multiplied by the
-integrated infectious-shedding burden conditional on acquisition. In this app,
+The shedding index, following the source paper's convention, is the expected
+total amount shed after a specified oral challenge: probability of acquisition
+multiplied by the integrated infectious-shedding burden conditional on
+acquisition. In this app,
 `q_index = q_acq * q_shed` is its relative WPV analogue at the one-WPV-HID50
 reference challenge. `q_shed` alone is the conditional breakthrough-shedding
 ratio. These diagnostics may be displayed, but neither is the sole definition
@@ -1017,16 +1026,19 @@ free-form parameter laboratory.
 3. **Concentration among shedders.** Plot expected stool concentration in
    `TCID50/g` conditional on still shedding at day `t`, with the same
    conditioning as panel 2. State age and the assay floor beside the panel.
-4. **Shedding index.** Show the expected daily infectious-shedding burden and
-   its integral. For a challenge dose `d`, the displayed source-paper-style
-   index is `P(acquisition | d) * B`, where `B` is the integrated joint
-   survival-intensity burden conditional on acquisition. Show the relative
-   one-WPV-HID50 value as `q_index = q_acq * q_shed`, and visibly distinguish
-   it from `q_shed`, the conditional breakthrough-shedding ratio.
+4. **Shedding index.** Show the integrated shedding index for the naive
+   reference and the selected vaccinated cohort as paired bars on a base-10
+   logarithmic axis, whose lower bound is the power of ten below the smaller
+   (selected) value. At the one-WPV-HID50 challenge the index is
+   `P(acquisition | d) * B`, where `B` is the integrated joint survival-intensity
+   burden conditional on acquisition, taken over take and the episode horizon.
+   Show the relative one-WPV-HID50 value as `q_index = q_acq * q_shed`, and
+   visibly distinguish it from `q_shed`, the conditional breakthrough-shedding
+   ratio.
 
 For every panel, cohort quantities are calculated over the actual immunity
 distribution. In particular, the conditional concentration in panel 3 and the
-burden in panel 4 use the joint survival-intensity expectation. The UI must not
+shedding index in panel 4 use the joint survival-intensity expectation. The UI must not
 construct them by multiplying separately averaged duration and concentration,
 or by evaluating kernels at a mean-immunity state.
 

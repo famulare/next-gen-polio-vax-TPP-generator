@@ -84,17 +84,13 @@ function withinHostFigure(outputs: TeachingView, mobile: boolean): string {
     [1e2, 1e4, 1e6, 1e8],
     { note: `Assessment age ${diagnostics.assessmentAgeDays} days; assay floor 10^${Math.log10(PARAMETERS.shedding.titerFloor).toFixed(1)} TCID50/g.` }
   );
-  const burden = curvePanel(
+  const sheddingIndex = indexBarPanel(
     panels[3]!,
-    diagnostics.reference.sheddingByDay.map((point) => ({ x: point.day, y: point.expectedInfectiousConcentrationTCID50PerGram })),
-    diagnostics.vaccinated.sheddingByDay.map((point) => ({ x: point.day, y: point.expectedInfectiousConcentrationTCID50PerGram })),
-    "log-y",
-    "Daily infectious burden and its integral",
-    "Days after WPV acquisition",
-    "E[TCID50/g | WPV acquisition]",
-    timeTicks,
-    [1e2, 1e4, 1e6, 1e8],
-    { note: `Daily joint burden; B is its integral over the committed ${diagnosticHorizonDays}-day grid.` }
+    diagnostics.reference.sheddingIndexAtReferenceTCID50DaysPerGram,
+    diagnostics.vaccinated.sheddingIndexAtReferenceTCID50DaysPerGram,
+    "Shedding index",
+    "TCID50-days/g at one WPV HID50",
+    `P(acquisition) × burden integral B, over take and the ${diagnosticHorizonDays}-day episode.`
   );
   const id = mobile ? "within-host-mobile-figure" : "within-host-figure";
   const titleId = mobile ? "within-host-mobile-title" : "within-host-title";
@@ -107,10 +103,10 @@ function withinHostFigure(outputs: TeachingView, mobile: boolean): string {
     : `<g class="teaching-legend" transform="translate(58 ${height - 44})"><line x1="0" x2="28" y1="0" y2="0" class="teaching-reference"/><text x="36" y="4">Naive reference</text><line x1="165" x2="193" y1="0" y2="0" class="teaching-candidate"/><text x="201" y="4">Selected vaccinated cohort</text><text x="440" y="4">Curves are conditioned as named; full immunity distributions remain in the calculation.</text></g>`;
   return `<svg id="${id}" class="scientific-chart teaching-chart${mobile ? " teaching-chart-mobile" : ""}" role="img" aria-labelledby="${titleId} ${descId}" viewBox="0 0 ${width} ${height}">
     <title id="${titleId}">Within-host components of the WPV transmission model</title>
-    <desc id="${descId}">Four panels compare a naive reference cohort with the selected vaccinated cohort at the same assessment age. They show productive WPV acquisition by challenge dose, including the marked one-WPV-HID50 reference; probability of still shedding conditional on acquisition; expected concentration conditional on still shedding; and daily joint infectious burden whose integral is B. At the reference challenge, the source-paper-style index is acquisition probability times B. The calculation preserves the joint expectation rather than using an average-person approximation.</desc>
+    <desc id="${descId}">Four panels compare a naive reference cohort with the selected vaccinated cohort at the same assessment age. They show productive WPV acquisition by challenge dose, including the marked one-WPV-HID50 reference; probability of still shedding conditional on acquisition; expected concentration conditional on still shedding; and the shedding index at the reference challenge — acquisition probability times the burden integral B — as paired log-scale bars for the two cohorts. The calculation preserves the joint expectation rather than using an average-person approximation.</desc>
     <text class="chart-kicker" x="${mobile ? 12 : 58}" y="25">ONE REFERENCE SETTING · TWO COHORTS · NO DECISION RULE YET</text>
     ${headline}
-    ${acquisition}${survival}${concentration}${burden}
+    ${acquisition}${survival}${concentration}${sheddingIndex}
     ${legend}
   </svg>`;
 }
@@ -227,6 +223,36 @@ function curvePanel(
   const referenceMarker = annotation.referenceX === undefined ? "" : `<line class="teaching-reference-dose" x1="${xScale(annotation.referenceX)}" x2="${xScale(annotation.referenceX)}" y1="${plot.y}" y2="${plot.y + plot.height}"/><text class="teaching-reference-dose-label" x="${xScale(annotation.referenceX) + 5}" y="${plot.y + 12}">${escapeXml(annotation.referenceLabel ?? "Reference")}</text>`;
   return `<g class="teaching-panel"><text class="teaching-panel-title" x="${panel.x}" y="${titleY}">${escapeXml(title)}</text><text class="teaching-panel-note" x="${panel.x}" y="${panel.y + 17}">${escapeXml(annotation.note)}</text><rect class="plot-bg teaching-panel-bg" x="${plot.x}" y="${plot.y}" width="${plot.width}" height="${plot.height}"/>${horizontal}${vertical}${referenceMarker}<path class="teaching-reference" fill="none" stroke="${REFERENCE}" stroke-width="2.5" d="${path(reference)}"/><path class="teaching-candidate" fill="none" stroke="${CANDIDATE}" stroke-width="2.5" d="${path(candidate)}"/><text class="axis-label" x="${plot.x + plot.width / 2}" y="${panel.y + panel.height - 1}" text-anchor="middle">${escapeXml(xLabel)}</text><text class="teaching-y-label" transform="translate(${panel.x + 12} ${plot.y + plot.height / 2}) rotate(-90)" text-anchor="middle">${escapeXml(yLabel)}</text></g>`;
 }
+
+function indexBarPanel(
+  panel: { x: number; y: number; width: number; height: number },
+  referenceValue: number,
+  candidateValue: number,
+  title: string,
+  yLabel: string,
+  note: string
+): string {
+  const titleY = panel.y;
+  const plot = { x: panel.x + 58, y: panel.y + 45, width: panel.width - 70, height: panel.height - 80 };
+  const positiveMin = Math.max(Math.min(referenceValue, candidateValue), Number.MIN_VALUE);
+  const positiveMax = Math.max(referenceValue, candidateValue, Number.MIN_VALUE);
+  const floorExp = Math.floor(Math.log10(positiveMin));
+  const ceilExp = Math.max(floorExp + 1, Math.ceil(Math.log10(positiveMax)));
+  const floorValue = 10 ** floorExp;
+  const yScale = scaleLog().domain([floorValue, 10 ** ceilExp]).range([plot.y + plot.height, plot.y]);
+  const horizontal = Array.from({ length: ceilExp - floorExp + 1 }, (_, index) => 10 ** (floorExp + index))
+    .map((value) => `<g><line class="grid-line" x1="${plot.x}" x2="${plot.x + plot.width}" y1="${yScale(value)}" y2="${yScale(value)}"/><text class="tick" x="${plot.x - 9}" y="${yScale(value) + 3}" text-anchor="end">${powerLabel(value)}</text></g>`).join("");
+  const bottom = plot.y + plot.height;
+  const barWidth = plot.width * 0.2;
+  const bar = (value: number, center: number, fill: string, label: string) => {
+    const left = center - barWidth / 2;
+    const top = yScale(Math.max(value, floorValue));
+    return `<rect class="teaching-index-bar" fill="${fill}" x="${left}" y="${top}" width="${barWidth}" height="${Math.max(0, bottom - top)}"><title>${escapeXml(label)}: ${formatScientific(value)} TCID50-days/g</title></rect><text class="tick teaching-bar-value" x="${center}" y="${top - 7}" text-anchor="middle">${formatScientific(value)}</text><text class="axis-label" x="${center}" y="${bottom + 20}" text-anchor="middle">${escapeXml(label)}</text>`;
+  };
+  return `<g class="teaching-panel"><text class="teaching-panel-title" x="${panel.x}" y="${titleY}">${escapeXml(title)}</text><text class="teaching-panel-note" x="${panel.x}" y="${panel.y + 17}">${escapeXml(note)}</text><rect class="plot-bg teaching-panel-bg" x="${plot.x}" y="${plot.y}" width="${plot.width}" height="${plot.height}"/>${horizontal}${bar(referenceValue, plot.x + plot.width * 0.32, REFERENCE, "Naive reference")}${bar(candidateValue, plot.x + plot.width * 0.68, CANDIDATE, "Selected")}<text class="teaching-y-label" transform="translate(${panel.x + 12} ${plot.y + plot.height / 2}) rotate(-90)" text-anchor="middle">${escapeXml(yLabel)}</text></g>`;
+}
+
+function formatScientific(value: number): string { return formatNumber(value); }
 
 function logDomain(values: number[]): [number, number] {
   const positive = values.filter((value) => value > 0);
@@ -364,9 +390,9 @@ export function renderEffectMap(outputs: ModelOutputsV1, view: ChartViewState): 
   }).join("");
   const paretoPoints = outputs.frontier.pareto.map((point) => [x(1 - point.qAcq), y(1 - point.qShed)] as [number, number]);
   const paretoPath = paretoPoints.length > 1 ? line()(paretoPoints) ?? "" : "";
-  const paretoMark = paretoPath ? `<path class="pareto-line" d="${paretoPath}"/>` : "";
+  const paretoMark = paretoPath ? `<path class="pareto-casing" d="${paretoPath}"/><path class="pareto-line" d="${paretoPath}"/>` : "";
   const paretoLabel = paretoPath
-    ? `<g class="chart-key" transform="translate(${margin.left + 8} ${margin.top + 33})"><line class="pareto-line" x1="0" x2="24" y1="0" y2="0"/><text x="32" y="3">minimum-sufficient Pareto boundary</text></g>`
+    ? `<g class="chart-key" transform="translate(${margin.left + 8} ${margin.top + 33})"><line class="pareto-casing" x1="0" x2="24" y1="0" y2="0"/><line class="pareto-line" x1="0" x2="24" y1="0" y2="0"/><text x="32" y="3">minimum-sufficient Pareto boundary</text></g>`
     : "";
   const exact = outputs.frontier.selectedDesign;
   const exactMark = exact ? selectedExactMark(x(1 - exact.qAcq), y(1 - exact.qShed), margin.left + plotWidth * 0.6, margin.top, margin.top + plotHeight) : "";
