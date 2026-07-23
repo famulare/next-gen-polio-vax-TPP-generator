@@ -40,9 +40,11 @@ slices are deferred pending usability review. Decision amendment 2026-07-17:
 the default decision scope is the UP/Bihar high anchor, treated as the hardest
 known empirical/model-calibrated stress-test rather than a universal bound. The
 setting surface is nonbinding context for the product-specific shape and margin
-of that result. Its versioned display domain is `T = 0.1-2,000
-micrograms/exposure`, `N_s = 1-20`; the prior source-code exploration maximum
-of 40 contacts is not a v1 default.
+of that result. Its versioned display domain (as of this 2026-07-17 amendment)
+was `T = 0.1-2,000 micrograms/exposure`, `N_s = 1-20`; the prior source-code
+exploration maximum of 40 contacts is not a v1 default. (Contract 1.9 later
+narrowed this display domain to `T = 1-1,000 micrograms/day` on a 61-column
+grid; see the 2026-07-22 changelog entry.)
 
 **Interaction and teaching amendment 2026-07-21:** replace the
 result-first, setting-surface-first page order with a teaching-first narrative.
@@ -846,9 +848,11 @@ The separate, nonbinding setting-surface display domain is:
 - `D_hs = 8.9685` exposures/day;
 - default `T_hs = T_ih`.
 
-The 2,000-microgram upper exposure bound follows the physiological range used
-in the source paper. The contact range remains deliberately broader than the
-published high anchor at `N_s = 10`, but stops at 20. The prior 40-contact bound
+The 1,000-microgram/day upper exposure bound is a display choice; it sits within
+the physiological exposure range used in the source paper and supersedes the
+earlier 2,000-microgram bound (see the contract 1.9 changelog). The contact
+range remains deliberately broader than the published high anchor at `N_s = 10`,
+but stops at 20. The prior 40-contact bound
 was a source-code exploration maximum; it lacks a defensible interpretation as
 an average daily number of family-like child contacts and does not define v1
 success.
@@ -1044,6 +1048,22 @@ assessment age. The display may compare the two cohorts directly, but it must
 never call either a representative or average person. The underlying model
 continues to propagate all 16 immunity bins.
 
+**Opening order (contract 1.9 amendment, 2026-07-23).** Brief orientation may
+precede the cohort comparison. The authorized opening sequence is: (1) the
+question/title and lede; (2) a concise **What this is** that states the tool's
+scope and the close-contact sufficiency qualification; (3) a concise **How to
+use it**; (4) the reference-to-vaccinated cohort comparison; (5) the prototype
+qualification; (6) the first within-host teaching figure. **What this is** and
+**How to use it** must stay concise and must neither introduce a verdict nor
+replace the comparison. The cohort comparison and prototype qualification must
+appear before the first scientific figure. This amendment does not retain any
+requirement that the comparison be visible within the literal first viewport; it
+must, however, precede the first figure, and no verdict may appear before it.
+**How to use it** remains in this version -- removing it requires a separate
+refactor plus evidence that the interaction is self-explanatory. All existing
+qualifications around `R_loc`, the declared setting envelope, and the fixed
+comparators are preserved.
+
 ### 13.2 Required within-host teaching sequence
 
 One coherent four-panel figure, revealed in causal order, is required. It is a
@@ -1142,8 +1162,8 @@ it, the direct UP/Bihar decision result (order per the 1.9 amendment):
   distinctly from the display-domain bounds; and
 - an accessible text alternative and exact point readout.
 
-The display grid is 81 log-spaced exposure values over `T = 0.1-2,000
-micrograms/exposure` by every integer `N_s = 1-20`. Raster cells have no visible
+The display grid is 61 log-spaced exposure values over `T = 1-1,000
+micrograms/day` by every integer `N_s = 1-20`. Raster cells have no visible
 stroke. Contour construction must not trace the plot frame as though it were a
 scientific threshold. The status remains the direct decision-scope calculation,
 not the display-domain corner or an interpolated raster value; the interface
@@ -1216,9 +1236,11 @@ Advanced controls contain:
 - Status labels and tooltips distinguish direct measurements, scenario inputs,
   calibrated parameters, fixed assumptions, derived outputs, and evidence
   gaps.
-- The first viewport identifies the UP/Bihar teaching setting and the current
-  reference-to-vaccinated comparison without implying a verdict. The direct
-  result and sufficiency qualification are legible at the setting-surface step.
+- Brief orientation may precede the cohort comparison; the UP/Bihar teaching
+  setting and the reference-to-vaccinated comparison appear before the first
+  scientific figure, and no verdict appears before that comparison (see §13.1).
+  The direct result and sufficiency qualification are legible at the
+  setting-surface step.
 - A reset button restores the versioned default scenario.
 - Current state is serialized in the URL hash for sharing without a server.
 - The app supports keyboard operation and does not use color alone for pass/fail.
@@ -1645,7 +1667,7 @@ scientific input or manifest change.
 Default-scenario tests additionally require direct UP/Bihar `R_loc =
 0.9201071208363125` within relative `1e-10`, 92 passing points and eight Pareto
 points on the committed `51 x 51` product grid, a passing selected design, and a
-setting-surface display domain with 81 exposure columns and 20 contact rows.
+setting-surface display domain with 61 exposure columns and 20 contact rows.
 The former 40-contact envelope result must not control or label default status.
 
 Within-host diagnostic tests must additionally establish: bin mass conservation
@@ -1763,8 +1785,8 @@ The following decisions are binding for v1:
 7. The Matlab base uses measured 18.6 micrograms/day household exposure and the
    borrowed `N_s = 3` moderate social link, visibly labeled as hybrid.
 8. The v1 default decision scope is the singleton UP/Bihar high anchor. The
-   separate setting-surface display domain is `T = 0.1-2,000
-   micrograms/exposure`, `N_s = 1-20`, with source contact frequencies; its
+   separate setting-surface display domain is `T = 1-1,000
+   micrograms/day`, `N_s = 1-20`, with source contact frequencies; its
    outer corner does not determine default status.
 9. Index breakthrough is conditioned on one WPV HID50.
 10. Point `R_loc_max < 1` is the sole criterion for this iteration; parameter
