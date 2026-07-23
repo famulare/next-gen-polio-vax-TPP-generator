@@ -58,9 +58,15 @@ a { color: inherit; text-underline-offset: .2em; }
 .skip-link:focus { transform: none; }
 .site-header { position: sticky; z-index: 20; top: 0; display: flex; align-items: center; justify-content: space-between; min-height: 54px; padding: 0 clamp(16px, 4vw, 58px); border-bottom: 1px solid var(--ink); background: var(--accent); }
 .wordmark { flex: 0 0 auto; white-space: nowrap; font-weight: 800; letter-spacing: .12em; text-decoration: none; font-size: var(--fs-body); }
-.site-header nav { display: flex; gap: clamp(12px, 2vw, 28px); font-size: var(--fs-body); }
 .site-header nav a { color: rgb(49 58 68 / 85%); text-decoration: none; }
 .site-header nav a:hover { color: var(--ink); }
+/* Section nav: inline links on desktop (the disclosure toggle is hidden and the
+   links show regardless of the details' open state); a native keyboard-operable
+   "Sections" disclosure at the narrow breakpoint. CSS + <details> only, so it
+   works with no JavaScript. */
+.section-nav { position: static; border: 0; }
+.section-nav > summary { display: none; }
+.site-header .section-nav > nav { display: flex; gap: clamp(12px, 2vw, 28px); font-size: var(--fs-body); }
 
 /* .app-shell is the page shell: outer max width plus responsive gutters. */
 .app-shell, .site-footer { width: min(var(--page-max), calc(100% - var(--gutter))); margin-inline: auto; }
@@ -221,6 +227,15 @@ summary span { font-family: var(--serif); font-size: var(--fs-h3); }
 summary span::before { content: "+"; display: inline-block; width: 28px; color: var(--russet); }
 details[open] summary span::before { content: "−"; }
 summary small { max-width: 520px; color: var(--muted); font-size: var(--fs-body); }
+/* The product-parameter disclosure reuses the disclosure affordance but sits
+   inside the controls panel, so it drops the full-width rules and uses a
+   panel-scale label. */
+.product-disclosure { border: 0; }
+.product-disclosure > summary { align-items: baseline; gap: 16px; padding: var(--space-3) 0; }
+.product-disclosure > summary span { font-size: var(--fs-accent); }
+/* Drive the disclosed content explicitly (children carry their own display, so
+   the browser's closed-details hiding does not apply); collapse when closed. */
+.product-disclosure:not([open]) > :not(summary) { display: none; }
 .advanced-body { padding: 20px 0 45px; }
 fieldset { margin: 0 0 40px; padding: 22px 0 0; border: 0; border-top: 1px solid var(--line); }
 legend { padding-right: 20px; font-family: var(--serif); font-size: var(--fs-accent); }
@@ -333,9 +348,13 @@ fieldset > p { color: var(--muted); font-size: var(--fs-body); }
 
 @media (max-width: 720px) {
   .site-header { gap: 12px; }
-  .site-header nav { min-width: 0; overflow-x: auto; gap: 16px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
-  .site-header nav::-webkit-scrollbar { display: none; }
-  .site-header nav a { white-space: nowrap; }
+  .section-nav > summary { display: block; list-style: none; padding: 6px 12px; border: 1px solid rgb(49 58 68 / 45%); font-weight: 800; font-size: var(--fs-body); cursor: pointer; }
+  .section-nav > summary::-webkit-details-marker { display: none; }
+  .section-nav > summary::after { content: " \25BE"; }
+  .section-nav[open] > summary::after { content: " \25B4"; }
+  .site-header .section-nav > nav { display: none; }
+  .site-header .section-nav[open] > nav { display: flex; flex-direction: column; position: absolute; top: 100%; right: clamp(16px, 4vw, 58px); z-index: 25; min-width: 190px; margin-top: 1px; padding: 12px 18px; gap: 12px; background: var(--accent); border: 1px solid var(--ink); }
+  .site-header .section-nav > nav a { white-space: nowrap; }
   .prototype-banner { align-items: flex-start; flex-direction: column; gap: 4px; }
   .opening-meta { grid-template-columns: 1fr; gap: 14px; }
   .opening-comparison { grid-template-columns: 1fr; gap: 14px; }

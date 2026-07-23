@@ -225,6 +225,19 @@ try {
   if (await page.locator("#take").isDisabled() || await page.locator("#hypothetical-controls").evaluate((element) => element.hidden)) throw new Error("Hypothetical product controls were not restored");
   console.log("Browser smoke: product controls checked");
 
+  // Progressive disclosure: the five product parameters start collapsed, open by
+  // keyboard, and keep the same control ids and editability.
+  const productDisclosure = page.locator(".product-disclosure");
+  if (await productDisclosure.evaluate((el) => el.open)) throw new Error("Product-parameter disclosure is open by default; it must start closed");
+  if (await page.locator("#take").isVisible()) throw new Error("Product parameters are visible while their disclosure is closed");
+  await page.locator(".product-disclosure > summary").focus();
+  await page.keyboard.press("Enter");
+  if (!(await productDisclosure.evaluate((el) => el.open)) || !(await page.locator("#take").isVisible())) throw new Error("Keyboard did not open the product-parameter disclosure");
+  for (const id of ["take", "mu", "alpha", "hid50", "dose-log"]) if (await page.locator(`#${id}`).count() !== 1) throw new Error(`Disclosed product controls lost #${id}`);
+  if (await page.locator("#take").isDisabled()) throw new Error("Disclosed hypothetical controls are not editable");
+  await page.keyboard.press("Enter");
+  console.log("Browser smoke: product-parameter disclosure checked");
+
   const firstDesign = page.locator("#product-figure [data-design-key]").first();
   await firstDesign.hover();
   if (!(await page.locator("#design-inspector").textContent())?.includes("Inspection")) throw new Error("Hover did not update the linked design inspector");
@@ -361,6 +374,15 @@ try {
   await page.setViewportSize({ width: 360, height: 900 });
   await assertNoHorizontalOverflow(page, "360 px viewport");
   await assertSvgTextWithinViewBox(page, "360 px viewport", MOBILE_SVG_TEXT_CLIP_BASELINE);
+  // Narrow navigation collapses into a keyboard-operable Sections disclosure that
+  // exposes the same anchors and hides nothing from no-JavaScript users.
+  if (!(await page.locator(".section-nav > summary").isVisible())) throw new Error("Narrow viewport did not expose the Sections disclosure toggle");
+  if (await page.locator(".section-nav > nav a").first().isVisible()) throw new Error("Section links are exposed before the narrow nav is opened");
+  await page.locator(".section-nav > summary").focus();
+  await page.keyboard.press("Enter");
+  if (!(await page.locator(".section-nav > nav a").first().isVisible())) throw new Error("Keyboard did not open the narrow Sections nav");
+  if (await page.locator(".section-nav > nav a").count() !== 5) throw new Error("Narrow Sections nav does not expose every chapter anchor");
+  await page.keyboard.press("Enter");
   await page.emulateMedia({ reducedMotion: "reduce", colorScheme: "light" });
   if (await page.evaluate(() => getComputedStyle(document.documentElement).scrollBehavior) !== "auto") throw new Error("Reduced-motion mode did not disable smooth scrolling");
   await page.locator("#product").focus();
