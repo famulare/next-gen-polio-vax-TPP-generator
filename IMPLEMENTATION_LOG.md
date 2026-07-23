@@ -21,6 +21,74 @@ does not replace source provenance, git history, or verification output.
 
 ## Planning-stage review record
 
+### 2026-07-23 -- Frontend streamlining: single-column spine and responsive figures
+
+- **Date:** 2026-07-23.
+- **Objective:** execute `FRONTEND_STREAMLINING_IMPLEMENTATION_PLAN.md` -- make
+  the page read as one predominantly single-column, pedagogically ordered,
+  responsive document while preserving every scientific and computational
+  invariant.
+- **Executor/model version:** Claude Opus 4.8 (`claude-opus-4-8`); application
+  version `0.5.0-prototype`; design-contract version unchanged (1.9).
+- **Contract sections and source files supplied:** §13.1-13.9, §10.3 and the 1.9
+  changelog (approved setting-surface domain), §14.6 (delegation/logging); model
+  and uncertainty sections indirectly protected by the no-behavior-change
+  invariant. Inputs: the plan, the repository at/after baseline `606aafe`
+  (committed as `bb58338`), and `DESIGN_CONTRACT.md`.
+- **Allowed files or worktree:** this repository, presentation surfaces only --
+  `DESIGN_CONTRACT.md` (opening amendment plus confirmed stale setting-surface
+  assertions), `src/app.ts`, `src/styles.css`, `src/ui/charts.ts`,
+  `scripts/browser-smoke.mjs`, UI tests, generated `dist/index.html` and its
+  tracked hash, and this log. No `src/model/**` or `src/data/**` change.
+- **Required output and discriminator:** the implementation is correct only if
+  reading order and narrow legibility improve while canonical model results,
+  scenario behavior, product semantics, figure meaning, and export metadata
+  remain unchanged.
+- **Content-block classification and rationale:** not applicable; bounded
+  presentation implementation with no external content blocks.
+- **Files changed:** `DESIGN_CONTRACT.md`, `src/app.ts`, `src/styles.css`,
+  `src/ui/charts.ts`, `scripts/browser-smoke.mjs`, `dist/index.html`,
+  `reference/artifact-sha256.txt`. Committed per phase: `04ab98e` (0, contract +
+  stale-assertion sync), `86e9466` (1, invariant lock + smoke clip/DOM tripwires),
+  `7aa8b02` (2, single left-aligned spine + primitives + `--u` recalibration),
+  `6d418b7` (3, vertical ruled content + wrapping inspector + single-column
+  assumptions), `02133e0` (4, product-parameter and Sections disclosures),
+  `c43fe38` (5, responsive figures), `6c7c61d` (6, narrow measurement records +
+  secondary exports), plus this Phase 8 cleanup/log commit.
+- **Scientific invariants checked:** `evaluateScenario` canonical JSON SHA-256 is
+  byte-identical pre/post for default, Sabin-2, and IPV scenarios (default
+  `R_loc` = 0.9201071208363125, 92 of 2601 frontier points); the reference-fixture
+  and calibration gates passed at every phase; `src/model` and `src/data` were
+  never edited (confirmed by diff); comparator inputs/outputs, defaults, success
+  rule, units, and the meaning of `R_loc` are unchanged; all figure panels,
+  series, units, and qualifications are retained.
+- **Reframe/retry status:** not applicable.
+- **Result disposition:** revised and accepted locally; committed on `main`, not
+  pushed, pending owner review.
+- **Primary review:** self-reviewed against the plan's acceptance criteria. The
+  SVG-text clip tripwire added in Phase 1 caught two regressions I introduced
+  during development -- a linked-map title overflow (Phase 2, fixed by giving the
+  linked-map pair the full shell) and a Phase-2-latent desktop immunity title
+  clip surfaced by the `--u` increase (fixed by wrapping the desktop title) --
+  both corrected before their commits.
+- **Verification run:** each phase ran `npm run typecheck`, `npm run build`,
+  `npm run record:artifact-hash`, and `npm run verify` (typecheck, model tests,
+  R reference fixtures, reference-fixture gate, calibration, performance,
+  cache-memory, build, Chromium browser smoke, release-negative) to green with
+  byte-reproducible artifacts. `browser-smoke.mjs` was extended with the amended
+  six-part opening DOM-order assertion, an SVG-text-within-owning-viewport clip
+  check at 360px and desktop (zero tolerance beyond a 4px antialias allowance,
+  unlike the SVG-skipping horizontal-overflow check), and product-parameter and
+  narrow-navigation disclosure assertions. Responsive geometry was inspected at
+  360/480/720/1024/1440.
+- **Residual uncertainty:** (1) Phase 7 opening-copy compression ("What this is"
+  / "How to use it") is NOT applied -- it edits owner-voiced prose and the plan
+  reserves final copy judgment to Mike; a concrete compression proposal is
+  offered separately for his approval. (2) The product-parameter disclosure is
+  closed by default per the plan; starting it expanded is a one-attribute change.
+  (3) Manual cross-browser (Safari/Firefox) and screen-reader review of the two
+  new `<details>` disclosures is deferred. No release classification is claimed.
+
 ### 2026-07-21 -- Gates-aligned independent visual revision
 
 - **Objective:** revise the teaching-first browser presentation around the
