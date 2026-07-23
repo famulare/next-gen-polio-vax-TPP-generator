@@ -1733,6 +1733,22 @@ The following decisions are binding for v1:
     anchor. Clearing it supports likely adequacy under less demanding conditions
     represented by the model, but is not presented as proof for every place or
     present-day setting.
+20. (Contract 1.9) Interaction is two-tier. Scientific control edits — candidate
+    product, `take_context`, `mu0_new`, `alpha_vax`, `beta_vax`, vaccine dose,
+    booster, assessment age, and decision scope — recompute the cheap teaching,
+    immunity-distribution, and setting-surface figures and their point readouts as
+    a live, deterministic, uncommitted preview, and simultaneously mark the
+    outcome/product frontier, the direct decision result, and all exports stale
+    until an explicit "Update the model" commit. The inspection probe and
+    setting-surface cell inspection are independent live readouts that never change
+    model identity or the frontier; a probe change re-commits by reusing the
+    committed frontier, so exports stay available. Staleness is defined exactly as
+    a mismatch between the live projection's scientific identity and the committed
+    model identity. Only the committed scenario is serialized to the URL hash and
+    to exports; the live preview is never hashed anew nor exported, and introduces
+    no runtime randomness. A single scenario field may be exposed by a master
+    parameter panel and by inline per-section controls; all instances are two-way
+    linked through one write-back and always display one value.
 
 Implementation discretion is limited to presentation details, accessible color
 choices, module decomposition below the ownership boundaries, and equivalent

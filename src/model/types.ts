@@ -217,6 +217,12 @@ export interface ModelOutputsV1 {
   provenance: unknown;
 }
 
+// Light projection shared by the live (uncommitted) and committed render paths.
+// It deliberately excludes `frontier`, so the live path cannot render or export
+// the expensive decision grid. `diagnostics.modelIdentity` carries the scientific
+// identity used to decide whether the committed frontier is stale.
+export type TeachingView = Pick<ModelOutputsV1, "scenario" | "metrics" | "settingSurface" | "diagnostics">;
+
 export interface SettingAnchorRecord extends SettingV1 {
   label: string;
   kind: "published" | "hybrid";

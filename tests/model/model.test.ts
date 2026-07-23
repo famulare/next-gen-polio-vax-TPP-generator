@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { applyBoost, buildBoostMatrix, normalizeBins, shiftBins } from "../../src/model/bins";
 import { buildFrontier, gridPointRLocMatchesDirect, passesThreshold } from "../../src/model/frontier";
-import { defaultScenario, evaluateScenario, scenarioWithDecisionScope, scenarioWithProduct, scenarioWithSetting } from "../../src/model/model";
+import { defaultScenario, evaluateScenario, evaluateScenarioLight, scenarioWithDecisionScope, scenarioWithProduct, scenarioWithSetting } from "../../src/model/model";
 import { DIAGNOSTIC_GRID, FRONTIER_GRID, PARAMETERS, SETTING_ANCHORS, SETTING_DISPLAY_DOMAIN, vaccineDefaults } from "../../src/model/parameters";
 import { envelopeCorner } from "../../src/model/metrics";
 import { canonicalHash, canonicalJson, decodeScenario, encodeScenario, validateModelOutputs, validateScenario } from "../../src/model/serialization";
@@ -1008,6 +1008,33 @@ test("changing decision scope invalidates every scope-dependent result", () => {
   assert.notDeepEqual(lowScope.frontier, baseline.frontier);
   assert.notEqual(lowScope.modelIdentity, baseline.modelIdentity);
   assert.deepEqual(lowScope.settingSurface, baseline.settingSurface);
+});
+
+test("the light projection is a faithful, frontier-free preview of the full evaluation", () => {
+  const scenario = defaultScenario();
+  const full = evaluateScenario(scenario);
+  const light = evaluateScenarioLight(scenario);
+  // Same cheap outputs, byte-for-byte, so the live preview never diverges from the committed model.
+  assert.deepEqual(light.metrics, full.metrics);
+  assert.deepEqual(light.diagnostics, full.diagnostics);
+  assert.deepEqual(light.settingSurface, full.settingSurface);
+  assert.equal(light.diagnostics.modelIdentity, full.modelIdentity);
+  // The light projection cannot carry (or export) the expensive decision frontier.
+  assert.equal("frontier" in light, false);
+});
+
+test("the light-projection identity is the UI stale predicate: scientific edits differ, probe does not", () => {
+  const scenario = defaultScenario();
+  const baseline = evaluateScenarioLight(scenario).diagnostics.modelIdentity;
+  // A probe-only change never changes identity -> the committed frontier stays valid (non-stale).
+  for (const id of ["low", "houston", "matlab"] as const) {
+    assert.equal(evaluateScenarioLight(scenarioWithSetting(scenario, id)).diagnostics.modelIdentity, baseline);
+  }
+  // Scientific edits change identity -> the committed frontier is stale until an explicit commit.
+  assert.notEqual(evaluateScenarioLight(scenarioWithDecisionScope(scenario, "low")).diagnostics.modelIdentity, baseline);
+  const weaker = structuredClone(scenario);
+  weaker.vaccine = { ...weaker.vaccine, takeContext: 0.2 };
+  assert.notEqual(evaluateScenarioLight(weaker).diagnostics.modelIdentity, baseline);
 });
 
 test("frontier cells are direct evaluations and classification uses the locked below-threshold rule", () => {

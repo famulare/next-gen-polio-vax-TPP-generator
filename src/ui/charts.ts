@@ -1,7 +1,7 @@
 import { scaleLinear, scaleLog } from "d3-scale";
 import { line } from "d3-shape";
 import { FRONTIER_GRID, PARAMETERS, SETTING_ANCHORS, SETTING_DISPLAY_DOMAIN } from "../model/parameters";
-import type { DesignGridPoint, ModelOutputsV1 } from "../model/types";
+import type { DesignGridPoint, ModelOutputsV1, TeachingView } from "../model/types";
 import { BRAND_COLORS, SCIENTIFIC_SURFACE_COLORS } from "./brand";
 import { designKey, describeDecisionScope } from "./presentation";
 
@@ -23,11 +23,11 @@ const CANDIDATE = BRAND_COLORS.dvDarkMagenta;
  * intentionally separated from the transmission surface: their conditioning
  * is acquisition by the index child, not a population-average shortcut.
  */
-export function renderWithinHostTeaching(outputs: ModelOutputsV1): string {
+export function renderWithinHostTeaching(outputs: TeachingView): string {
   return `${withinHostFigure(outputs, false)}${withinHostFigure(outputs, true)}`;
 }
 
-function withinHostFigure(outputs: ModelOutputsV1, mobile: boolean): string {
+function withinHostFigure(outputs: TeachingView, mobile: boolean): string {
   const diagnostics = outputs.diagnostics;
   const diagnosticHorizonDays = diagnostics.vaccinated.sheddingByDay.at(-1)?.day;
   if (diagnosticHorizonDays === undefined) throw new Error("Within-host diagnostic grid has no shedding time points");
@@ -114,11 +114,11 @@ function withinHostFigure(outputs: ModelOutputsV1, mobile: boolean): string {
   </svg>`;
 }
 
-export function renderImmunityDistribution(outputs: ModelOutputsV1): string {
+export function renderImmunityDistribution(outputs: TeachingView): string {
   return `${immunityDistributionFigure(outputs, false)}${immunityDistributionFigure(outputs, true)}`;
 }
 
-function immunityDistributionFigure(outputs: ModelOutputsV1, mobile: boolean): string {
+function immunityDistributionFigure(outputs: TeachingView, mobile: boolean): string {
   const width = mobile ? 360 : 820;
   const height = mobile ? 410 : 450;
   const margin = mobile ? { top: 92, right: 15, bottom: 62, left: 48 } : { top: 63, right: 30, bottom: 62, left: 60 };
@@ -208,7 +208,7 @@ function powerLabel(value: number): string {
   return exponent === 0 ? "1" : `10^${exponent}`;
 }
 
-export function renderSettingSurface(outputs: ModelOutputsV1, view: ChartViewState): string {
+export function renderSettingSurface(outputs: TeachingView, view: ChartViewState): string {
   const width = 900;
   const height = 570;
   const margin = { top: 76, right: 38, bottom: 86, left: 76 };

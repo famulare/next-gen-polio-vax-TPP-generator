@@ -161,10 +161,12 @@ try {
 
   const defaultIdentity = await page.locator("#result-status").getAttribute("data-model-identity");
   await page.selectOption("#probe", "low");
-  await waitForStale(page);
+  // The inspection probe is an independent live readout: it updates without marking
+  // the result stale, without disabling export, and without changing scientific identity.
+  await page.waitForFunction(() => document.getElementById("probe-summary")?.textContent?.includes("Low transmission"), null, { timeout: 30_000 });
   await waitForCommitted(page);
   if (await page.locator("#result-status").getAttribute("data-model-identity") !== defaultIdentity) throw new Error("Probe-only change altered scientific identity");
-  if (!(await page.locator("#probe-summary").textContent())?.includes("Low transmission")) throw new Error("Probe-only change did not update its independent readout");
+  if (await page.locator("[data-export]").first().isDisabled()) throw new Error("Probe-only change disabled export");
   if (!(await page.locator("#scope-summary").textContent())?.includes("UP/Bihar")) throw new Error("Probe-only change altered decision scope");
   console.log("Browser smoke: probe/scope identity checked");
 
@@ -172,13 +174,16 @@ try {
   await waitForStale(page);
   if (!(await page.locator("#hypothetical-controls").evaluate((element) => element.hidden)) || !(await page.locator("#take").isDisabled())) throw new Error("Fixed Sabin 2 exposed hypothetical product controls");
   if (!(await page.locator("#catalog-product-note").textContent())?.includes("fixed catalog comparator")) throw new Error("Sabin 2 catalog semantics are not visible");
+  await page.locator("#compute").click();
   await waitForCommitted(page);
   await page.selectOption("#product", "ipv");
   await waitForStale(page);
   if (!(await page.locator("#catalog-product-note").textContent())?.includes("fixed non-live comparator")) throw new Error("IPV catalog semantics are not visible");
+  await page.locator("#compute").click();
   await waitForCommitted(page);
   await page.selectOption("#product", "hypothetical");
   await waitForStale(page);
+  await page.locator("#compute").click();
   await waitForCommitted(page);
   if (await page.locator("#take").isDisabled() || await page.locator("#hypothetical-controls").evaluate((element) => element.hidden)) throw new Error("Hypothetical product controls were not restored");
   console.log("Browser smoke: product controls checked");
@@ -196,6 +201,7 @@ try {
   if (!(await page.locator(`#effect-figure [data-design-key="${heldKey}"]`).evaluate((element) => element.classList.contains("is-persistent")))) throw new Error("Persistent selection was not linked across maps");
   await page.locator("#use-design").click();
   await waitForStale(page);
+  await page.locator("#compute").click();
   await waitForCommitted(page);
   if (await page.locator("#take").inputValue() !== "0" || await page.locator("#mu").inputValue() !== "0") throw new Error("Use this design did not promote the held grid point");
 
@@ -213,6 +219,8 @@ try {
   await page.keyboard.press("ArrowRight");
   if (await page.locator("#setting-figure .chart-readout").textContent() === surfaceReadout) throw new Error("Setting-surface keyboard traversal did not update readout");
 
+  const preEditImmunity = await page.locator("#immunity-distribution-figure").innerHTML();
+  const preEditIdentity = await page.locator("#result-status").getAttribute("data-model-identity");
   await page.locator("#take").evaluate((element) => {
     element.value = "0.01";
     element.dispatchEvent(new Event("input", { bubbles: true }));
@@ -221,16 +229,22 @@ try {
   if (!(await page.locator("#story-results").evaluate((element) => element.classList.contains("is-stale")))) throw new Error("Prior result is not visibly marked stale");
   if (!(await page.locator("#setting-figure").count()) || !(await page.locator("#result-status").textContent())?.includes("Direct Rloc")) throw new Error("Prior committed result disappeared during recomputation");
   if (!(await page.locator("[data-export]").first().isDisabled())) throw new Error("Stale result remained exportable");
+  // Two-tier: the light teaching figure updates live during the stale scientific edit,
+  // while the committed verdict and its identity stay unchanged until an explicit commit.
+  if (await page.locator("#immunity-distribution-figure").innerHTML() === preEditImmunity) throw new Error("Light figure did not update live during a stale scientific edit");
+  if (await page.locator("#result-status").getAttribute("data-model-identity") !== preEditIdentity) throw new Error("Stale scientific edit changed the committed identity before commit");
+  await page.locator("#compute").click();
   await waitForCommitted(page);
 
   await page.selectOption("#scope", "custom");
-  await waitForStale(page);
+  // Custom scope is a scientific edit; commit it explicitly before the invalid probe below.
+  await page.locator("#compute").click();
   await waitForCommitted(page);
   await page.locator("#scope-t-min").evaluate((element) => {
     element.value = "0";
     element.dispatchEvent(new Event("change", { bubbles: true }));
   });
-  await waitForStale(page);
+  // An invalid scientific edit is caught in the light recompute and fails closed.
   await page.locator("#transaction-status.invalid").waitFor({ state: "visible", timeout: 30_000 });
   if (!(await page.locator("#setting-figure").count())) throw new Error("Invalid edit removed prior committed figure instead of retaining it stale");
   if (!(await page.locator("[data-export]").first().isDisabled())) throw new Error("Invalid edited state remained exportable");
@@ -238,10 +252,8 @@ try {
   console.log("Browser smoke: stale and invalid transactions checked");
 
   await page.locator("#reset").click();
-  await waitForStale(page);
   await waitForCommitted(page);
   await page.selectOption("#scope", "custom");
-  await waitForStale(page);
   await page.evaluate(() => {
     const values = {
       "scope-t-min": "2000", "scope-t-max": "2000", "scope-ns-min": "20", "scope-ns-max": "20",
@@ -251,6 +263,7 @@ try {
     document.getElementById("scope-dhs-max").dispatchEvent(new Event("change", { bubbles: true }));
   });
   await waitForStale(page);
+  await page.locator("#compute").click();
   await waitForCommitted(page);
   if (!(await page.locator("#frontier-summary").textContent())?.includes("No evaluated hypothetical design")) throw new Error("Harsh scope did not expose empty-frontier branch");
   if (await page.locator("#effect-figure .pareto-line").count()) throw new Error("Empty frontier retained a Pareto line element");
@@ -258,7 +271,6 @@ try {
   console.log("Browser smoke: empty frontier checked");
 
   await page.locator("#reset").click();
-  await waitForStale(page);
   await waitForCommitted(page);
   const exportDesign = page.locator("#product-figure [data-design-key]").nth(1);
   await exportDesign.click();

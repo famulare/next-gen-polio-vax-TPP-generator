@@ -7,7 +7,7 @@ import { buildScheduleState } from "./schedule";
 import { canonicalHash, validateModelOutputs, validateScenario } from "./serialization";
 import { rLocForSetting } from "./transmission";
 import { ROUTINE_DAYS } from "./types";
-import type { AnchorSettingId, ModelOutputsV1, ScenarioV1, SettingV1 } from "./types";
+import type { AnchorSettingId, ModelOutputsV1, ScenarioV1, SettingV1, TeachingView } from "./types";
 
 const SETTING_SURFACE_CACHE_CAPACITY = 4;
 const settingSurfaceValueCache = new Map<string, Float64Array>();
@@ -77,6 +77,21 @@ export function evaluateScenario(scenario: ScenarioV1): ModelOutputsV1 {
   };
   validateModelOutputs(outputs);
   return outputs;
+}
+
+// Deterministic light projection: the same schedule state, point metrics,
+// within-host diagnostics, and setting surface that `evaluateScenario` produces,
+// WITHOUT the expensive 2601-design frontier and without `validateModelOutputs`.
+// Used for the live, uncommitted preview; never exported, never hashed anew.
+export function evaluateScenarioLight(scenario: ScenarioV1): TeachingView {
+  const canonicalScenario = structuredClone(scenario);
+  validateScenario(canonicalScenario);
+  const modelIdentity = canonicalHash({ scenario: scientificScenario(canonicalScenario), parameters: PARAMETERS, settings: SETTING_ANCHORS, displayDomain: SETTING_DISPLAY_DOMAIN, uncertainty: UNCERTAINTY_ENSEMBLE, frontierGrid: FRONTIER_GRID, diagnosticGrid: DIAGNOSTIC_GRID });
+  const state = buildScheduleState(canonicalScenario.vaccine, canonicalScenario.schedule);
+  const metrics = computePointMetrics(canonicalScenario, state);
+  const diagnostics = buildWithinHostDiagnostics(canonicalScenario, state, modelIdentity);
+  const settingSurface = buildSettingSurface(canonicalScenario, state);
+  return { scenario: canonicalScenario, metrics, settingSurface, diagnostics };
 }
 
 export function buildSettingSurface(scenario: ScenarioV1, state: ReturnType<typeof buildScheduleState>) {

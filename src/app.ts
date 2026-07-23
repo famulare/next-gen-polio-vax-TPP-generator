@@ -2,6 +2,7 @@ import { passesThreshold } from "./model/frontier";
 import {
   defaultScenario,
   evaluateScenario,
+  evaluateScenarioLight,
   scenarioWithDecisionScope,
   scenarioWithProduct,
   scenarioWithSetting
@@ -15,7 +16,7 @@ import {
 } from "./model/parameters";
 import { canonicalJson, decodeScenario, encodeScenario } from "./model/serialization";
 import { MICROGRAMS_PER_GRAM } from "./model/types";
-import type { AnchorSettingId, DesignGridPoint, EnvelopeV1, ModelOutputsV1, ProductId, ScenarioV1, SettingId } from "./model/types";
+import type { AnchorSettingId, DesignGridPoint, EnvelopeV1, ModelOutputsV1, ProductId, ScenarioV1, SettingId, TeachingView } from "./model/types";
 import { renderEffectMap, renderImmunityDistribution, renderProductMap, renderSettingSurface, renderWithinHostTeaching } from "./ui/charts";
 import type { ChartViewState } from "./ui/charts";
 import { BRAND_COLORS, BRAND_FONT_FAMILIES, SCIENTIFIC_SURFACE_COLORS, brandFontFaceCss, installBrandFonts } from "./ui/brand";
@@ -25,8 +26,7 @@ import { buildPresentation, describeDecisionScope, designKey } from "./ui/presen
 declare const __BUILD_IDENTITY__: string;
 
 const APP_VERSION = "0.5.0-prototype";
-const AUTO_UPDATE_DELAY_MS = 180;
-const MIN_STALE_DISPLAY_MS = 50;
+const LIGHT_UPDATE_DELAY_MS = 90;
 const BUILD_IDENTITY = __BUILD_IDENTITY__;
 const PROTOTYPE_STATUS = "Scientific prototype: direct point-rule close-contact results under the v1 sufficiency axiom";
 const JSON_EXPORT_SCHEMA_VERSION = "PrototypeModelExportV2";
@@ -42,7 +42,8 @@ export function mountApp(root: HTMLElement): void {
   const initial = scenarioFromHash();
   let draftScenario = initial.scenario;
   let committedOutputs: ModelOutputsV1 | null = null;
-  let updateTimer: number | undefined;
+  let liveOutputs: TeachingView | null = null;
+  let lightTimer: number | undefined;
   const view: AppViewState = {
     inspectedDesignKey: null,
     persistentDesignKey: null,
@@ -65,32 +66,33 @@ export function mountApp(root: HTMLElement): void {
       view.inspectedDesignKey = null;
       view.persistentDesignKey = null;
       syncControls(draftScenario);
-      scheduleUpdate(0, "Versioned defaults restored.");
+      commitHeavy("Versioned defaults restored.");
     });
-    byId<HTMLButtonElement>("compute").addEventListener("click", () => scheduleUpdate(0, "Update requested."));
+    byId<HTMLButtonElement>("compute").addEventListener("click", () => commitHeavy("Update committed."));
     byId<HTMLSelectElement>("product").addEventListener("change", (event) => {
       draftScenario = scenarioWithProduct(draftScenario, (event.target as HTMLSelectElement).value as ProductId);
       syncControls(draftScenario);
-      scheduleUpdate(0, "Candidate changed.");
+      scheduleLight("Candidate changed.");
     });
     byId<HTMLSelectElement>("probe").addEventListener("change", (event) => {
       const id = (event.target as HTMLSelectElement).value as SettingId;
       draftScenario = scenarioWithSetting(draftScenario, id);
       syncControls(draftScenario);
-      scheduleUpdate(0, "Inspection probe changed.");
+      scheduleLight("Inspection probe changed.");
     });
     byId<HTMLSelectElement>("scope").addEventListener("change", (event) => {
       const id = (event.target as HTMLSelectElement).value;
       if (id !== "custom") draftScenario = scenarioWithDecisionScope(draftScenario, id as AnchorSettingId);
       syncScopeVisibility(id);
       if (id !== "custom") syncScopeControls(draftScenario.envelope);
-      scheduleUpdate(0, "Decision scope changed.");
+      scheduleLight("Decision scope changed.");
     });
     document.querySelectorAll<HTMLInputElement | HTMLSelectElement>("[data-model-control]").forEach((input) => {
       const eventName = input instanceof HTMLInputElement && input.type === "range" ? "input" : "change";
       input.addEventListener(eventName, () => {
+        mirrorField(input);
         updateReadouts();
-        scheduleUpdate(AUTO_UPDATE_DELAY_MS, "Scientific controls changed.");
+        scheduleLight("Scientific controls changed.");
       });
     });
     byId<HTMLButtonElement>("use-design").addEventListener("click", () => {
@@ -100,7 +102,7 @@ export function mountApp(root: HTMLElement): void {
       draftScenario = scenarioWithProduct(draftScenario, "hypothetical");
       draftScenario.vaccine = { ...draftScenario.vaccine, takeContext: point.takeContext, mu0: point.mu0 };
       syncControls(draftScenario);
-      scheduleUpdate(0, "Selected grid design promoted to the scientific scenario.");
+      scheduleLight("Selected grid design promoted to the scientific scenario.");
     });
   }
 
@@ -215,19 +217,56 @@ export function mountApp(root: HTMLElement): void {
     renderLinkedInspection();
   }
 
-  function scheduleUpdate(delay: number, message: string): void {
-    if (updateTimer !== undefined) window.clearTimeout(updateTimer);
-    markStale(message);
-    updateTimer = window.setTimeout(() => {
-      updateTimer = undefined;
-      try {
-        draftScenario = readControls(draftScenario);
-      } catch (error) {
-        renderInvalid(error);
-        return;
-      }
-      run(draftScenario);
-    }, Math.max(delay, MIN_STALE_DISPLAY_MS));
+  // Light tier: recompute the cheap teaching projection on every control edit and
+  // render it live. If the edit changed scientific identity, the committed frontier
+  // and verdict are marked stale until an explicit commit; a probe-only edit (which
+  // never changes identity) re-commits by reusing the committed frontier.
+  function scheduleLight(message: string): void {
+    if (lightTimer !== undefined) window.clearTimeout(lightTimer);
+    lightTimer = window.setTimeout(() => {
+      lightTimer = undefined;
+      let draft: ScenarioV1;
+      try { draft = readControls(draftScenario); }
+      catch (error) { renderInvalid(error); return; }
+      draftScenario = draft;
+      let live: TeachingView;
+      try { live = evaluateScenarioLight(structuredClone(draft)); }
+      catch (error) { renderInvalid(error); return; }
+      liveOutputs = live;
+      hideWarning();
+      renderTeaching(live);
+      if (!committedOutputs) return;
+      if (live.diagnostics.modelIdentity === committedOutputs.modelIdentity) recommitNonScientific(live, message);
+      else markStale(message);
+    }, LIGHT_UPDATE_DELAY_MS);
+  }
+
+  // Heavy tier: read controls, evaluate the full scenario including the frontier,
+  // and commit it as the exported/URL state.
+  function commitHeavy(message?: string): void {
+    if (lightTimer !== undefined) window.clearTimeout(lightTimer);
+    let draft: ScenarioV1;
+    try { draft = readControls(draftScenario); }
+    catch (error) { renderInvalid(error); return; }
+    draftScenario = draft;
+    run(draft, message);
+  }
+
+  // Probe / setting-inspection edits do not change model identity (scientificScenario
+  // strips `setting`), so the committed frontier stays valid: re-commit the scenario
+  // and refreshed light outputs while reusing the frontier, keeping exports enabled.
+  function recommitNonScientific(live: TeachingView, message: string): void {
+    if (!committedOutputs) return;
+    committedOutputs = { ...committedOutputs, scenario: live.scenario, metrics: live.metrics, settingSurface: live.settingSurface, diagnostics: live.diagnostics };
+    window.location.hash = `scenario=${encodeScenario(committedOutputs.scenario)}`;
+    setExportAvailability(true);
+    byId<HTMLElement>("export-status").textContent = `Exports are ready for committed model ${shortIdentity(committedOutputs.modelIdentity)}.`;
+    byId<HTMLElement>("compute-status").textContent = "";
+    byId<HTMLElement>("story-results").classList.remove("is-stale");
+    delete byId<HTMLElement>("result-status").dataset.stale;
+    const transaction = byId<HTMLElement>("transaction-status");
+    transaction.className = "transaction-status committed";
+    transaction.textContent = `${message} The inspection probe is independent; the committed decision and export are unchanged.`;
   }
 
   function run(nextScenario: ScenarioV1, notice?: string): void {
@@ -247,7 +286,12 @@ export function mountApp(root: HTMLElement): void {
     }
   }
 
+  // Committed tier: the frontier-dependent decision DOM plus exports and URL.
+  // Runs only on an explicit commit (compute/reset/initial). It also refreshes the
+  // light tier so a commit is a fully consistent frame.
   function renderCommitted(outputs: ModelOutputsV1): void {
+    liveOutputs = outputs;
+    renderTeaching(outputs);
     const presentation = buildPresentation(outputs);
     const result = byId<HTMLElement>("result-status");
     result.className = `result-status ${presentation.result.branch}`;
@@ -259,17 +303,9 @@ export function mountApp(root: HTMLElement): void {
       <p class="qualification">${escapeHtml(presentation.result.qualification)}</p>`;
     byId<HTMLElement>("candidate-summary").innerHTML = `<strong>${escapeHtml(presentation.candidate.label)}</strong><span>${escapeHtml(presentation.candidate.schedule)} · assessed ${escapeHtml(presentation.candidate.assessment)}</span>`;
     byId<HTMLElement>("scope-summary").innerHTML = `<span>Decision scope</span><strong>${escapeHtml(presentation.result.scopeLabel)}</strong>`;
-    byId<HTMLElement>("probe-summary").innerHTML = `<span>Inspection probe</span><strong>${escapeHtml(presentation.probe.label)} · R<sub>loc</sub> ${presentation.probe.value === null ? "—" : formatNumber(presentation.probe.value)}</strong>`;
-    byId<HTMLElement>("setting-map").innerHTML = renderSettingSurface(outputs, view);
     byId<HTMLElement>("effect-map").innerHTML = renderEffectMap(outputs, view);
     byId<HTMLElement>("product-map").innerHTML = renderProductMap(outputs, view);
-    byId<HTMLElement>("within-host-chart").innerHTML = renderWithinHostTeaching(outputs);
-    byId<HTMLElement>("immunity-distribution").innerHTML = renderImmunityDistribution(outputs);
     byId<HTMLElement>("frontier-summary").innerHTML = `<strong>${escapeHtml(presentation.frontier.message)}</strong><span>Selected candidate: q<sub>acq</sub> ${formatNumber(outputs.metrics.qAcq)} · q<sub>shed</sub> ${formatNumber(outputs.metrics.qShed)} · q<sub>index</sub> ${formatNumber(outputs.metrics.qIndex)} · direct R<sub>loc,max</sub> ${formatNumber(outputs.metrics.rLocEnvelopeMax)}.</span><span>The two maps are alternate coordinates for the same ${outputs.frontier.points.length.toLocaleString("en-US")} direct evaluations.</span>`;
-    renderMechanism(outputs);
-    renderOpeningComparison(outputs);
-    renderWithinHostReadout(outputs);
-    renderPrintProductSummary(outputs);
     renderAssumptions(outputs);
     renderLinkedInspection();
     setExportAvailability(true);
@@ -279,7 +315,20 @@ export function mountApp(root: HTMLElement): void {
     byId<HTMLElement>("story-results").classList.remove("is-stale");
   }
 
-  function renderMechanism(outputs: ModelOutputsV1): void {
+  // Light tier: the cheap teaching/immunity/surface figures and point readouts,
+  // driven by the live draft (or by the committed outputs, which are a superset).
+  function renderTeaching(teaching: TeachingView): void {
+    byId<HTMLElement>("setting-map").innerHTML = renderSettingSurface(teaching, view);
+    byId<HTMLElement>("within-host-chart").innerHTML = renderWithinHostTeaching(teaching);
+    byId<HTMLElement>("immunity-distribution").innerHTML = renderImmunityDistribution(teaching);
+    renderMechanism(teaching);
+    renderOpeningComparison(teaching);
+    renderWithinHostReadout(teaching);
+    renderPrintProductSummary(teaching);
+    byId<HTMLElement>("probe-summary").innerHTML = `<span>Inspection probe</span><strong>${escapeHtml(probeLabel(teaching.scenario.setting.id))} · R<sub>loc</sub> ${teaching.metrics.rLocSelectedSetting === null ? "—" : formatNumber(teaching.metrics.rLocSelectedSetting)}</strong>`;
+  }
+
+  function renderMechanism(outputs: TeachingView): void {
     const metrics = outputs.metrics;
     byId<HTMLElement>("mechanism-values").innerHTML = `<article><span>1 · acquisition</span><strong>${formatPercent(1 - metrics.qAcq)} reduction</strong><p>Residual acquisition multiplier q<sub>acq</sub> = ${formatNumber(metrics.qAcq)}.</p></article>
       <article><span>2 · breakthrough shedding</span><strong>${formatPercent(1 - metrics.qShed)} reduction</strong><p>Conditional infectious-shedding multiplier q<sub>shed</sub> = ${formatNumber(metrics.qShed)}.</p></article>
@@ -287,7 +336,7 @@ export function mountApp(root: HTMLElement): void {
       <article class="authoritative"><span>4 · direct motif rule</span><strong>R<sub>loc</sub> = N<sub>s</sub> × P(contact infected)</strong><p>The next step evaluates the selected product at the declared setting scope. This formula, not q<sub>index</sub>, is authoritative.</p></article>`;
   }
 
-  function renderWithinHostReadout(outputs: ModelOutputsV1): void {
+  function renderWithinHostReadout(outputs: TeachingView): void {
     const diagnostics = outputs.diagnostics;
     const horizonDays = outputs.scenario.horizonDays;
     byId<HTMLElement>("within-host-readout").innerHTML = `<article><span>Reference challenge <span class="prov-tag" data-kind="assumption">assumption</span></span><strong>${formatNumber(diagnostics.referenceChallengeDoseCID50)} CID50</strong><p>One WPV HID50 under the fixed WPV dose-response convention. It is a WPV challenge reference, not a vaccine dose.</p></article>
@@ -297,7 +346,7 @@ export function mountApp(root: HTMLElement): void {
     byId<HTMLElement>("product-pathway-summary").innerHTML = `<strong>${escapeHtml(outputs.scenario.vaccine.label)}</strong><span>Routine immunization at ${escapeHtml(outputs.scenario.schedule.routineDays.map((day) => `${day / 7}`).join(", "))} weeks (${escapeHtml(outputs.scenario.schedule.routineDays.map((day) => `day ${day}`).join(", "))})${outputs.scenario.schedule.boosterAgeYears > 0 ? `, with a booster on top at year ${outputs.scenario.schedule.boosterAgeYears}` : "; no booster"} · assessed ${outputs.scenario.schedule.assessmentLagDays} days after the last scheduled dose.</span>`;
   }
 
-  function renderPrintProductSummary(outputs: ModelOutputsV1): void {
+  function renderPrintProductSummary(outputs: TeachingView): void {
     const { vaccine, schedule } = outputs.scenario;
     const scheduleText = `Routine immunization at ${schedule.routineDays.map((day) => `${day / 7}`).join(", ")} weeks (${schedule.routineDays.map((day) => `day ${day}`).join(", ")})${schedule.boosterAgeYears > 0 ? `, with a booster on top at year ${schedule.boosterAgeYears}` : "; no booster"} · assessed ${schedule.assessmentLagDays} days after the last scheduled dose`;
     const summary = byId<HTMLElement>("print-product-summary");
@@ -312,7 +361,7 @@ export function mountApp(root: HTMLElement): void {
     summary.innerHTML = `<p class="eyebrow">Selected product mechanism</p><dl><div><dt>Product</dt><dd>${escapeHtml(vaccine.label)}</dd></div><div><dt>Schedule</dt><dd>${escapeHtml(scheduleText)}</dd></div><div><dt>Biological take</dt><dd>${formatNumber(vaccine.takeContext)}</dd></div><div><dt>Mean mucosal boost</dt><dd>${formatNumber(vaccine.mu0)} log2</dd></div><div><dt>Vaccine dose response</dt><dd>α ${formatNumber(vaccine.alpha)} · β ${formatScientific(vaccine.beta)} CID50</dd></div><div><dt>Administered dose</dt><dd>${administeredDose}</dd></div><div><dt>Fixed vaccine parameters</dt><dd>γ ${formatNumber(vaccine.gamma)} · boost SD ${formatNumber(vaccine.sigma0)} log2</dd></div><div><dt>Receipt</dt><dd>100% in v1</dd></div></dl><p>Biological take is productive live-vaccine infection after a received dose, not receipt or coverage. These vaccine parameters determine the take/no-take split and schedule-derived mucosal-immunity distribution; they do not change the fixed WPV challenge equation.</p>`;
   }
 
-  function renderOpeningComparison(outputs: ModelOutputsV1): void {
+  function renderOpeningComparison(outputs: TeachingView): void {
     const schedule = outputs.scenario.schedule.routineDays.map((day) => `day ${day}`).join(", ");
     const booster = outputs.scenario.schedule.boosterAgeYears > 0 ? ` + booster at year ${outputs.scenario.schedule.boosterAgeYears}` : "; no booster";
     byId<HTMLElement>("opening-comparison").innerHTML = `<span class="cohort"><span class="cohort-tag">Reference cohort</span><strong>Naive child · all mass in mucosal-immunity bin 0</strong></span><i aria-hidden="true">→</i><span class="cohort"><span class="cohort-tag">Selected cohort</span><strong>${escapeHtml(outputs.scenario.vaccine.label)} · ${escapeHtml(schedule)}${escapeHtml(booster)} · assessed ${outputs.scenario.schedule.assessmentLagDays} days after last dose</strong></span>`;
@@ -354,8 +403,9 @@ export function mountApp(root: HTMLElement): void {
   }
 
   function renderSurfaceOnly(): void {
-    if (!committedOutputs) return;
-    byId<HTMLElement>("setting-map").innerHTML = renderSettingSurface(committedOutputs, view);
+    const source = liveOutputs ?? committedOutputs;
+    if (!source) return;
+    byId<HTMLElement>("setting-map").innerHTML = renderSettingSurface(source, view);
   }
 
   function markStale(message: string): void {
@@ -504,6 +554,22 @@ function scenarioFromHash(): { scenario: ScenarioV1; error?: string } {
   if (!encoded) return { scenario: defaultScenario() };
   try { return { scenario: decodeScenario(encoded) }; }
   catch (error) { return { scenario: defaultScenario(), error: errorMessage(error) }; }
+}
+
+function probeLabel(id: SettingId): string {
+  if (id === "custom") return "Custom probe";
+  return SETTING_ANCHORS.find((anchor) => anchor.id === id)?.label ?? id;
+}
+
+// Two-way link for controls that expose the same scenario field in more than one
+// place (master panel + inline per-section controls): push an edited value to every
+// other control bound to the same data-field. No-op for unlinked controls.
+function mirrorField(source: HTMLInputElement | HTMLSelectElement): void {
+  const field = source.dataset.field;
+  if (!field) return;
+  document.querySelectorAll<HTMLInputElement | HTMLSelectElement>(`[data-field="${field}"]`).forEach((element) => {
+    if (element !== source && element.value !== source.value) element.value = source.value;
+  });
 }
 
 function syncControls(scenario: ScenarioV1): void {
