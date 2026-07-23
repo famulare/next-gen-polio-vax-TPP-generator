@@ -82,12 +82,14 @@ does not replace source provenance, git history, or verification output.
   narrow-navigation disclosure assertions. Responsive geometry was inspected at
   360/480/720/1024/1440.
 - **Residual uncertainty:** (1) Phase 7 opening-copy compression ("What this is"
-  / "How to use it") is NOT applied -- it edits owner-voiced prose and the plan
-  reserves final copy judgment to Mike; a concrete compression proposal is
-  offered separately for his approval. (2) The product-parameter disclosure is
-  closed by default per the plan; starting it expanded is a one-attribute change.
-  (3) Manual cross-browser (Safari/Firefox) and screen-reader review of the two
-  new `<details>` disclosures is deferred. No release classification is claimed.
+  / "How to use it") was presented as a proposal and applied on Mike's explicit
+  approval; every claim, hedge, scope qualifier, the PLoS Biology 2018 basis, the
+  close-contact `R_loc`-below-one sufficiency ("likely"), and the 100- to
+  1,000-fold shedding-index target are preserved. (2) The product-parameter
+  disclosure is closed by default per the plan; starting it expanded is a
+  one-attribute change. (3) Manual cross-browser (Safari/Firefox) and
+  screen-reader review of the two new `<details>` disclosures is deferred. No
+  release classification is claimed.
 
 ### 2026-07-21 -- Gates-aligned independent visual revision
 
