@@ -81,7 +81,7 @@ probe/scope bounds and the master parameter panel) are removed, with the fixed
 v1 assumptions relocated into the "Provenance & units" reference. All
 displayed numbers now follow one two-digit convention — values ≥ 1 shown to two
 significant figures, values in [0.01, 1) to two decimal places, and magnitudes
-≥ 1e4 or < 0.01 in scientific notation with a two-decimal mantissa — applied
+≥ 1e4 or < 0.01 in scientific notation with a two-significant-figure (one-decimal) mantissa — applied
 uniformly to on-screen and in-figure text. Percentages use the same convention
 but never round a genuine sub-100% value up to "100%" (near the ceiling they
 keep one truthful decimal). Integer counts, base-10 exponents on log axes, and
@@ -113,7 +113,16 @@ mucosal-immunity mechanism, states the close-contact sufficiency assumption
 typographic subscripts in visible text — HTML `<sub>` and baseline-shifted SVG
 `<tspan>` — applied only at the view boundary so plain-text contexts (tooltips,
 accessibility descriptions, machine exports, and CSV headers) keep their literal
-forms. This
+forms. A later tweak pass renamed the hypothetical product's display label to
+"next-gen gut mucosal vaccine" (the `hypothetical` comparator id is unchanged);
+reparametrized the hypothetical product's `β` control as an editable HID50 (the
+CID50 giving 50% infection in a naive recipient), with `β = HID50 / (2^(1/α) − 1)`
+derived on read so `β` remains the stored parameter and changing `α` preserves the
+dialed HID50; fixed the shedding-index bar axis at a 10^1 TCID50/g lower bound;
+redrew the transmission motif with vertically stacked household glyphs (fan-out),
+centered node names, and its caption lifted to running text above the figure; and
+added a hero "how to use" paragraph and a dynamic within-host assessment-age
+readout. These are display/interaction only. This
 supersedes the earlier two-tier "Update the model" commit gate, the
 three-distinct-objects control model, and any custom-envelope / axis-unlinking
 UI affordance (§10.3, §13.8, §18.17, §18.20). Every 1.9 change

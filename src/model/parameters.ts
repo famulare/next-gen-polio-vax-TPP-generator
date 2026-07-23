@@ -113,7 +113,7 @@ export const SCIENTIFIC_MANIFEST_ID = canonicalHash({
 export const PRODUCT_LABELS: Record<ProductId, string> = {
   sabin2: "Sabin 2 monovalent OPV",
   ipv: "IPV",
-  hypothetical: "Hypothetical OPV-like vaccine"
+  hypothetical: "Next-gen gut mucosal vaccine"
 };
 
 export const DEFAULT_PRODUCT_ID: ProductId = "hypothetical";

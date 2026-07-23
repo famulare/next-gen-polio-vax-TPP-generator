@@ -186,6 +186,6 @@ function formatNumber(value: number): string {
   if (!Number.isFinite(value)) return String(value);
   if (value === 0) return "0";
   const abs = Math.abs(value);
-  if (abs >= 1e4 || abs < 0.01) return value.toExponential(2);
+  if (abs >= 1e4 || abs < 0.01) return value.toExponential(1);
   return abs >= 1 ? String(Number(value.toPrecision(2))) : value.toFixed(2);
 }

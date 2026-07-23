@@ -120,7 +120,7 @@ try {
   if (!(await page.locator(".hero .eyebrow").textContent())?.includes(`contract ${designContractVersion}`)) throw new Error("Opening does not identify the design-contract version");
   if (!(await page.locator("h1").textContent())?.includes("block close-contact transmission")) throw new Error("Opening question is missing");
   const openingComparison = await page.locator("#opening-comparison").textContent();
-  if (!openingComparison?.includes("Naive child") || !openingComparison.includes("Hypothetical OPV-like vaccine") || !openingComparison.includes("assessed 28 days")) throw new Error("First viewport does not identify the current reference-to-vaccinated comparison");
+  if (!openingComparison?.includes("Naive child") || !openingComparison.includes("Next-gen gut mucosal vaccine") || !openingComparison.includes("assessed 28 days")) throw new Error("First viewport does not identify the current reference-to-vaccinated comparison");
   const defaultResult = await page.locator("#result-status").textContent();
   if (!defaultResult?.includes("clears the hardest known modeled anchor")) throw new Error("Default result does not lead with the hardest-known anchor");
   if (!defaultResult.includes("Direct Rloc0.92") || !defaultResult.includes("does not prove control everywhere")) throw new Error("Default result or adjacent qualification is wrong");

@@ -43,10 +43,10 @@ function withinHostFigure(outputs: TeachingView, mobile: boolean): string {
         { x: 12, y: 998, width: 336, height: 258 }
       ]
     : [
-        { x: 58, y: 82, width: 490, height: 340 },
-        { x: 654, y: 82, width: 490, height: 340 },
-        { x: 58, y: 462, width: 490, height: 340 },
-        { x: 654, y: 462, width: 490, height: 340 }
+        { x: 58, y: 94, width: 490, height: 340 },
+        { x: 654, y: 94, width: 490, height: 340 },
+        { x: 58, y: 474, width: 490, height: 340 },
+        { x: 654, y: 474, width: 490, height: 340 }
       ];
   const acquisition = curvePanel(
     panels[0]!,
@@ -118,7 +118,7 @@ export function renderImmunityDistribution(outputs: TeachingView): string {
 function immunityDistributionFigure(outputs: TeachingView, mobile: boolean): string {
   const width = mobile ? 360 : 820;
   const height = mobile ? 410 : 450;
-  const margin = mobile ? { top: 92, right: 15, bottom: 62, left: 80 } : { top: 63, right: 30, bottom: 62, left: 76 };
+  const margin = mobile ? { top: 110, right: 15, bottom: 62, left: 80 } : { top: 92, right: 30, bottom: 62, left: 76 };
   const plotWidth = width - margin.left - margin.right;
   const plotHeight = height - margin.top - margin.bottom;
   const reference = outputs.diagnostics.reference.immunityBins;
@@ -139,8 +139,8 @@ function immunityDistributionFigure(outputs: TeachingView, mobile: boolean): str
   const titleId = mobile ? "immunity-distribution-mobile-title" : "immunity-distribution-title";
   const descId = mobile ? "immunity-distribution-mobile-desc" : "immunity-distribution-desc";
   const title = mobile
-    ? `<text class="chart-title" x="${margin.left}" y="48">The selected schedule creates</text><text class="chart-title" x="${margin.left}" y="70">a distribution—not an average child</text>`
-    : `<text class="chart-title" x="${margin.left}" y="49">The selected schedule creates a distribution, not one average immune child</text>`;
+    ? `<text class="chart-title" x="${margin.left}" y="48">The selected schedule creates a</text><text class="chart-title" x="${margin.left}" y="70">cohort distribution of immunities</text>`
+    : `<text class="chart-title" x="${margin.left}" y="49">The selected schedule creates a distribution of immunities</text><text class="chart-title" x="${margin.left}" y="71">for a cohort of children with the same life histories and host factors</text>`;
   const legend = mobile
     ? `<g class="teaching-legend" transform="translate(${margin.left} 83)"><rect class="immunity-reference" x="0" y="-8" width="13" height="13"/><text x="20" y="3">Naive</text><rect class="immunity-candidate" x="85" y="-8" width="13" height="13"/><text x="105" y="3">Selected</text></g>`
     : `<g class="teaching-legend" transform="translate(${margin.left + plotWidth - 150} ${margin.top + 16})"><rect class="immunity-reference" x="0" y="-10" width="14" height="14"/><text x="22" y="1">Naive reference</text><rect class="immunity-candidate" x="0" y="10" width="14" height="14"/><text x="22" y="21">Selected</text></g>`;
@@ -221,7 +221,7 @@ function curvePanel(
   const horizontal = displayedYTicks.map((value) => `<g><line class="grid-line" x1="${plot.x}" x2="${plot.x + plot.width}" y1="${yScale(value)}" y2="${yScale(value)}"/><text class="tick" x="${plot.x - 9}" y="${yScale(value) + 3}" text-anchor="end">${scale === "log-y" ? powerLabel(value) : formatPercentTick(value)}</text></g>`).join("");
   const vertical = xTicks.map((value) => `<g><line class="grid-line" x1="${xScale(value)}" x2="${xScale(value)}" y1="${plot.y}" y2="${plot.y + plot.height}"/><text class="tick" x="${xScale(value)}" y="${plot.y + plot.height + 18}" text-anchor="middle">${scale === "log-dose" ? powerLabel(value) : value}</text></g>`).join("");
   const referenceMarker = annotation.referenceX === undefined ? "" : `<line class="teaching-reference-dose" x1="${xScale(annotation.referenceX)}" x2="${xScale(annotation.referenceX)}" y1="${plot.y}" y2="${plot.y + plot.height}"/><text class="teaching-reference-dose-label" x="${xScale(annotation.referenceX) + 5}" y="${plot.y + 12}">${escapeXml(annotation.referenceLabel ?? "Reference")}</text>`;
-  return `<g class="teaching-panel"><text class="teaching-panel-title" x="${panel.x}" y="${titleY}">${escapeXml(title)}</text><text class="teaching-panel-note" x="${panel.x}" y="${panel.y + 17}">${escapeXml(annotation.note)}</text><rect class="plot-bg teaching-panel-bg" x="${plot.x}" y="${plot.y}" width="${plot.width}" height="${plot.height}"/>${horizontal}${vertical}${referenceMarker}<path class="teaching-reference" fill="none" stroke="${REFERENCE}" stroke-width="2.5" d="${path(reference)}"/><path class="teaching-candidate" fill="none" stroke="${CANDIDATE}" stroke-width="2.5" d="${path(candidate)}"/><text class="axis-label" x="${plot.x + plot.width / 2}" y="${panel.y + panel.height - 1}" text-anchor="middle">${escapeXml(xLabel)}</text>${rotatedYLabel("teaching-y-label", panel.x + 12, plot.y + plot.height / 2, yLabel)}</g>`;
+  return `<g class="teaching-panel"><text class="teaching-panel-title" x="${panel.x}" y="${titleY}">${escapeXml(title)}</text><text class="teaching-panel-note" x="${panel.x}" y="${panel.y + 23}">${escapeXml(annotation.note)}</text><rect class="plot-bg teaching-panel-bg" x="${plot.x}" y="${plot.y}" width="${plot.width}" height="${plot.height}"/>${horizontal}${vertical}${referenceMarker}<path class="teaching-reference" fill="none" stroke="${REFERENCE}" stroke-width="2.5" d="${path(reference)}"/><path class="teaching-candidate" fill="none" stroke="${CANDIDATE}" stroke-width="2.5" d="${path(candidate)}"/><text class="axis-label" x="${plot.x + plot.width / 2}" y="${panel.y + panel.height - 1}" text-anchor="middle">${escapeXml(xLabel)}</text>${rotatedYLabel("teaching-y-label", panel.x + 12, plot.y + plot.height / 2, yLabel)}</g>`;
 }
 
 function indexBarPanel(
@@ -234,9 +234,8 @@ function indexBarPanel(
 ): string {
   const titleY = panel.y;
   const plot = { x: panel.x + 74, y: panel.y + 45, width: panel.width - 86, height: panel.height - 80 };
-  const positiveMin = Math.max(Math.min(referenceValue, candidateValue), Number.MIN_VALUE);
   const positiveMax = Math.max(referenceValue, candidateValue, Number.MIN_VALUE);
-  const floorExp = Math.floor(Math.log10(positiveMin));
+  const floorExp = 1; // fixed lower limit of 10^1 TCID50/g
   const ceilExp = Math.max(floorExp + 1, Math.ceil(Math.log10(positiveMax)));
   const floorValue = 10 ** floorExp;
   const yScale = scaleLog().domain([floorValue, 10 ** ceilExp]).range([plot.y + plot.height, plot.y]);
@@ -249,7 +248,7 @@ function indexBarPanel(
     const top = yScale(Math.max(value, floorValue));
     return `<rect class="teaching-index-bar" fill="${fill}" x="${left}" y="${top}" width="${barWidth}" height="${Math.max(0, bottom - top)}"><title>${escapeXml(label)}: ${formatScientific(value)} TCID50-days/g</title></rect><text class="tick teaching-bar-value" x="${center}" y="${top - 7}" text-anchor="middle">${formatScientific(value)}</text><text class="axis-label" x="${center}" y="${bottom + 20}" text-anchor="middle">${escapeXml(label)}</text>`;
   };
-  return `<g class="teaching-panel"><text class="teaching-panel-title" x="${panel.x}" y="${titleY}">${escapeXml(title)}</text><text class="teaching-panel-note" x="${panel.x}" y="${panel.y + 17}">${escapeXml(note)}</text><rect class="plot-bg teaching-panel-bg" x="${plot.x}" y="${plot.y}" width="${plot.width}" height="${plot.height}"/>${horizontal}${bar(referenceValue, plot.x + plot.width * 0.32, REFERENCE, "Naive reference")}${bar(candidateValue, plot.x + plot.width * 0.68, CANDIDATE, "Selected")}${rotatedYLabel("teaching-y-label", panel.x + 12, plot.y + plot.height / 2, yLabel)}</g>`;
+  return `<g class="teaching-panel"><text class="teaching-panel-title" x="${panel.x}" y="${titleY}">${escapeXml(title)}</text><text class="teaching-panel-note" x="${panel.x}" y="${panel.y + 23}">${escapeXml(note)}</text><rect class="plot-bg teaching-panel-bg" x="${plot.x}" y="${plot.y}" width="${plot.width}" height="${plot.height}"/>${horizontal}${bar(referenceValue, plot.x + plot.width * 0.32, REFERENCE, "Naive reference")}${bar(candidateValue, plot.x + plot.width * 0.68, CANDIDATE, "Selected")}${rotatedYLabel("teaching-y-label", panel.x + 12, plot.y + plot.height / 2, yLabel)}</g>`;
 }
 
 function formatScientific(value: number): string { return formatNumber(value); }
@@ -386,11 +385,11 @@ export function renderProductMap(outputs: ModelOutputsV1, view: ChartViewState):
   const sabin = outputs.frontier.comparators.find((point) => point.productId === "sabin2")!;
   const sabinMark = sabin.takeContext !== null && sabin.mu0 !== null ? `<path class="comparator-marker sabin-marker" d="M ${x(sabin.takeContext)} ${y(sabin.mu0) - 6} l 6 10 h -12 z"/><text class="comparator-label" x="${x(sabin.takeContext) - 9}" y="${y(sabin.mu0) - 9}" text-anchor="end">fixed Sabin 2</text>` : "";
   return `<svg id="product-figure" class="scientific-chart linked-chart" tabindex="0" role="img" aria-labelledby="product-title product-desc" data-chart="product" viewBox="0 0 ${width} ${height}">
-    <title id="product-title">Product design space</title><desc id="product-desc">The same 2,601 hypothetical product designs shown by biological take context and latent mean mucosal boost. The black threshold contour separates direct pass and fail evaluations for the declared decision scope. The selected exact design is a ring; the nearest grid point is a cross. Sabin 2 is fixed. IPV is omitted because these live-vaccine coordinates are undefined for it.</desc>
-    <text class="chart-kicker" x="${margin.left}" y="24">PRODUCT ASSUMPTIONS</text><text class="chart-title" x="${margin.left}" y="50">Which OPV-like designs produce enough effect?</text>
+    <title id="product-title">Product design space</title><desc id="product-desc">The same 2,601 next-gen product designs shown by biological take context and mean mucosal boost. The black threshold contour separates direct pass and fail evaluations for the declared decision scope. The selected exact design is a ring; the nearest grid point is a cross. Sabin 2 is fixed. IPV is omitted because these live-vaccine coordinates are undefined for it.</desc>
+    <text class="chart-kicker" x="${margin.left}" y="24">PRODUCT ASSUMPTIONS</text><text class="chart-title" x="${margin.left}" y="50">Which next-gen designs produce enough effect?</text>
     <rect class="plot-bg" x="${margin.left}" y="${margin.top}" width="${plotWidth}" height="${plotHeight}"/>${gridLines(x, y, margin, plotWidth, plotHeight, "product")}${cells}<path class="threshold-line" d="${contourPath}"/>${nearestMark}${exactMark}${sabinMark}
     ${linearTicks([0, .25, .5, .75, 1], x, margin.top + plotHeight, "x")}${linearTicks([0, 2, 4, 6, 8], y, margin.left, "y")}
-    <text class="axis-label" x="${margin.left + plotWidth / 2}" y="${height - 18}" text-anchor="middle">Biological take context after a received dose</text>${rotatedYLabel("axis-label", 13, margin.top + plotHeight / 2, "Latent mean mucosal boost (log2)")}
+    <text class="axis-label" x="${margin.left + plotWidth / 2}" y="${height - 18}" text-anchor="middle">Biological take context after a received dose</text>${rotatedYLabel("axis-label", 13, margin.top + plotHeight / 2, "Mean mucosal boost (log2)")}
     <text class="interpolation-note" x="${margin.left + plotWidth}" y="${height - 2}" text-anchor="end">Evaluated cells determine status; contour is display-only interpolation.</text>
   </svg>`;
 }
@@ -510,7 +509,7 @@ function formatNumber(value: number): string {
   if (!Number.isFinite(value)) return String(value);
   if (value === 0) return "0";
   const abs = Math.abs(value);
-  if (abs >= 1e4 || abs < 0.01) return value.toExponential(2);
+  if (abs >= 1e4 || abs < 0.01) return value.toExponential(1);
   return abs >= 1 ? String(Number(value.toPrecision(2))) : value.toFixed(2);
 }
 

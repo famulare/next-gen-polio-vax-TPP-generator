@@ -54,8 +54,8 @@ h1, h2, h3, p { margin-top: 0; }
 h1, h2, h3 { font-family: var(--serif); }
 h1, h2 { font-weight: 600; }
 h3 { font-weight: 400; }
-h1 { max-width: 980px; margin-bottom: 24px; font-size: var(--fs-display); line-height: .98; letter-spacing: -.035em; }
-h2 { margin-bottom: 14px; font-size: var(--fs-h2); line-height: 1.06; letter-spacing: -.02em; }
+h1 { max-width: 980px; margin-bottom: 24px; font-size: var(--fs-display); line-height: 1.05; letter-spacing: -.035em; }
+h2 { margin-bottom: 14px; font-size: var(--fs-h2); line-height: 1.16; letter-spacing: -.02em; }
 h3 { font-size: var(--fs-h3); }
 .lede { max-width: 760px; margin-bottom: 28px; color: var(--muted); font-family: var(--serif); font-size: var(--fs-lede); }
 .orienting { max-width: 860px; margin: 0 0 28px; color: var(--muted); font-size: var(--fs-body); line-height: 1.6; }
@@ -75,7 +75,7 @@ h3 { font-size: var(--fs-h3); }
 .prov-tag[data-kind="not-measured"] { background: rgb(178 24 43 / 11%); border-style: dashed; }
 
 .opening { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(290px, .55fr); gap: clamp(32px, 6vw, 90px); align-items: start; padding: 44px 0 52px; border-top: 1px solid var(--ink); }
-#story-results { min-width: 0; transition: opacity .15s ease, filter .15s ease; }
+#story-results { min-width: 0; margin-top: 40px; transition: opacity .15s ease, filter .15s ease; }
 #story-results.is-stale { opacity: .52; filter: grayscale(.65); }
 .result-status { padding: 0 0 30px; border-bottom: 1px solid var(--line); }
 .result-status h2 { max-width: 760px; }
@@ -264,14 +264,13 @@ fieldset > p { color: var(--muted); font-size: var(--fs-body); }
 .design-cell.is-persistent, .effect-point.is-persistent { stroke: var(--focus); stroke-width: 3; opacity: 1; }
 .empty-frontier { fill: var(--error); font-family: var(--serif); font-size: calc(20px * var(--u, 1)); paint-order: stroke; stroke: var(--paper); stroke-width: 4px; }
 
-.motif-figure { margin: 18px 0 40px; }
+.motif-intro { max-width: 820px; margin: 4px 0 16px; color: var(--muted); font-size: var(--fs-body); }
+.motif-figure { margin: 14px 0 40px; }
 .motif-svg { display: block; width: min(100%, 900px); height: auto; margin-inline: auto; overflow: visible; }
-.motif-kicker { fill: var(--focus); font-family: var(--sans); font-size: calc(16px * var(--u, 1)); font-weight: 800; letter-spacing: 1.4px; }
 .motif-frame { fill: none; stroke: var(--line-dark); stroke-dasharray: 4 4; }
 .motif-frame-label { fill: var(--faint); font-family: var(--sans); font-size: calc(16px * var(--u, 1)); font-weight: 800; letter-spacing: .1em; }
 .motif-node { fill: var(--paper-deep); stroke: var(--ink); stroke-width: 2; }
 .motif-node-index { fill: rgb(108 20 70 / 10%); }
-.motif-num { fill: var(--russet); font-family: var(--sans); font-size: calc(16px * var(--u, 1)); font-weight: 800; }
 .motif-name { fill: var(--ink); font-family: var(--serif); font-size: calc(18px * var(--u, 1)); }
 .motif-link { fill: var(--muted); font-family: var(--sans); font-size: calc(16px * var(--u, 1)); }
 .motif-arrow { stroke: var(--ink); stroke-width: 2; }
