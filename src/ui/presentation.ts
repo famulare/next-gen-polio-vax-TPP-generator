@@ -166,7 +166,7 @@ export function designKey(point: Pick<DesignGridPoint, "takeContext" | "mu0">): 
 }
 
 function designLabel(point: Pick<DesignGridPoint, "takeContext" | "mu0">): string {
-  return `take ${point.takeContext.toFixed(2)}, mean boost ${point.mu0.toFixed(2)} log2`;
+  return `take ${formatNumber(point.takeContext)}, mean boost ${formatNumber(point.mu0)} log2`;
 }
 
 function scheduleLabel(scenario: ScenarioV1): string {
@@ -177,6 +177,15 @@ function scheduleLabel(scenario: ScenarioV1): string {
 }
 
 function formatMicrograms(grams: number): string {
-  const value = grams * 1_000_000;
-  return value >= 100 ? value.toFixed(0) : value >= 1 ? value.toFixed(1) : value.toPrecision(2);
+  return formatNumber(grams * 1_000_000);
+}
+
+// Two-digit display: >=1 -> 2 significant figures; 0.01<=|v|<1 -> 2 decimals;
+// very large/small -> 2-decimal-mantissa scientific.
+function formatNumber(value: number): string {
+  if (!Number.isFinite(value)) return String(value);
+  if (value === 0) return "0";
+  const abs = Math.abs(value);
+  if (abs >= 1e4 || abs < 0.01) return value.toExponential(2);
+  return abs >= 1 ? String(Number(value.toPrecision(2))) : value.toFixed(2);
 }

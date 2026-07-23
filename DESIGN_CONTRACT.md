@@ -78,7 +78,15 @@ into a single decision-scope selector (choosing a named setting both decides and
 inspects it), so `metrics.rLocSelectedSetting` and the surface marker follow the
 scope; and the custom-scope option plus the advanced-controls drawer (custom
 probe/scope bounds and the master parameter panel) are removed, with the fixed
-v1 assumptions relocated into the "Provenance & units" reference. This
+v1 assumptions relocated into the "Provenance & units" reference. All
+displayed numbers now follow one two-digit convention — values ≥ 1 shown to two
+significant figures, values in [0.01, 1) to two decimal places, and magnitudes
+≥ 1e4 or < 0.01 in scientific notation with a two-decimal mantissa — applied
+uniformly to on-screen and in-figure text. Percentages use the same convention
+but never round a genuine sub-100% value up to "100%" (near the ceiling they
+keep one truthful decimal). Integer counts, base-10 exponents on log axes, and
+per-day exposure-frequency labels keep their existing form, and no serialized
+value, cache key, or model computation is affected. This
 supersedes the earlier two-tier "Update the model" commit gate, the
 three-distinct-objects control model, and any custom-envelope / axis-unlinking
 UI affordance (§10.3, §13.8, §18.17, §18.20). Every 1.9 change

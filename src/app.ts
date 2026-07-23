@@ -360,7 +360,7 @@ export function mountApp(root: HTMLElement): void {
       summary.innerHTML = `<p class="eyebrow">Selected product mechanism</p><dl><div><dt>Product</dt><dd>${escapeHtml(vaccine.label)}</dd></div><div><dt>Schedule</dt><dd>${escapeHtml(scheduleText)}</dd></div></dl><p>${escapeHtml(semantics)}</p>`;
       return;
     }
-    const administeredDose = `${Math.log10(vaccine.dose).toFixed(2)} log10 TCID50 (${formatScientific(vaccine.dose)} TCID50)`;
+    const administeredDose = `${formatNumber(Math.log10(vaccine.dose))} log10 TCID50 (${formatScientific(vaccine.dose)} TCID50)`;
     summary.innerHTML = `<p class="eyebrow">Selected product mechanism</p><dl><div><dt>Product</dt><dd>${escapeHtml(vaccine.label)}</dd></div><div><dt>Schedule</dt><dd>${escapeHtml(scheduleText)}</dd></div><div><dt>Biological take</dt><dd>${formatNumber(vaccine.takeContext)}</dd></div><div><dt>Mean mucosal boost</dt><dd>${formatNumber(vaccine.mu0)} log2</dd></div><div><dt>Vaccine dose response</dt><dd>α ${formatNumber(vaccine.alpha)} · β ${formatScientific(vaccine.beta)} CID50</dd></div><div><dt>Administered dose</dt><dd>${administeredDose}</dd></div><div><dt>Fixed vaccine parameters</dt><dd>γ ${formatNumber(vaccine.gamma)} · boost SD ${formatNumber(vaccine.sigma0)} log2</dd></div><div><dt>Receipt</dt><dd>100% in v1</dd></div></dl><p>Biological take is productive live-vaccine infection after a received dose, not receipt or coverage. These vaccine parameters determine the take/no-take split and schedule-derived mucosal-immunity distribution; they do not change the fixed WPV challenge equation.</p>`;
   }
 
@@ -393,7 +393,7 @@ export function mountApp(root: HTMLElement): void {
       return;
     }
     inspector.innerHTML = `<p class="inspector-label">${key === view.persistentDesignKey ? "Held design" : "Inspection"}</p><dl>
-      <div><dt>Take context</dt><dd>${point.takeContext.toFixed(2)}</dd></div><div><dt>Mean boost</dt><dd>${point.mu0.toFixed(2)} log2</dd></div>
+      <div><dt>Take context</dt><dd>${formatNumber(point.takeContext)}</dd></div><div><dt>Mean boost</dt><dd>${formatNumber(point.mu0)} log2</dd></div>
       <div><dt>Acquisition reduction</dt><dd>${formatPercent(1 - point.qAcq)}</dd></div><div><dt>Shedding reduction</dt><dd>${formatPercent(1 - point.qShed)}</dd></div>
       <div><dt>q<sub>index</sub></dt><dd>${formatNumber(point.qAcq * point.qShed)}</dd></div>
       <div><dt>Direct R<sub>loc</sub></dt><dd>${formatNumber(point.rLocEnvelopeMax)}</dd></div><div><dt>Criterion</dt><dd>${point.passes ? "meets" : "does not meet"}</dd></div></dl>`;
@@ -568,12 +568,12 @@ function syncControls(scenario: ScenarioV1): void {
   setValue("alpha", scenario.vaccine.alpha);
   setValue("beta", scenario.vaccine.beta);
   setValue("dose-log", Math.log10(Math.max(scenario.vaccine.dose, 1)));
-  byId<HTMLElement>("fixed-gamma").textContent = scenario.vaccine.gamma.toFixed(4);
-  byId<HTMLElement>("fixed-sigma").textContent = `${scenario.vaccine.sigma0.toFixed(1)} log2`;
-  byId<HTMLElement>("product-fixed-gamma").textContent = scenario.vaccine.gamma.toFixed(4);
-  byId<HTMLElement>("product-fixed-sigma").textContent = `${scenario.vaccine.sigma0.toFixed(1)} log2`;
+  byId<HTMLElement>("fixed-gamma").textContent = formatNumber(scenario.vaccine.gamma);
+  byId<HTMLElement>("fixed-sigma").textContent = `${formatNumber(scenario.vaccine.sigma0)} log2`;
+  byId<HTMLElement>("product-fixed-gamma").textContent = formatNumber(scenario.vaccine.gamma);
+  byId<HTMLElement>("product-fixed-sigma").textContent = `${formatNumber(scenario.vaccine.sigma0)} log2`;
   byId<HTMLElement>("fixed-horizon").textContent = `${scenario.horizonDays} days`;
-  byId<HTMLElement>("fixed-index-reference").textContent = scenario.indexReferenceExposure.toFixed(4);
+  byId<HTMLElement>("fixed-index-reference").textContent = formatNumber(scenario.indexReferenceExposure);
   syncProductEditability(scenario.vaccine.id);
   updateReadouts();
 }
@@ -609,8 +609,8 @@ function syncProductEditability(productId: ProductId): void {
   byId<HTMLElement>("mu-help").textContent = "Latent OPV-equivalent mucosal immunity; not measured serum titer.";
 }
 function updateReadouts(): void {
-  byId<HTMLOutputElement>("take-output").value = numberValue("take").toFixed(2);
-  byId<HTMLOutputElement>("mu-output").value = `${numberValue("mu").toFixed(1)} log2`;
+  byId<HTMLOutputElement>("take-output").value = formatNumber(numberValue("take"));
+  byId<HTMLOutputElement>("mu-output").value = `${formatNumber(numberValue("mu"))} log2`;
 }
 
 function exportOutput(kind: string, outputs: ModelOutputsV1, view: AppViewState): void {
@@ -656,9 +656,9 @@ function standaloneSvgExport(chart: "within-host" | "setting" | "effect" | "prod
   const width = viewBox.width;
   const height = viewBox.height;
   const presentation = buildPresentation(outputs);
-  const exactSelection = outputs.frontier.selectedDesign ? `Selected exact candidate: take ${outputs.frontier.selectedDesign.takeContext.toFixed(2)}, boost ${outputs.frontier.selectedDesign.mu0.toFixed(2)} log2.` : "Selected candidate is a fixed comparator.";
+  const exactSelection = outputs.frontier.selectedDesign ? `Selected exact candidate: take ${formatNumber(outputs.frontier.selectedDesign.takeContext)}, boost ${formatNumber(outputs.frontier.selectedDesign.mu0)} log2.` : "Selected candidate is a fixed comparator.";
   const heldPoint = designPointByKey(outputs, view.persistentDesignKey);
-  const heldSelection = heldPoint ? ` Held inspection design: take ${heldPoint.takeContext.toFixed(2)}, boost ${heldPoint.mu0.toFixed(2)} log2.` : " No inspection design is held.";
+  const heldSelection = heldPoint ? ` Held inspection design: take ${formatNumber(heldPoint.takeContext)}, boost ${formatNumber(heldPoint.mu0)} log2.` : " No inspection design is held.";
   const selected = `${exactSelection}${heldSelection}`;
   const withinHostDiagnostics = chart === "within-host" ? outputs.diagnostics : null;
   const diagnosticContext = chart === "within-host"
@@ -742,16 +742,29 @@ function unitFrequency(value: number) { return { value, unit: "exposures/person/
 function microgramsFromGrams(value: number): number { return value * MICROGRAMS_PER_GRAM; }
 function gramsFromMicrograms(value: number): number { return value / MICROGRAMS_PER_GRAM; }
 function formatMicrograms(valueInGrams: number): string {
-  const micrograms = microgramsFromGrams(valueInGrams);
-  return micrograms >= 100 ? micrograms.toFixed(0) : micrograms >= 1 ? micrograms.toFixed(1) : micrograms.toPrecision(2);
+  return formatNumber(microgramsFromGrams(valueInGrams));
 }
 function formatExposureFrequency(value: number): string {
   const exposures = value.toLocaleString("en-US", { maximumFractionDigits: 4 });
   return `${exposures} ${value === 1 ? "exposure" : "exposures"}/person/day`;
 }
-function formatNumber(value: number): string { return Math.abs(value) < .001 && value !== 0 ? value.toExponential(2) : value < 10 ? value.toFixed(3) : value.toFixed(2); }
-function formatScientific(value: number): string { return value === 0 ? "0" : (Math.abs(value) >= 10_000 || Math.abs(value) < .01 ? value.toExponential(2) : formatNumber(value)); }
-function formatPercent(value: number): string { return `${(100 * value).toFixed(1)}%`; }
+// Two-digit display: >=1 -> 2 significant figures; 0.01<=|v|<1 -> 2 decimals;
+// very large/small -> 2-decimal-mantissa scientific.
+function formatNumber(value: number): string {
+  if (!Number.isFinite(value)) return String(value);
+  if (value === 0) return "0";
+  const abs = Math.abs(value);
+  if (abs >= 1e4 || abs < 0.01) return value.toExponential(2);
+  return abs >= 1 ? String(Number(value.toPrecision(2))) : value.toFixed(2);
+}
+function formatScientific(value: number): string { return formatNumber(value); }
+// Two significant figures, except never round a genuine sub-100% value up to "100%".
+function formatPercent(value: number): string {
+  const pct = 100 * value;
+  const twoSig = formatNumber(pct);
+  if (twoSig === "100" && value < 1) return `${(Math.floor(pct * 10) / 10).toFixed(1)}%`;
+  return `${twoSig}%`;
+}
 function shortIdentity(value: string): string { return `${value.slice(0, 14)}…`; }
 function csvValue(value: string): string { return `"${value.replaceAll('"', '""')}"`; }
 function errorMessage(error: unknown): string { return error instanceof Error ? error.message : String(error); }

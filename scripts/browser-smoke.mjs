@@ -123,7 +123,7 @@ try {
   if (!openingComparison?.includes("Naive child") || !openingComparison.includes("Hypothetical OPV-like vaccine") || !openingComparison.includes("assessed 28 days")) throw new Error("First viewport does not identify the current reference-to-vaccinated comparison");
   const defaultResult = await page.locator("#result-status").textContent();
   if (!defaultResult?.includes("clears the hardest known modeled anchor")) throw new Error("Default result does not lead with the hardest-known anchor");
-  if (!defaultResult.includes("Direct Rloc0.920") || !defaultResult.includes("does not prove control everywhere")) throw new Error("Default result or adjacent qualification is wrong");
+  if (!defaultResult.includes("Direct Rloc0.92") || !defaultResult.includes("does not prove control everywhere")) throw new Error("Default result or adjacent qualification is wrong");
   if (!defaultResult.includes("not a complete-population R_e")) throw new Error("Result blurs R_loc and complete-population R_e");
   if (await page.locator("#scope").inputValue() !== "up-bihar") throw new Error("UP/Bihar is not the default decision scope");
   if (await page.locator("#probe").count()) throw new Error("A separate inspection probe control still exists; it should be merged into decision scope");
@@ -207,7 +207,7 @@ try {
 
   await page.locator("#product-figure").focus();
   await page.keyboard.press("End");
-  if (!(await page.locator("#design-inspector").textContent())?.includes("1.00") || !(await page.locator("#design-inspector").textContent())?.includes("8.00")) throw new Error("Keyboard traversal did not reach the final grid design");
+  if (!(await page.locator("#design-inspector").textContent())?.includes("Take context1") || !(await page.locator("#design-inspector").textContent())?.includes("Mean boost8 log2")) throw new Error("Keyboard traversal did not reach the final grid design");
   await page.keyboard.press("Enter");
   if (!(await page.locator("#design-inspector").textContent())?.includes("Held design")) throw new Error("Enter did not persist keyboard selection");
   await page.keyboard.press("Escape");

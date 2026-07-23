@@ -323,7 +323,7 @@ export function renderProductMap(outputs: ModelOutputsV1, view: ChartViewState):
     const key = designKey(point);
     const inspected = key === view.inspectedDesignKey;
     const persistent = key === view.persistentDesignKey;
-    return `<rect class="design-cell ${point.passes ? "passes" : "fails"}${inspected ? " is-inspected" : ""}${persistent ? " is-persistent" : ""}" data-design-key="${key}" data-take-index="${takeIndex}" data-boost-index="${boostIndex}" x="${x0}" y="${y0}" width="${Math.max(1, x1 - x0 + 0.2)}" height="${Math.max(1, y1 - y0 + 0.2)}" fill="${surfaceColor(point.rLocEnvelopeMax)}"><title>take ${point.takeContext.toFixed(2)}; boost ${point.mu0.toFixed(2)} log2; direct R_loc ${formatNumber(point.rLocEnvelopeMax)}; ${point.passes ? "meets" : "does not meet"}</title></rect>`;
+    return `<rect class="design-cell ${point.passes ? "passes" : "fails"}${inspected ? " is-inspected" : ""}${persistent ? " is-persistent" : ""}" data-design-key="${key}" data-take-index="${takeIndex}" data-boost-index="${boostIndex}" x="${x0}" y="${y0}" width="${Math.max(1, x1 - x0 + 0.2)}" height="${Math.max(1, y1 - y0 + 0.2)}" fill="${surfaceColor(point.rLocEnvelopeMax)}"><title>take ${formatNumber(point.takeContext)}; boost ${formatNumber(point.mu0)} log2; direct R_loc ${formatNumber(point.rLocEnvelopeMax)}; ${point.passes ? "meets" : "does not meet"}</title></rect>`;
   }).join("");
   const contourPoints: [number, number][] = [];
   for (const take of takes) {
@@ -360,7 +360,7 @@ export function renderEffectMap(outputs: ModelOutputsV1, view: ChartViewState): 
     const key = designKey(point);
     const inspected = key === view.inspectedDesignKey;
     const persistent = key === view.persistentDesignKey;
-    return `<circle class="effect-point ${point.passes ? "passes" : "fails"}${inspected ? " is-inspected" : ""}${persistent ? " is-persistent" : ""}" data-design-key="${key}" cx="${x(1 - point.qAcq)}" cy="${y(1 - point.qShed)}" r="${point.passes ? 2.5 : 1.3}"><title>acquisition reduction ${formatPercent(1 - point.qAcq)}; breakthrough shedding reduction ${formatPercent(1 - point.qShed)}; take ${point.takeContext.toFixed(2)}; boost ${point.mu0.toFixed(2)}; direct R_loc ${formatNumber(point.rLocEnvelopeMax)}</title></circle>`;
+    return `<circle class="effect-point ${point.passes ? "passes" : "fails"}${inspected ? " is-inspected" : ""}${persistent ? " is-persistent" : ""}" data-design-key="${key}" cx="${x(1 - point.qAcq)}" cy="${y(1 - point.qShed)}" r="${point.passes ? 2.5 : 1.3}"><title>acquisition reduction ${formatPercent(1 - point.qAcq)}; breakthrough shedding reduction ${formatPercent(1 - point.qShed)}; take ${formatNumber(point.takeContext)}; boost ${formatNumber(point.mu0)}; direct R_loc ${formatNumber(point.rLocEnvelopeMax)}</title></circle>`;
   }).join("");
   const paretoPoints = outputs.frontier.pareto.map((point) => [x(1 - point.qAcq), y(1 - point.qShed)] as [number, number]);
   const paretoPath = paretoPoints.length > 1 ? line()(paretoPoints) ?? "" : "";
@@ -454,18 +454,25 @@ function anchorShortLabel(id: string): string {
 }
 
 function formatMicrograms(grams: number): string {
-  const value = grams * 1_000_000;
-  return value >= 100 ? value.toFixed(0) : value >= 1 ? value.toFixed(1) : value.toPrecision(2);
+  return formatNumber(grams * 1_000_000);
 }
 
+// Two-digit display: >=1 -> 2 significant figures; 0.01<=|v|<1 -> 2 decimals;
+// very large/small -> 2-decimal-mantissa scientific.
 function formatNumber(value: number): string {
+  if (!Number.isFinite(value)) return String(value);
   if (value === 0) return "0";
-  if (Math.abs(value) < 0.001) return value.toExponential(2);
-  return value < 10 ? value.toFixed(3) : value.toFixed(2);
+  const abs = Math.abs(value);
+  if (abs >= 1e4 || abs < 0.01) return value.toExponential(2);
+  return abs >= 1 ? String(Number(value.toPrecision(2))) : value.toFixed(2);
 }
 
+// Two significant figures, except never round a genuine sub-100% value up to "100%".
 function formatPercent(value: number): string {
-  return `${(100 * value).toFixed(1)}%`;
+  const pct = 100 * value;
+  const twoSig = formatNumber(pct);
+  if (twoSig === "100" && value < 1) return `${(Math.floor(pct * 10) / 10).toFixed(1)}%`;
+  return `${twoSig}%`;
 }
 
 function formatPercentTick(value: number): string {
