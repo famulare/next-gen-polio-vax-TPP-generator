@@ -28,6 +28,21 @@
   --fs-lede: clamp(1.12rem, 1.5vw, 1.35rem);
   --fs-intro: 1.18rem;
   --fs-body: 1.02rem;
+  /* Layout spine: one page shell, a left-anchored reading column for headings,
+     prose, controls, and conclusions, and a wider breakout for the few figures
+     whose interpretation needs simultaneous width. */
+  --page-max: 1240px;
+  --gutter: clamp(28px, 7vw, 96px);
+  --reading: 48rem;
+  --wide: 72rem;
+  /* Compact spacing scale (flow rhythm within sections; larger steps between). */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 14px;
+  --space-4: 22px;
+  --space-5: 36px;
+  --space-6: 60px;
+  --space-7: clamp(66px, 10vw, 130px);
   font-family: var(--sans);
   font-synthesis: none;
 }
@@ -47,7 +62,14 @@ a { color: inherit; text-underline-offset: .2em; }
 .site-header nav a { color: rgb(49 58 68 / 85%); text-decoration: none; }
 .site-header nav a:hover { color: var(--ink); }
 
-.app-shell, .site-footer { width: min(1240px, calc(100% - clamp(28px, 7vw, 96px))); margin-inline: auto; }
+/* .app-shell is the page shell: outer max width plus responsive gutters. */
+.app-shell, .site-footer { width: min(var(--page-max), calc(100% - var(--gutter))); margin-inline: auto; }
+/* Layout primitives. .content-column is the reading measure and common left edge;
+   .wide-breakout extends rightward from that same left edge for comparison figures;
+   .flow gives vertical rhythm with a configurable gap. */
+.content-column { width: 100%; max-width: var(--reading); margin-inline: 0 auto; }
+.wide-breakout { width: 100%; max-width: var(--wide); margin-inline: 0 auto; }
+.flow > * + * { margin-top: var(--flow-gap, var(--space-4)); }
 .hero { min-height: 42vh; display: flex; flex-direction: column; justify-content: flex-end; max-width: 1020px; padding: clamp(70px, 12vw, 150px) 0 58px; }
 .eyebrow, .chapter-number, .result-label, .inspector-label { margin: 0 0 10px; color: var(--focus); font-size: var(--fs-body); font-weight: 800; letter-spacing: .15em; text-transform: uppercase; }
 h1, h2, h3, p { margin-top: 0; }
@@ -122,13 +144,19 @@ button:focus-visible, a:focus-visible, summary:focus-visible, select:focus-visib
 .transaction-status { min-height: 44px; margin: 0; padding: 12px 0; border-top: 1px solid var(--line); color: var(--muted); font-size: var(--fs-body); }
 .transaction-status.stale, .transaction-status.invalid { color: var(--russet-dark); }
 
-.chapter { padding: clamp(66px, 10vw, 130px) 0; border-top: 1px solid var(--ink); }
-.chapter-heading { display: grid; grid-template-columns: minmax(120px, .27fr) minmax(0, .73fr); gap: clamp(24px, 5vw, 80px); margin-bottom: 50px; }
-.chapter-heading > div { max-width: 850px; }
-.chapter-heading > div > p { max-width: 730px; color: var(--muted); font-size: var(--fs-intro); }
-.surface-chapter { padding-top: 75px; }
+.chapter { padding: var(--space-7) 0; border-top: 1px solid var(--ink); }
+/* One spine: every chapter block sits on the left-anchored reading column;
+   only .wide-breakout figures extend rightward for simultaneous comparison. */
+.chapter > * { max-width: var(--reading); margin-inline: 0 auto; }
+.chapter > .wide-breakout { max-width: var(--wide); }
+/* The linked-map pair is the widest comparison on the page; it uses the full
+   shell rather than the single-figure breakout so both maps stay legible. */
+.chapter > .linked-maps.wide-breakout { max-width: none; }
+.chapter-heading { margin-bottom: var(--space-6); }
+.chapter-heading > div > p { color: var(--muted); font-size: var(--fs-intro); }
+.surface-chapter { padding-top: var(--space-6); }
 .hero-figure, .linked-maps figure { margin: 0; }
-.hero-figure { width: min(100%, 1060px); margin-inline: auto; }
+.hero-figure { width: 100%; }
 .chart-slot { width: 100%; min-height: 120px; }
 .scientific-chart { display: block; width: 100%; height: auto; overflow: visible; }
 figcaption { max-width: 880px; margin: 13px 0 0; color: var(--muted); font-size: var(--fs-body); }
@@ -213,9 +241,9 @@ fieldset > p { color: var(--muted); font-size: var(--fs-body); }
 /* --u is viewBox units per rendered pixel (viewBox width / rendered container width
    at the desktop shell) so every figure's text hits the same on-screen floor via
    calc(px * var(--u)). Standalone exports omit it and fall back to 1. */
-#within-host-figure { --u: 1.132; }
-#dose-response-figure, #immunity-distribution-figure { --u: 0.891; }
-#setting-figure { --u: 0.849; }
+#within-host-figure { --u: 1.042; }
+#dose-response-figure, #immunity-distribution-figure { --u: 1.068; }
+#setting-figure { --u: 0.781; }
 #effect-figure, #product-figure { --u: 0.949; }
 .motif-svg { --u: 0.911; }
 .plot-bg { fill: var(--paper-deep); }
@@ -288,8 +316,6 @@ fieldset > p { color: var(--muted); font-size: var(--fs-body); }
 @media (max-width: 980px) {
   .opening { grid-template-columns: 1fr; }
   .decision-controls { max-width: 720px; padding: 28px 0 0; border-left: 0; border-top: 1px solid var(--line-dark); }
-  .chapter-heading { grid-template-columns: 1fr; gap: 10px; }
-  .chapter-number { margin-bottom: 0; }
   .linked-maps { gap: 20px; }
   .mechanism-values { grid-template-columns: repeat(2, 1fr); }
   .mechanism-values article:nth-child(2) { border-right: 0; }
