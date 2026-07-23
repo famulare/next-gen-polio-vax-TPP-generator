@@ -14,10 +14,12 @@ import {
   SETTING_ANCHORS,
   SETTING_MANIFEST_VERSION
 } from "./model/parameters";
+import { buildScheduleState } from "./model/schedule";
+import { rLocForSetting } from "./model/transmission";
 import { canonicalJson, decodeScenario, encodeScenario } from "./model/serialization";
 import { MICROGRAMS_PER_GRAM } from "./model/types";
 import type { AnchorSettingId, DesignGridPoint, EnvelopeV1, ModelOutputsV1, ProductId, ScenarioV1, SettingId, TeachingView } from "./model/types";
-import { renderEffectMap, renderImmunityDistribution, renderProductMap, renderSettingSurface, renderWithinHostTeaching } from "./ui/charts";
+import { renderEffectMap, renderImmunityDistribution, renderProductMap, renderSettingSurface, renderVaccineDoseResponse, renderWithinHostTeaching } from "./ui/charts";
 import type { ChartViewState } from "./ui/charts";
 import { BRAND_COLORS, BRAND_FONT_FAMILIES, SCIENTIFIC_SURFACE_COLORS, brandFontFaceCss, installBrandFonts } from "./ui/brand";
 import { buildPresentation, describeDecisionScope, designKey } from "./ui/presentation";
@@ -55,6 +57,7 @@ export function mountApp(root: HTMLElement): void {
   syncControls(draftScenario);
   bindControls();
   bindChartInteractions();
+  bindMotifReadout();
   bindExports();
   bindGlobalKeys();
   if (initial.error) showWarning(`The URL state was rejected: ${initial.error} Versioned defaults were loaded instead.`);
@@ -258,6 +261,7 @@ export function mountApp(root: HTMLElement): void {
   function recommitNonScientific(live: TeachingView, message: string): void {
     if (!committedOutputs) return;
     committedOutputs = { ...committedOutputs, scenario: live.scenario, metrics: live.metrics, settingSurface: live.settingSurface, diagnostics: live.diagnostics };
+    renderMotifReadout();
     window.location.hash = `scenario=${encodeScenario(committedOutputs.scenario)}`;
     setExportAvailability(true);
     byId<HTMLElement>("export-status").textContent = `Exports are ready for committed model ${shortIdentity(committedOutputs.modelIdentity)}.`;
@@ -292,6 +296,7 @@ export function mountApp(root: HTMLElement): void {
   function renderCommitted(outputs: ModelOutputsV1): void {
     liveOutputs = outputs;
     renderTeaching(outputs);
+    renderMotifReadout();
     const presentation = buildPresentation(outputs);
     const result = byId<HTMLElement>("result-status");
     result.className = `result-status ${presentation.result.branch}`;
@@ -320,6 +325,7 @@ export function mountApp(root: HTMLElement): void {
   function renderTeaching(teaching: TeachingView): void {
     byId<HTMLElement>("setting-map").innerHTML = renderSettingSurface(teaching, view);
     byId<HTMLElement>("within-host-chart").innerHTML = renderWithinHostTeaching(teaching);
+    byId<HTMLElement>("dose-response-chart").innerHTML = renderVaccineDoseResponse(teaching);
     byId<HTMLElement>("immunity-distribution").innerHTML = renderImmunityDistribution(teaching);
     renderMechanism(teaching);
     renderOpeningComparison(teaching);
@@ -408,6 +414,27 @@ export function mountApp(root: HTMLElement): void {
     byId<HTMLElement>("setting-map").innerHTML = renderSettingSurface(source, view);
   }
 
+  // View-only teaching readout: R_loc at the committed setting for an arbitrary
+  // number of close social contacts. It reads committedOutputs and never mutates
+  // the scenario, URL hash, committed outputs, or exports (contract §15.3).
+  function bindMotifReadout(): void {
+    byId<HTMLInputElement>("motif-contacts").addEventListener("input", renderMotifValue);
+  }
+  function renderMotifReadout(): void {
+    if (!committedOutputs) return;
+    const seed = Math.max(0, Math.min(20, Math.round(committedOutputs.scenario.setting.Ns)));
+    byId<HTMLInputElement>("motif-contacts").value = String(seed);
+    renderMotifValue();
+  }
+  function renderMotifValue(): void {
+    if (!committedOutputs) return;
+    const scenario = committedOutputs.scenario;
+    const contacts = Number(byId<HTMLInputElement>("motif-contacts").value);
+    const state = buildScheduleState(scenario.vaccine, scenario.schedule);
+    const rLoc = rLocForSetting(state, { ...scenario.setting, Ns: contacts }, scenario.indexReferenceExposure, scenario.horizonDays);
+    byId<HTMLOutputElement>("motif-rloc").value = `R_loc = ${formatNumber(rLoc)}`;
+  }
+
   function markStale(message: string): void {
     setExportAvailability(false);
     byId<HTMLElement>("export-status").textContent = "Exports are unavailable while controls differ from the committed result.";
@@ -474,16 +501,30 @@ function shell(): string {
       <div class="pathway" role="img" aria-label="Received dose, biological take or no take, mucosal boost, waning, and the cohort immunity distribution before WPV exposure"><article><span>Received dose</span><strong>Schedule event</strong><p>Routine doses at 6, 10, and 14 weeks, plus an optional booster.</p></article><i aria-hidden="true">→</i><article><span>Biological split</span><strong>Take / no take</strong><p>Each branch is probability weighted; no dose receipt is missing.</p></article><i aria-hidden="true">→</i><article><span>State transition</span><strong>Boost then wane</strong><p>Take changes mucosal state; time to assessment allows waning.</p></article><i aria-hidden="true">→</i><article><span>WPV challenge</span><strong>Distribution enters model</strong><p>Transmission uses the full state distribution and histories.</p></article></div>
       <p id="product-pathway-summary" class="narrative-summary"></p>
       <aside id="print-product-summary" class="print-product-summary" aria-label="Selected product mechanism for print"></aside>
+      <figure class="hero-figure narrow-figure"><div id="dose-response-chart" class="chart-slot" aria-live="off"></div><figcaption><strong>Vaccine take is the front of the chain.</strong> α, β, and administered dose set the take probability, and prior mucosal immunity lowers it. Take seeds the immunity distribution below, which drives the downstream acquisition and shedding reductions; it does not change the fixed WPV challenge equation.</figcaption></figure>
       <figure class="hero-figure narrow-figure"><div id="immunity-distribution" class="chart-slot"></div><figcaption><strong>This is a marginal view, not the calculation's state reduction.</strong> The model retains conditioned take/no-take history and uses each group's dose response and shedding kernel directly.</figcaption></figure>
       <form class="narrative-controls" aria-labelledby="product-controls-heading" onsubmit="return false"><div class="controls-title"><div><p class="eyebrow">Product and schedule</p><h3 id="product-controls-heading">Now choose the schedule whose cohort you want to inspect.</h3></div><button id="reset" type="button" class="text-button">Reset defaults</button></div><div class="control-row"><label>Candidate product<select id="product">${productOptions}</select><small>Fixed catalog products remain fixed; hypothetical OPV-like designs expose their assumptions below.</small></label><label>Booster<select id="booster" data-field="booster" data-model-control><option value="0">No booster</option><option value="1">At 1 year</option><option value="2">At 2 years</option><option value="3">At 3 years</option><option value="4">At 4 years</option></select><small>An extra dose on top of the routine 6/10/14-week schedule.</small></label><label>Assessment after last dose<select id="lag" data-field="lag" data-model-control><option value="28">28 days</option><option value="90">90 days</option></select></label></div><fieldset id="hypothetical-controls"><legend>Hypothetical OPV-like product mechanism</legend><p>These values determine vaccine take after a received dose, the take/no-take split, the mucosal boost, and therefore the schedule-derived distribution above. They do not change the fixed WPV challenge equation. The five controls are <span class="prov-tag" data-kind="scenario-input">scenario inputs</span>; the fixed values below are v1 <span class="prov-tag" data-kind="assumption">assumptions</span>.</p><div class="advanced-grid product-parameter-grid"><label>Biological take <output id="take-output">0.80</output><input id="take" data-field="take" data-model-control type="range" min="0" max="1" step="0.01"><small id="take-help"></small></label><label>Latent mean mucosal boost <output id="mu-output">4.0 log2</output><input id="mu" data-field="mu" data-model-control type="range" min="0" max="8" step="0.1"><small id="mu-help"></small></label><label>Vaccine α<input id="alpha" data-field="alpha" data-model-control type="number" min="0.001" max="5" step="0.001"><small>Dose-response shape for productive vaccine infection after receipt.</small></label><label>Vaccine β (CID50)<input id="beta" data-field="beta" data-model-control type="number" min="0.001" max="1000000" step="0.1"><small>Dose-response scale; not a WPV susceptibility parameter.</small></label><label>Administered dose (log10 TCID50)<input id="dose-log" data-field="dose-log" data-model-control type="number" min="0" max="9" step="0.01"><small>Amount offered per received live-vaccine dose.</small></label></div><div class="parameter-context"><span>Fixed γ<sub>vax</sub></span><strong id="product-fixed-gamma"></strong><span>Fixed boost SD, σ<sub>0</sub></span><strong id="product-fixed-sigma"></strong><span>Receipt</span><strong>100% in v1</strong></div></fieldset><p id="catalog-product-note" class="catalog-note" hidden></p><p id="state-warning" class="warning" hidden></p><div class="control-actions"><button id="compute" class="primary" type="button">Update the model</button><span id="compute-status" role="status" aria-live="polite"></span></div></form>
     </section>
 
     <section id="transmission" class="chapter" aria-labelledby="mechanism-heading">
       <div class="chapter-heading"><p class="chapter-number">03 / Close-contact transmission</p><div><h2 id="mechanism-heading">Then put breakthrough shedding into one declared transmission motif.</h2><p>The model propagates a breakthrough index child to a household child, then to close social contacts. Its endpoint is the expected tertiary infections, R<sub>loc</sub>, for that motif—not a calculated complete-population R<sub>e</sub>.</p></div></div>
-      <div class="motif" role="img" aria-label="Index child transmits to a household child, who connects to close social contacts">
-        <article><span>01</span><strong>Index child</strong><p>Breakthrough infection and infectious shedding after the selected schedule.</p></article><i aria-hidden="true">→</i><article><span>02</span><strong>Household child</strong><p>Acquisition is propagated through the full modeled immunity distribution.</p></article><i aria-hidden="true">→</i><article><span>03</span><strong>Close social contacts</strong><p>N<sub>s</sub> family-like child contacts extend the local motif.</p></article>
-      </div>
+      <figure class="motif-figure">
+        <svg viewBox="0 0 820 236" class="scientific-chart motif-svg" role="img" aria-label="A breakthrough index child transmits within one household to a household child, who then exposes N_s close social contacts in other households. The declared motif endpoint is R_loc, the expected infections along this motif, not a complete-population reproduction number.">
+          <defs><marker id="motif-arrow" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="motif-arrowhead" d="M0 0 L10 5 L0 10 z"/></marker></defs>
+          <text class="motif-kicker" x="12" y="22">THE DECLARED CLOSE-CONTACT MOTIF</text>
+          <rect class="motif-frame" x="36" y="52" width="410" height="118" rx="8"/><text class="motif-frame-label" x="50" y="72">ONE HOUSEHOLD</text>
+          <rect class="motif-frame" x="516" y="52" width="268" height="118" rx="8"/><text class="motif-frame-label" x="530" y="72">OTHER HOUSEHOLDS</text>
+          <g><rect class="motif-node motif-node-index" x="64" y="90" width="152" height="62" rx="8"/><text class="motif-num" x="78" y="114">01</text><text class="motif-name" x="78" y="136">Index child</text></g>
+          <line class="motif-arrow" x1="220" y1="121" x2="296" y2="121" marker-end="url(#motif-arrow)"/><text class="motif-link" x="258" y="110" text-anchor="middle">T_ih · d_ih</text>
+          <g><rect class="motif-node" x="300" y="90" width="142" height="62" rx="8"/><text class="motif-num" x="314" y="114">02</text><text class="motif-name" x="314" y="136">Household child</text></g>
+          <line class="motif-arrow" x1="446" y1="121" x2="544" y2="121" marker-end="url(#motif-arrow)"/><text class="motif-link" x="495" y="110" text-anchor="middle">T_hs · d_hs</text>
+          <g><rect class="motif-node" x="548" y="90" width="208" height="62" rx="8"/><text class="motif-num" x="562" y="114">03</text><text class="motif-name" x="562" y="136">Close social contacts × N_s</text></g>
+          <text class="motif-foot" x="12" y="206">Endpoint: R_loc = expected infections along this one motif — not a complete-population R_e.</text>
+        </svg>
+        <figcaption><strong>One declared motif.</strong> A breakthrough index child exposes a household child, who exposes N<sub>s</sub> close social contacts in other households. R<sub>loc</sub> counts expected infections along this motif only.</figcaption>
+      </figure>
       <div class="transmission-handshake"><p class="eyebrow">What happens on each link</p><p><strong>Infectious survival and stool concentration</strong> from the index child, multiplied by <strong>grams of stool per exposure</strong>, determine a recipient's daily oral WPV dose. The recipient's full immunity distribution determines acquisition at that dose. Repeated daily exposures compose as cumulative escape, not as one exposure to an average child. Setting exposure is a <span class="prov-tag" data-kind="scenario-input">scenario input</span> and the contact structure is inherited; R<sub>loc</sub> is <span class="prov-tag" data-kind="derived">derived</span>.</p><dl><div><dt>UP/Bihar index → household</dt><dd>${formatMicrograms(upBihar.Tih.value)} µg stool-equivalent/exposure × ${formatExposureFrequency(upBihar.dIh.value)}</dd></div><div><dt>Household → social contact</dt><dd>${formatMicrograms(upBihar.Ths.value)} µg stool-equivalent/exposure × ${formatExposureFrequency(upBihar.dHs.value)}</dd></div><div><dt>Social-contact motif</dt><dd>N<sub>s</sub> = ${upBihar.Ns} family-like child contacts</dd></div><div><dt>Index conditioning</dt><dd>Actual breakthrough after one WPV HID50, not a random vaccinated child</dd></div></dl><p class="transmission-equation">R<sub>loc</sub> = N<sub>s</sub> × P(one close social contact is infected).</p></div>
+      <div class="motif-readout"><p class="eyebrow">See R<sub>loc</sub> build from contacts</p><label>Close social contacts, N<sub>s</sub><input id="motif-contacts" type="range" min="0" max="20" step="1"><output id="motif-rloc" aria-live="polite"></output></label><p>At the committed setting, R<sub>loc</sub> grows in proportion to the number of close social contacts. This is a view-only readout — it never changes the committed decision, scenario, or exports.</p></div>
       <div id="mechanism-values" class="mechanism-values"></div>
       <aside class="meaning-note"><strong>The decision step</strong><p>If the direct motif result is below one at the declared setting scope, the v1 sufficiency axiom treats that as a demanding local stress test. q<sub>index</sub> helps read the within-host effects but cannot replace the distribution-native motif calculation.</p></aside>
     </section>

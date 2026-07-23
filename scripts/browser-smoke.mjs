@@ -150,6 +150,9 @@ try {
   const measurementText = await page.locator("#measurement").textContent();
   for (const phrase of ["P(acquisition | d)", "P(still shedding at day t | WPV acquisition)", "TCID50-days/g", "qindex", `assay floor 10${Math.log10(parameters.shedding.titerFloor).toFixed(1)}`, `${parameters.transmission.horizonDays}-day integral`]) if (!measurementText?.includes(phrase)) throw new Error(`Measurement map omits ${phrase}`);
   if (!(await page.locator("#immunity-distribution-figure").count())) throw new Error("Schedule-derived immunity distribution did not render");
+  if (!(await page.locator("#dose-response-figure").count())) throw new Error("Vaccine dose-response teaching figure did not render");
+  if (await page.locator("#within-host-figure .teaching-panel").count() !== 4) throw new Error("The dose-response figure must be separate; within-host must stay four panels");
+  if (!(await page.locator(".motif-svg").count())) throw new Error("Transmission motif illustration did not render");
   if (!(await page.locator("#effect-figure").count()) || !(await page.locator("#product-figure").count()) || !(await page.locator("#setting-figure").count())) throw new Error("One or more decision or design figures did not render");
   if (await page.locator("#setting-figure [data-surface-column]").count() !== 1620) throw new Error("Setting surface is not 81 × 20");
   if (await page.locator("#setting-figure").getAttribute("data-columns") !== "81" || await page.locator("#setting-figure").getAttribute("data-rows") !== "20") throw new Error("Setting surface dimensions are not declared");
@@ -213,6 +216,19 @@ try {
   await page.keyboard.press("Escape");
   if (!(await page.locator("#design-inspector").textContent())?.includes("Inspect a design")) throw new Error("Escape did not clear view-only selection");
   console.log("Browser smoke: linked selection checked");
+
+  // View-only per-contact R_loc readout must recompute without touching the committed
+  // decision, model identity, or exports (contract §15.3 / §18 decision 21).
+  const motifIdentityBefore = await page.locator("#result-status").getAttribute("data-model-identity");
+  const motifReadoutBefore = await page.locator("#motif-rloc").evaluate((element) => element.value);
+  const motifContactsSeed = await page.locator("#motif-contacts").inputValue();
+  const motifContactsNext = motifContactsSeed === "12" ? "6" : "12";
+  await page.locator("#motif-contacts").evaluate((element, value) => { element.value = value; element.dispatchEvent(new Event("input", { bubbles: true })); }, motifContactsNext);
+  if (await page.locator("#motif-rloc").evaluate((element) => element.value) === motifReadoutBefore) throw new Error("Per-contact R_loc readout did not recompute on input");
+  if (await page.locator("#result-status").getAttribute("data-model-identity") !== motifIdentityBefore) throw new Error("View-only motif readout changed the committed model identity");
+  if (await page.locator("[data-export]").first().isDisabled()) throw new Error("View-only motif readout disabled export");
+  if (await page.locator("#result-status").evaluate((element) => element.dataset.stale === "true")) throw new Error("View-only motif readout marked the committed result stale");
+  console.log("Browser smoke: view-only motif readout checked");
 
   const surfaceReadout = await page.locator("#setting-figure .chart-readout").textContent();
   await page.locator("#setting-figure").focus();

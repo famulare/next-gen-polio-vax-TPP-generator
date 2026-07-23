@@ -1,9 +1,22 @@
 import { combinedMucosal, initialImmuneState } from "./schedule";
+import { clamp01, doseResponse } from "./dose-response";
 import { DIAGNOSTIC_GRID, PARAMETERS } from "./parameters";
 import { sheddingTerms } from "./shedding";
 import { conditionIndexBreakthrough } from "./transmission";
 import { DAYS_PER_MONTH } from "./waning";
-import type { ImmuneState, ScenarioV1, WithinHostCohortDiagnosticsV1, WithinHostDiagnosticsV1 } from "./types";
+import type { ImmuneState, ScenarioV1, VaccineV1, WithinHostCohortDiagnosticsV1, WithinHostDiagnosticsV1 } from "./types";
+
+export interface VaccineTakeCurve { level: number; points: { dose: number; take: number }[] }
+
+// Render-time teaching helper: productive vaccine take vs administered dose at a few
+// pre-dose immunity levels. Take = dose-response susceptibility x take context. This is
+// NOT part of the hashed WithinHostDiagnosticsV1 grid; it never affects model identity.
+export function vaccineTakeCurve(vaccine: VaccineV1, immunityLevels: number[], doseGrid: number[]): VaccineTakeCurve[] {
+  return immunityLevels.map((level) => ({
+    level,
+    points: doseGrid.map((dose) => ({ dose, take: clamp01(doseResponse(dose, level, vaccine.alpha, vaccine.beta, vaccine.gamma) * vaccine.takeContext * vaccine.formulationMultiplier) }))
+  }));
+}
 
 /**
  * Read-only teaching diagnostics. These project the production state and

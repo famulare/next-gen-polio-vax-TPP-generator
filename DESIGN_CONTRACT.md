@@ -1749,6 +1749,20 @@ The following decisions are binding for v1:
     no runtime randomness. A single scenario field may be exposed by a master
     parameter panel and by inline per-section controls; all instances are two-way
     linked through one write-back and always display one value.
+21. (Contract 1.9) Two bounded read-only teaching figures are added, plus one
+    view-only readout. (a) A vaccine dose-response figure in the product chapter
+    (§13.3) plots productive vaccine take versus administered dose at a naive and a
+    primed pre-dose immunity level, shaped by `alpha_vax`, `beta_vax`, and take
+    context; it is a projection of the existing take kernel and explicitly does not
+    change the fixed WPV challenge equation. (b) An original inline-SVG motif
+    illustration in the transmission chapter (§9.1, §13.4) depicts the
+    index → household → close-social-contact motif and states that its endpoint is
+    `R_loc`, not a complete-population `R_e`. (c) A view-only per-contact `R_loc`
+    readout recomputes `R_loc` at the committed setting for an arbitrary number of
+    close social contacts; it never changes the committed scenario, model identity,
+    decision, or exports (§15.3). None of these is the free-form parameter-slice
+    laboratory deferred in §19; the four-panel within-host figure (§13.2) is
+    unchanged and remains exactly four panels.
 
 Implementation discretion is limited to presentation details, accessible color
 choices, module decomposition below the ownership boundaries, and equivalent

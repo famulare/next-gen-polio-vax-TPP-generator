@@ -1,6 +1,7 @@
 import { scaleLinear, scaleLog } from "d3-scale";
 import { line } from "d3-shape";
 import { FRONTIER_GRID, PARAMETERS, SETTING_ANCHORS, SETTING_DISPLAY_DOMAIN } from "../model/parameters";
+import { vaccineTakeCurve } from "../model/diagnostics";
 import type { DesignGridPoint, ModelOutputsV1, TeachingView } from "../model/types";
 import { BRAND_COLORS, SCIENTIFIC_SURFACE_COLORS } from "./brand";
 import { designKey, describeDecisionScope } from "./presentation";
@@ -154,6 +155,37 @@ function immunityDistributionFigure(outputs: TeachingView, mobile: boolean): str
     <rect class="plot-bg" x="${margin.left}" y="${margin.top}" width="${plotWidth}" height="${plotHeight}"/>${yTicks}${bars}${xTicks}
     <text class="axis-label" x="${margin.left + plotWidth / 2}" y="${height - 14}" text-anchor="middle">Mucosal-immunity bin (log2 NAb-equivalent)</text><text class="axis-label" transform="translate(17 ${margin.top + plotHeight / 2}) rotate(-90)" text-anchor="middle">Cohort probability</text>
     ${legend}
+  </svg>`;
+}
+
+export function renderVaccineDoseResponse(view: TeachingView): string {
+  const vaccine = view.scenario.vaccine;
+  const width = 820;
+  const height = 360;
+  const margin = { top: 66, right: 30, bottom: 64, left: 70 };
+  const plotWidth = width - margin.left - margin.right;
+  const plotHeight = height - margin.top - margin.bottom;
+  const doseGrid = Array.from({ length: 73 }, (_, index) => 10 ** ((index / 72) * 9));
+  const [naive, primed] = vaccineTakeCurve(vaccine, [0, 6], doseGrid);
+  const x = scaleLog().domain([1, 1e9]).range([margin.left, margin.left + plotWidth]);
+  const y = scaleLinear().domain([0, 1]).range([margin.top + plotHeight, margin.top]);
+  const path = (curve: { points: { dose: number; take: number }[] }) => line<{ dose: number; take: number }>().x((point) => x(point.dose)).y((point) => y(point.take))(curve.points) ?? "";
+  const yTicks = [0, 0.25, 0.5, 0.75, 1].map((value) => `<g><line class="grid-line" x1="${margin.left}" x2="${margin.left + plotWidth}" y1="${y(value)}" y2="${y(value)}"/><text class="tick" x="${margin.left - 10}" y="${y(value) + 3}" text-anchor="end">${formatPercentTick(value)}</text></g>`).join("");
+  const xTicks = [1, 1e2, 1e4, 1e6, 1e8].map((dose) => `<g><line class="tick-mark" x1="${x(dose)}" x2="${x(dose)}" y1="${margin.top + plotHeight}" y2="${margin.top + plotHeight + 6}"/><text class="tick" x="${x(dose)}" y="${margin.top + plotHeight + 22}" text-anchor="middle">${powerLabel(dose)}</text></g>`).join("");
+  const doseMark = vaccine.dose > 0
+    ? `<line class="teaching-reference-dose" x1="${x(vaccine.dose)}" x2="${x(vaccine.dose)}" y1="${margin.top}" y2="${margin.top + plotHeight}"/><text class="teaching-reference-dose-label" x="${x(vaccine.dose) + 5}" y="${margin.top + 12}">selected dose</text>`
+    : "";
+  return `<svg id="dose-response-figure" class="scientific-chart" role="img" aria-labelledby="dose-response-title dose-response-desc" viewBox="0 0 ${width} ${height}">
+    <title id="dose-response-title">Vaccine take by administered dose and prior immunity</title>
+    <desc id="dose-response-desc">Productive vaccine take as a function of administered dose for a naive recipient (mucosal-immunity bin 0) and a primed recipient (bin 6), shaped by vaccine alpha, beta, and take context. Take rises with dose and falls with prior immunity. This is the take that seeds the cohort immunity distribution and therefore the downstream acquisition and shedding reductions; it does not change the fixed WPV challenge equation.</desc>
+    <text class="chart-kicker" x="${margin.left}" y="24">RECEIVED DOSE → PRODUCTIVE VACCINE TAKE</text>
+    <text class="chart-title" x="${margin.left}" y="49">How dose and prior immunity set vaccine take</text>
+    <rect class="plot-bg" x="${margin.left}" y="${margin.top}" width="${plotWidth}" height="${plotHeight}"/>
+    ${yTicks}${xTicks}${doseMark}
+    <path class="teaching-reference" fill="none" stroke="${REFERENCE}" stroke-width="2.5" d="${path(naive!)}"/>
+    <path class="teaching-candidate" fill="none" stroke="${CANDIDATE}" stroke-width="2.5" d="${path(primed!)}"/>
+    <text class="axis-label" x="${margin.left + plotWidth / 2}" y="${height - 16}" text-anchor="middle">Administered dose (TCID50, log scale)</text><text class="axis-label" transform="translate(18 ${margin.top + plotHeight / 2}) rotate(-90)" text-anchor="middle">Productive vaccine take</text>
+    <g class="teaching-legend" transform="translate(${margin.left + plotWidth - 250} 30)"><line x1="0" x2="26" y1="0" y2="0" class="teaching-reference"/><text x="34" y="4">Naive recipient (bin 0)</text><line x1="150" x2="176" y1="0" y2="0" class="teaching-candidate"/><text x="184" y="4">Primed (bin 6)</text></g>
   </svg>`;
 }
 
