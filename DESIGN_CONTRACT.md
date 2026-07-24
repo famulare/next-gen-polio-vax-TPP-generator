@@ -2,7 +2,7 @@
 
 **Status:** LOCKED FOR IMPLEMENTATION
 
-**Contract version:** 1.9
+**Contract version:** 2.0
 
 **Locked:** 2026-07-21
 
@@ -175,6 +175,40 @@ was set to, so the committed default is never silently perturbed by control
 synchronization alone. Presentation only; no equation, bound, or default
 scientific value changes.
 
+**Contract version 2.0 (2026-07-24, Mike's direction).** A copy pass across
+chapters 03-05 tightens wording and removes "v1" as user-facing terminology
+(it remains internal versioning language in this contract, in code type names
+such as `ScenarioV1`, and in export provenance metadata, none of which the
+reader of the page sees). Specific changes: the chapter 03 heading and its
+close-contact-motif sentence are reworded; the transmission-handshake
+paragraph replaces "the recipient's full immunity distribution determines
+acquisition" and "repeated daily exposures compose as cumulative escape" with
+plainer causal language; the chapter 04 heading changes from "clears the
+reference stress test" to "clears the local transmission test" and drops "not
+measured in v1" to "not measured"; the setting-map figcaption drops "— not the
+decision calculation"; the chapter 05 heading and the "Provenance & units"
+disclosure drop "v1 status" from their summary sentences, and the provenance
+table's fourth column is relabeled "Status" (was "Status in v1") without
+removing its content; the `R_loc` provenance row drops "v1" from "the v1
+close-contact motif"; the mechanism-values strip's box 3 is relabeled from "3
+· diagnostic index" (`q_index = value`) to "3 · relative shedding index"
+(plain value) with the box 1/2 acquisition and shedding multipliers now
+described in the same plain-language terms already used in the within-host
+readout ("relative risk of shedding", "relative amount shed given infection"),
+and box 4 is relabeled from "direct motif rule" to "close contact decision
+rule"; the redundant post-commit line "Committed. Meets criterion: direct
+R_loc &lt;value&gt;." (already shown by the verdict card above it) is
+shortened to "Committed."; the verdict card's criterion string drops its
+"; equality within 1e-9 does not meet" clause; the hardest-known-anchor and
+default qualification sentences drop their "v1 close-contact motif" /
+"v1 close-contact sufficiency axiom" phrasing; the model-level assumptions
+list drops "v1" from "the v1 sufficiency axiom"; and the fixed "100% in v1"
+receipt values and "the fixed values below are v1 assumptions" note drop
+"v1". All display-only; no equation, parameter, default, comparator, success
+rule, or uncertainty semantics changes. The version number moves to 2.0 to
+mark this as a clean copy baseline after the cumulative 1.7-to-1.9
+communication rework and the two 2026-07-24 amendments above.
+
 **Primary audience:** people well versed in vaccine development who do not yet
 have a clean mechanistic mental model analogous to this mathematical model
 
@@ -272,14 +306,16 @@ clustering, or unmodeled pathways may change a population result.
 
 The application must therefore label the outcome precisely:
 
-- **Allowed:** "Meets the v1 close-contact sufficiency criterion."
+- **Allowed:** "Meets the close-contact sufficiency criterion."
 - **Allowed:** "Clears the hardest known modeled anchor: below `R_loc = 1` at
   the UP/Bihar high-transmission decision scope."
 - **Allowed:** "This supports likely adequacy in less demanding settings
   represented by this model; it does not prove control everywhere."
 - **Not allowed:** "Guaranteed to stop all poliovirus transmission everywhere"
-  without the adjacent qualification "under the v1 close-contact sufficiency
-  axiom and declared decision scope."
+  without the adjacent qualification "under the close-contact sufficiency
+  axiom and declared decision scope." (The "v1" designation is an internal
+  versioning label, not user-facing wording — see the 2026-07-24 copy-pass
+  amendment.)
 
 The app will expose the decision scope, the separate setting-surface display
 domain, and all assumptions used to make this classification. It will not

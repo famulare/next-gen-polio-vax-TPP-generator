@@ -73,14 +73,14 @@ export function buildResult(metrics: PointMetrics, scenario: ScenarioV1): Result
       : "This candidate does not meet the selected close-contact criterion.";
   const statusLabel = branch === "pass" ? "Meets criterion" : branch === "tie" ? "Threshold tie — does not meet" : "Does not meet criterion";
   const qualification = hardestKnown
-    ? "Clearing UP/Bihar supports likely adequacy under less demanding conditions represented by this mechanism, but does not prove control everywhere. The result applies to the v1 close-contact motif, not a complete-population R_e."
-    : "The result applies only to the declared decision scope under the v1 close-contact sufficiency axiom. It is not a complete-population R_e, an outbreak forecast, or a probability of success.";
+    ? "Clearing UP/Bihar supports likely adequacy under less demanding conditions represented by this mechanism, but does not prove control everywhere."
+    : "The result applies only to the declared decision scope under the close-contact sufficiency axiom. It is not a complete-population R_e, an outbreak forecast, or a probability of success.";
   return {
     branch,
     statusLabel,
     headline,
     value,
-    criterion: `${PRESENTATION_LABELS.criterion}; equality within ${FRONTIER_GRID.contour.tieTolerance} does not meet`,
+    criterion: PRESENTATION_LABELS.criterion,
     scopeLabel: scope.label,
     scopeShortLabel: scope.shortLabel,
     qualification

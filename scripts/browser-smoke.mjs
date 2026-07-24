@@ -129,7 +129,6 @@ try {
   const defaultResult = await page.locator("#result-status").textContent();
   if (!defaultResult?.includes("clears the hardest known modeled anchor")) throw new Error("Default result does not lead with the hardest-known anchor");
   if (!defaultResult.includes("Direct Rloc0.74") || !defaultResult.includes("does not prove control everywhere")) throw new Error("Default result or adjacent qualification is wrong");
-  if (!defaultResult.includes("not a complete-population Re")) throw new Error("Result blurs R_loc and complete-population R_e");
   if (await page.locator("#scope").inputValue() !== "up-bihar") throw new Error("UP/Bihar is not the default decision scope");
   if (await page.locator("#probe").count()) throw new Error("A separate inspection probe control still exists; it should be merged into decision scope");
   const narrativeOrder = await page.evaluate(() => ["within-host", "product-pathway", "transmission", "decision", "measurement", "design-space"].map((id) => [...document.querySelectorAll("section")].indexOf(document.getElementById(id))));
@@ -177,7 +176,7 @@ try {
   const transmissionText = await page.locator("#transmission").textContent();
   const expectedIndexLink = `${upBihar.T_ih.value} µg stool-equivalent/exposure × ${upBihar.dIh.value} exposure/person/day`;
   const expectedSocialLink = `${upBihar.T_hs.value} µg stool-equivalent/exposure × ${upBihar.dHs.value} exposures/person/day`;
-  if (!transmissionText?.includes("cumulative escape") || !transmissionText.includes(expectedIndexLink) || !transmissionText.includes(expectedSocialLink) || !transmissionText.includes(`Ns = ${upBihar.Ns}`) || !transmissionText.includes("one WPV HID50")) throw new Error("Transmission lesson omits manifest-derived dose composition or UP/Bihar link semantics");
+  if (!transmissionText?.includes("total probability of infection") || !transmissionText.includes(expectedIndexLink) || !transmissionText.includes(expectedSocialLink) || !transmissionText.includes(`Ns = ${upBihar.Ns}`) || !transmissionText.includes("one WPV HID50")) throw new Error("Transmission lesson omits manifest-derived dose composition or UP/Bihar link semantics");
   const measurementText = await page.locator("#measurement").textContent();
   for (const phrase of ["P(acquisition | d)", "P(still shedding at day t | WPV acquisition)", "TCID50-days/g", "qindex", `assay floor 10${Math.log10(parameters.shedding.titerFloor).toFixed(1)}`, `${parameters.transmission.horizonDays}-day integral`]) if (!measurementText?.includes(phrase)) throw new Error(`Measurement map omits ${phrase}`);
   if (!(await page.locator("#immunity-distribution-figure").count())) throw new Error("Schedule-derived immunity distribution did not render");

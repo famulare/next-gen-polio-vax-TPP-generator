@@ -413,7 +413,7 @@ fieldset > p { color: var(--muted); font-size: var(--fs-body); }
   .provenance-reference tbody td::before { display: block; color: var(--muted); font-size: var(--fs-body); font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
   .provenance-reference tbody td:nth-child(2)::before { content: "Scientific role"; }
   .provenance-reference tbody td:nth-child(3)::before { content: "Measurement interpretation"; }
-  .provenance-reference tbody td:nth-child(4)::before { content: "Status in v1"; }
+  .provenance-reference tbody td:nth-child(4)::before { content: "Status"; }
   .provenance-reference tbody td:nth-child(2), .provenance-reference tbody td:nth-child(4) { color: var(--russet-dark); }
 }
 
