@@ -347,9 +347,9 @@ export function mountApp(root: HTMLElement): void {
     const horizonDays = outputs.scenario.horizonDays;
     byId<HTMLElement>("assessment-age").textContent = formatAssessmentAge(diagnostics.assessmentAgeDays);
     byId<HTMLElement>("within-host-readout").innerHTML = `<article><span>Reference challenge <span class="prov-tag" data-kind="assumption">assumption</span></span><strong>${formatNumber(diagnostics.referenceChallengeDoseCID50)} CID50</strong><p>One WPV HID50 under the fixed WPV dose-response convention. It is a WPV challenge reference, not a vaccine dose.</p></article>
-      <article><span>Acquisition at reference <span class="prov-tag" data-kind="derived">derived</span></span><strong>${formatPercent(diagnostics.reference.acquisitionAtReference)} → ${formatPercent(diagnostics.vaccinated.acquisitionAtReference)}</strong><p>Naive reference to selected cohort: q<sub>acq</sub> = ${formatNumber(diagnostics.qAcq)}.</p></article>
-      <article><span>Total shed given infection, B <span class="prov-tag" data-kind="derived">derived</span></span><strong>${formatScientific(diagnostics.reference.integratedConditionalBurdenTCID50DaysPerGram)} → ${formatScientific(diagnostics.vaccinated.integratedConditionalBurdenTCID50DaysPerGram)}</strong><p>TCID50-days/g, conditional on WPV acquisition and integrated over ${horizonDays} days. q<sub>shed</sub> = ${formatNumber(diagnostics.qShed)}.</p></article>
-      <article class="diagnostic"><span>Shedding index <span class="prov-tag" data-kind="derived">derived</span></span><strong>${formatScientific(diagnostics.reference.sheddingIndexAtReferenceTCID50DaysPerGram)} → ${formatScientific(diagnostics.vaccinated.sheddingIndexAtReferenceTCID50DaysPerGram)}</strong><p>P(acquisition | one WPV HID50) × B, in TCID50-days/g. Its relative value is q<sub>index</sub> = ${formatNumber(diagnostics.qIndex)} = q<sub>acq</sub> × q<sub>shed</sub>; neither replaces direct R<sub>loc</sub>.</p></article>`;
+      <article><span>Acquisition at reference <span class="prov-tag" data-kind="derived">derived</span></span><strong>${formatPercent(diagnostics.reference.acquisitionAtReference)} → ${formatPercent(diagnostics.vaccinated.acquisitionAtReference)}</strong><p>Naive reference to selected cohort: relative risk of shedding = ${formatNumber(diagnostics.qAcq)}.</p></article>
+      <article><span>Total shed given infection <span class="prov-tag" data-kind="derived">derived</span></span><strong>${formatScientific(diagnostics.reference.integratedConditionalBurdenTCID50DaysPerGram)} → ${formatScientific(diagnostics.vaccinated.integratedConditionalBurdenTCID50DaysPerGram)}</strong><p>TCID50-days/g, conditional on WPV acquisition and integrated over ${horizonDays} days. Relative amount shed given infection = ${formatNumber(diagnostics.qShed)}.</p></article>
+      <article class="diagnostic"><span>Shedding index <span class="prov-tag" data-kind="derived">derived</span></span><strong>${formatScientific(diagnostics.reference.sheddingIndexAtReferenceTCID50DaysPerGram)} → ${formatScientific(diagnostics.vaccinated.sheddingIndexAtReferenceTCID50DaysPerGram)}</strong><p>Relative shedding index = ${formatNumber(diagnostics.qIndex)}.</p></article>`;
     byId<HTMLElement>("product-pathway-summary").innerHTML = `<strong>${escapeHtml(outputs.scenario.vaccine.label)}</strong><span>Routine immunization at ${escapeHtml(outputs.scenario.schedule.routineDays.map((day) => `${day / 7}`).join(", "))} weeks (${escapeHtml(outputs.scenario.schedule.routineDays.map((day) => `day ${day}`).join(", "))})${outputs.scenario.schedule.boosterAgeYears > 0 ? `, with a booster on top at year ${outputs.scenario.schedule.boosterAgeYears}` : "; no booster"} · assessed ${outputs.scenario.schedule.assessmentLagDays} days after the last scheduled dose.</span>`;
   }
 
@@ -465,11 +465,10 @@ function shell(): string {
     <header class="hero">
       <p class="eyebrow">WPV1 · close-contact sufficiency model · contract ${PARAMETERS.designContractVersion}</p>
       <h1>Under what conditions can a vaccine block close-contact transmission?</h1>
-      <p class="lede">Begin with a child exposed to WPV in the UP/Bihar reference setting. Follow the model from schedule-derived immunity, through acquisition and shedding, into a close-contact transmission motif—then ask what product properties clear that stress test.</p>
+      <p class="lede">Begin with a child exposed to WPV in a reference setting like Uttar Pradesh and Bihar twenty years ago. Follow the model from schedule-derived immunity, through acquisition and shedding, into a close-contact transmission motif—then ask what product could block transmission among close contacts if every kid got it on schedule.</p>
       <p class="orienting"><strong>What this is, and what to look for.</strong> One question: how much must a vaccine cut shedding to interrupt poliovirus transmission anywhere, under a given schedule? It builds on a published polio model (PLoS Biology, 2018)—a serology-based mucosal-immunity correlate for OPV recipients sets infection risk at a given wild-poliovirus exposure, then the shedding and close-contact transmission that follow. Because global eradication is hard to model at once, we treat a close-contact reproduction number R<sub>loc</sub> below one as likely sufficient everywhere: block the closest contacts and weaker settings follow. The number to watch is the 100- to 1,000-fold shedding-index reduction that takes.</p>
       <p class="orienting"><strong>How to use it.</strong> Read the page through once as laid out, then turn the knobs. Every figure runs on the same model engine, so changing a parameter recomputes the whole narrative—scroll to watch the story shift with your inputs.</p>
       <p id="opening-comparison" class="opening-comparison" aria-live="off"></p>
-      <aside class="prototype-banner" role="note"><strong>Scientific prototype · point rule</strong><span>This is a deterministic close-contact sufficiency screen under the v1 axiom—not a complete-population R<sub>e</sub>, outbreak forecast, or probability of product success.</span></aside>
     </header>
 
     <section id="within-host" class="chapter teaching-chapter" aria-labelledby="within-host-heading">
@@ -479,13 +478,13 @@ function shell(): string {
     </section>
 
     <section id="product-pathway" class="chapter" aria-labelledby="product-pathway-heading">
-      <div class="chapter-heading"><p class="chapter-number">02 / Schedule to cohort</p><div><h2 id="product-pathway-heading">A received live-vaccine dose may take, boost mucosal immunity, and then wane.</h2><p>Every routine dose is received in v1. Biological take is productive live-vaccine infection after receipt; it is not receipt, coverage, or direct protection against a WPV dose. Repeated take/no-take branches produce the cohort distribution shown here.</p></div></div>
+      <div class="chapter-heading"><p class="chapter-number">02 / Schedule to cohort</p><div><h2 id="product-pathway-heading">A received live-vaccine dose may take, boost mucosal immunity, and then wane.</h2><p>We assume every routine dose is received. Biological take is productive live-vaccine infection after receipt; it is not receipt, coverage, or direct protection against a WPV dose. Repeated take/no-take branches produce the cohort distribution shown here.</p></div></div>
       <div class="pathway ruled-list" role="img" aria-label="Received dose, biological take or no take, mucosal boost, waning, and the cohort immunity distribution before WPV exposure"><article><span>Received dose</span><strong>Schedule event</strong><p>Routine doses at 6, 10, and 14 weeks, plus an optional booster.</p></article><i aria-hidden="true">→</i><article><span>Biological split</span><strong>Take / no take</strong><p>Each branch is probability weighted; no dose receipt is missing.</p></article><i aria-hidden="true">→</i><article><span>State transition</span><strong>Boost then wane</strong><p>Take changes mucosal state; time to assessment allows waning.</p></article><i aria-hidden="true">→</i><article><span>WPV challenge</span><strong>Distribution enters model</strong><p>Transmission uses the full state distribution and histories.</p></article></div>
       <p id="product-pathway-summary" class="narrative-summary"></p>
       <aside id="print-product-summary" class="print-product-summary" aria-label="Selected product mechanism for print"></aside>
-      <figure class="hero-figure narrow-figure"><div id="dose-response-chart" class="chart-slot" aria-live="off"></div><figcaption><strong>Vaccine take is the front of the chain.</strong> α, β, and administered dose set the take probability, and prior mucosal immunity lowers it. Take seeds the immunity distribution below, which drives the downstream acquisition and shedding reductions; it does not change the fixed WPV challenge equation.</figcaption></figure>
+      <figure class="hero-figure narrow-figure"><div id="dose-response-chart" class="chart-slot" aria-live="off"></div><figcaption><strong>Vaccine take is the front of the chain.</strong> The product HID50, take heterogeneity parameter α, and administered dose set the take probability, and prior mucosal immunity lowers it. Take seeds the immunity distribution below, which drives the downstream acquisition and shedding reductions.</figcaption></figure>
       <figure class="hero-figure narrow-figure"><div id="immunity-distribution" class="chart-slot"></div></figure>
-      <form class="narrative-controls" aria-labelledby="product-controls-heading" onsubmit="return false"><div class="controls-title"><div><p class="eyebrow">Product and schedule</p><h3 id="product-controls-heading">Now choose the schedule whose cohort you want to inspect.</h3></div><button id="reset" type="button" class="text-button">Reset defaults</button></div><div class="control-row"><label>Candidate product<select id="product">${productOptions}</select><small>Fixed catalog products remain fixed; next-gen gut mucosal designs expose their assumptions below.</small></label><label>Booster<select id="booster" data-field="booster" data-model-control><option value="0">No booster</option><option value="1">At 1 year</option><option value="2">At 2 years</option><option value="3">At 3 years</option><option value="4">At 4 years</option></select><small>An extra dose on top of the routine 6/10/14-week schedule.</small></label><label>Assessment after last dose<select id="lag" data-field="lag" data-model-control><option value="28">28 days</option><option value="90">90 days</option></select></label></div><fieldset id="hypothetical-controls"><details class="product-disclosure" open><summary><span>Next-gen gut mucosal product parameters</span><small>Five product inputs you can tune — not optional scientific assumptions</small></summary><p>These values determine vaccine take after a received dose, the take/no-take split, the mucosal boost, and therefore the schedule-derived distribution above. They do not change the fixed WPV challenge equation. The five controls are <span class="prov-tag" data-kind="scenario-input">scenario inputs</span>; the fixed values below are v1 <span class="prov-tag" data-kind="assumption">assumptions</span>.</p><div class="advanced-grid product-parameter-grid"><label>Biological take <output id="take-output">0.80</output><input id="take" data-field="take" data-model-control type="range" min="0" max="1" step="0.01"><small id="take-help"></small></label><label>Mean mucosal boost <output id="mu-output">4.0 log2</output><input id="mu" data-field="mu" data-model-control type="range" min="0" max="8" step="0.1"><small id="mu-help"></small></label><label>Vaccine α<input id="alpha" data-field="alpha" data-model-control type="number" min="0.001" max="5" step="0.001"><small>Dose-response shape for productive vaccine infection after receipt.</small></label><label>Vaccine HID50 (CID50)<input id="hid50" data-field="hid50" data-model-control type="number" min="0.1" max="1000000" step="0.1"><small>Vaccine dose-response scale</small></label><label>Administered dose (log10 TCID50)<input id="dose-log" data-field="dose-log" data-model-control type="number" min="0" max="9" step="0.01"><small>Amount offered per received live-vaccine dose.</small></label></div><div class="parameter-context"><span>Fixed γ<sub>vax</sub></span><strong id="product-fixed-gamma"></strong><span>Fixed boost SD, σ<sub>0</sub></span><strong id="product-fixed-sigma"></strong><span>Receipt</span><strong>100% in v1</strong></div></details></fieldset><p id="catalog-product-note" class="catalog-note" hidden></p><p id="state-warning" class="warning" hidden></p></form>
+      <form class="narrative-controls" aria-labelledby="product-controls-heading" onsubmit="return false"><div class="controls-title"><div><p class="eyebrow">Product and schedule</p><h3 id="product-controls-heading">Now choose the schedule whose cohort you want to inspect.</h3></div><button id="reset" type="button" class="text-button">Reset defaults</button></div><div class="control-row"><label>Candidate product<select id="product">${productOptions}</select><small>Fixed catalog products remain fixed; next-gen gut mucosal designs expose their assumptions below.</small></label><label>Booster<select id="booster" data-field="booster" data-model-control><option value="0">No booster</option><option value="1">At 1 year</option><option value="2">At 2 years</option><option value="3">At 3 years</option><option value="4">At 4 years</option></select><small>An extra dose on top of the routine 6/10/14-week schedule.</small></label><label>Assessment after last dose<select id="lag" data-field="lag" data-model-control><option value="28">28 days</option><option value="90">90 days</option></select></label></div><fieldset id="hypothetical-controls"><details class="product-disclosure" open><summary><span>Next-gen gut mucosal product parameters</span><small>Five product inputs you can tune — not optional scientific assumptions</small></summary><p>These values determine vaccine take after a received dose, the take/no-take split, the mucosal boost, and therefore the schedule-derived distribution above. They do not change the fixed WPV challenge equation. The five controls are <span class="prov-tag" data-kind="scenario-input">scenario inputs</span>; the fixed values below are v1 <span class="prov-tag" data-kind="assumption">assumptions</span>.</p><div class="advanced-grid product-parameter-grid"><label>Biological take <output id="take-output">0.80</output><input id="take" data-field="take" data-model-control type="range" min="0" max="1" step="0.01"><small id="take-help"></small></label><label>Mean mucosal boost <output id="mu-output">4.0 log2</output><input id="mu" data-field="mu" data-model-control type="range" min="0" max="8" step="0.1"><small id="mu-help"></small></label><label>Vaccine dose-response heterogeneity (1/α) <output id="inv-alpha-output"></output><input id="inv-alpha" data-field="inv-alpha" data-model-control type="range" min="0" max="9" step="1"><small>Higher is more heterogeneous susceptibility to vaccine infection; lower approaches a fixed threshold dose.</small></label><label>Vaccine HID50 (CID50) <output id="hid50-output"></output><input id="hid50" data-field="hid50" data-model-control type="range" min="0" max="9" step="1"><small>Dose giving 50% infection in a naive recipient.</small></label><label>Administered dose (TCID50) <output id="dose-log-output"></output><input id="dose-log" data-field="dose-log" data-model-control type="range" min="0" max="27" step="1"><small>Amount offered per received live-vaccine dose.</small></label></div><div class="parameter-context"><span>Fixed γ<sub>vax</sub></span><strong id="product-fixed-gamma"></strong><span>Fixed boost SD, σ<sub>0</sub></span><strong id="product-fixed-sigma"></strong><span>Receipt</span><strong>100% in v1</strong></div></details></fieldset><p id="catalog-product-note" class="catalog-note" hidden></p><p id="state-warning" class="warning" hidden></p></form>
     </section>
 
     <section id="transmission" class="chapter" aria-labelledby="mechanism-heading">
@@ -592,9 +591,9 @@ function syncControls(scenario: ScenarioV1): void {
   setValue("lag", scenario.schedule.assessmentLagDays);
   setValue("take", scenario.vaccine.takeContext);
   setValue("mu", scenario.vaccine.mu0);
-  setRoundedInput("alpha", scenario.vaccine.alpha);
-  setRoundedInput("hid50", scenario.vaccine.beta * (2 ** (1 / scenario.vaccine.alpha) - 1));
-  setValue("dose-log", Math.log10(Math.max(scenario.vaccine.dose, 1)));
+  setSliderIndex("inv-alpha", INV_ALPHA_GRID, 1 / scenario.vaccine.alpha);
+  setSliderIndex("hid50", HID50_GRID, scenario.vaccine.beta * (2 ** (1 / scenario.vaccine.alpha) - 1));
+  setSliderIndex("dose-log", DOSE_GRID, Math.max(scenario.vaccine.dose, 1));
   byId<HTMLElement>("fixed-gamma").textContent = formatNumber(scenario.vaccine.gamma);
   byId<HTMLElement>("fixed-sigma").textContent = `${formatNumber(scenario.vaccine.sigma0)} log2`;
   byId<HTMLElement>("product-fixed-gamma").textContent = formatNumber(scenario.vaccine.gamma);
@@ -618,8 +617,9 @@ function readControls(previous: ScenarioV1): ScenarioV1 {
     assessmentLagDays: Number(byId<HTMLSelectElement>("lag").value) as 28 | 90
   };
   if (scenario.vaccine.id === "hypothetical") {
-    const alphaInput = preciseValue("alpha");
-    scenario.vaccine = { ...scenario.vaccine, takeContext: numberValue("take"), mu0: numberValue("mu"), alpha: alphaInput, beta: Math.min(1e6, Math.max(0.001, preciseValue("hid50") / (2 ** (1 / alphaInput) - 1))), dose: 10 ** numberValue("dose-log") };
+    const alphaInput = 1 / sliderValue("inv-alpha", INV_ALPHA_GRID);
+    const hid50Input = sliderValue("hid50", HID50_GRID);
+    scenario.vaccine = { ...scenario.vaccine, takeContext: numberValue("take"), mu0: numberValue("mu"), alpha: alphaInput, beta: Math.min(1e6, Math.max(0.001, hid50Input / (2 ** (1 / alphaInput) - 1))), dose: sliderValue("dose-log", DOSE_GRID) };
   }
   return scenario;
 }
@@ -639,6 +639,9 @@ function syncProductEditability(productId: ProductId): void {
 function updateReadouts(): void {
   byId<HTMLOutputElement>("take-output").value = formatNumber(numberValue("take"));
   byId<HTMLOutputElement>("mu-output").value = `${formatNumber(numberValue("mu"))} log2`;
+  byId<HTMLOutputElement>("inv-alpha-output").value = formatNumber(INV_ALPHA_GRID[indexValue("inv-alpha")]!);
+  byId<HTMLOutputElement>("hid50-output").value = formatNumber(HID50_GRID[indexValue("hid50")]!);
+  byId<HTMLOutputElement>("dose-log-output").value = formatNumber(DOSE_GRID[indexValue("dose-log")]!);
 }
 
 function exportOutput(kind: string, outputs: ModelOutputsV1, view: AppViewState): void {
@@ -764,21 +767,48 @@ function showWarning(message: string, kind: "notice" | "error" = "error"): void 
 function hideWarning(): void { const warning = byId<HTMLElement>("state-warning"); warning.hidden = true; warning.textContent = ""; }
 function numberValue(id: string): number { return Number(byId<HTMLInputElement>(id).value); }
 function setValue(id: string, value: string | number): void { const element = document.getElementById(id) as HTMLInputElement | HTMLSelectElement | null; if (element) element.value = String(value); }
-// Show a control at two significant figures while keeping the exact committed value in a data
-// attribute, so an untouched field reads back exact (the model is unchanged) but the user sees a
-// clean number. A user-typed value (differing from the rounded display) is read verbatim.
-function setRoundedInput(id: string, exact: number): void {
-  const element = document.getElementById(id) as HTMLInputElement | null;
-  if (!element) return;
-  element.value = String(Number(exact.toPrecision(2)));
-  element.dataset.exact = String(exact);
+// Log-scale slider grids: a "1, 2, 5" candidate per decade (3 steps/decade),
+// so every grid value is already clean at 2 significant figures. Range inputs
+// hold the integer INDEX into the grid, not the value itself, so every slider
+// position is an exact, valid model input with no separate display-rounding.
+function logGridValues(minExponent: number, maxExponent: number): number[] {
+  const values: number[] = [];
+  for (let exponent = minExponent; exponent <= maxExponent; exponent += 1) {
+    for (const candidate of [1, 2, 5]) {
+      const value = candidate * 10 ** exponent;
+      if (value <= 10 ** maxExponent * (1 + 1e-9)) values.push(value);
+    }
+  }
+  return values;
 }
-function preciseValue(id: string): number {
+const HID50_GRID = logGridValues(0, 3); // 1 to 1000 CID50
+const INV_ALPHA_GRID = logGridValues(-2, 1); // 1/alpha: 0.01 to 10
+const DOSE_GRID = logGridValues(0, 9); // 1 to 1e9 TCID50
+function indexValue(id: string): number { return Math.round(numberValue(id)); }
+function nearestGridIndex(grid: number[], target: number): number {
+  let best = 0;
+  let bestDistance = Infinity;
+  grid.forEach((value, index) => {
+    const distance = Math.abs(Math.log10(value) - Math.log10(target));
+    if (distance < bestDistance) { bestDistance = distance; best = index; }
+  });
+  return best;
+}
+// Position the slider thumb at the nearest grid value (what the user sees), but keep the
+// exact underlying value in a data attribute, so an untouched slider reads back exact (the
+// scenario is unchanged) while a deliberately moved slider reads the grid value it now shows.
+function setSliderIndex(id: string, grid: number[], exact: number): void {
   const element = byId<HTMLInputElement>(id);
-  const shown = Number(element.value);
-  if (element.dataset.exact === undefined) return shown;
-  const exact = Number(element.dataset.exact);
-  return Number(exact.toPrecision(2)) === shown ? exact : shown;
+  const index = nearestGridIndex(grid, exact);
+  element.value = String(index);
+  element.dataset.exact = String(exact);
+  element.dataset.exactIndex = String(index);
+}
+function sliderValue(id: string, grid: number[]): number {
+  const element = byId<HTMLInputElement>(id);
+  const index = Math.round(Number(element.value));
+  if (element.dataset.exact !== undefined && Number(element.dataset.exactIndex) === index) return Number(element.dataset.exact);
+  return grid[index]!;
 }
 function byId<T extends HTMLElement>(id: string): T { const element = document.getElementById(id); if (!element) throw new Error(`Missing UI element #${id}`); return element as T; }
 function unitExposure(value: number) { return { value, unit: "grams/exposure" as const, basis: "per_exposure" as const }; }

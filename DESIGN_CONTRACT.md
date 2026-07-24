@@ -140,6 +140,41 @@ UI affordance (§10.3, §13.8, §18.17, §18.20). Every 1.9 change
 alters no equation, parameter, default, unit, comparator, success rule,
 uncertainty semantics, or the meaning of `R_loc`.
 
+**Default-schedule amendment (2026-07-24, Mike's direction).** Unlike the 1.9
+communication-rework entries above, this is a genuine change to the versioned
+default scenario, not a presentation change. The default hypothetical-product
+schedule gains a booster at age 1 year (`boosterAgeYears: 1`, a crude campaign
+mimic on top of the routine 6/10/14-week series); `assessmentLagDays` remains
+28. The booster moves the default assessment age from 126 to 393.25 days and
+the default direct UP/Bihar `R_loc` from 0.9201071208363125 to
+0.7366389853385256 (120 passing designs and a nine-point Pareto boundary on the
+committed 51x51 product grid, in place of 92 and eight). The default candidate
+still passes (`R_loc < 1`); no equation, comparator, or success rule changes.
+Every hardcoded reference to the prior default numbers (§10.3, §15, browser
+smoke, and implementation records) is updated to match.
+
+**Product-control slider amendment (2026-07-24, Mike's direction).** The three
+free-text hypothetical-product numeric controls become bounded log-scale
+sliders; `alpha_vax` and `beta_vax` remain the stored scientific parameters,
+reparametrized for display exactly as the prior HID50 amendment already
+established for `beta_vax`. Each slider's positions are a fixed "1, 2, 5 times
+a power of ten" grid (three positions per decade, so every position is already
+clean at two significant figures): HID50 spans 1-1000 CID50; administered dose
+spans 1-1e9 TCID50 (replacing the raw log10-exponent field); and the alpha
+control displays `1/alpha_vax` (dose-response heterogeneity) on a 0.01-10
+grid, because zero heterogeneity previously meant `alpha_vax -> infinity`,
+which read as non-intuitive on a bounded control. The hypothetical product's
+default `alpha_vax = 0.444` does not sit exactly on the `1/alpha_vax` grid; its
+slider position snaps to the nearest grid value (`1/alpha_vax = 2`, i.e.
+`alpha_vax = 0.5`) once the user moves any hypothetical-product control, since
+the fixed OPV/Sabin-2 comparator is the exact scientific reference point, not
+this slider. Reset and initial load are unaffected: each slider stores the
+exact committed value alongside its displayed grid position, and reads that
+exact value back as long as the slider has not been moved from the position it
+was set to, so the committed default is never silently perturbed by control
+synchronization alone. Presentation only; no equation, bound, or default
+scientific value changes.
+
 **Primary audience:** people well versed in vaccine development who do not yet
 have a clean mechanistic mental model analogous to this mathematical model
 
@@ -1052,17 +1087,25 @@ continues to propagate all 16 immunity bins.
 precede the cohort comparison. The authorized opening sequence is: (1) the
 question/title and lede; (2) a concise **What this is** that states the tool's
 scope and the close-contact sufficiency qualification; (3) a concise **How to
-use it**; (4) the reference-to-vaccinated cohort comparison; (5) the prototype
-qualification; (6) the first within-host teaching figure. **What this is** and
-**How to use it** must stay concise and must neither introduce a verdict nor
-replace the comparison. The cohort comparison and prototype qualification must
-appear before the first scientific figure. This amendment does not retain any
-requirement that the comparison be visible within the literal first viewport; it
-must, however, precede the first figure, and no verdict may appear before it.
-**How to use it** remains in this version -- removing it requires a separate
-refactor plus evidence that the interaction is self-explanatory. All existing
-qualifications around `R_loc`, the declared setting envelope, and the fixed
-comparators are preserved.
+use it**; (4) the reference-to-vaccinated cohort comparison; (5) the first
+within-host teaching figure. **What this is** and **How to use it** must stay
+concise and must neither introduce a verdict nor replace the comparison. The
+cohort comparison must appear before the first scientific figure. This
+amendment does not retain any requirement that the comparison be visible
+within the literal first viewport; it must, however, precede the first figure,
+and no verdict may appear before it. **How to use it** remains in this version
+-- removing it requires a separate refactor plus evidence that the interaction
+is self-explanatory. All existing qualifications around `R_loc`, the declared
+setting envelope, and the fixed comparators are preserved.
+
+**Prototype-status relocation (2026-07-23).** The standalone opening
+"Scientific prototype" banner is removed; the opening no longer carries a
+distinct prototype-qualification step. The prototype/point-rule status and its
+"not a complete-population `R_e`, outbreak forecast, or probability of product
+success" qualification remain required at the decision step (§13.9), where the
+direct result and sufficiency qualification are already legible, and in the
+footer/export metadata (`PROTOTYPE_STATUS`, JSON/SVG export schemas). This is a
+placement change, not a withdrawal of the qualification.
 
 ### 13.2 Required within-host teaching sequence
 
@@ -1665,7 +1708,7 @@ Frontier tests compare selected grid cells and contour sides with direct
 scientific input or manifest change.
 
 Default-scenario tests additionally require direct UP/Bihar `R_loc =
-0.9201071208363125` within relative `1e-10`, 92 passing points and eight Pareto
+0.7366389853385256` within relative `1e-10`, 120 passing points and nine Pareto
 points on the committed `51 x 51` product grid, a passing selected design, and a
 setting-surface display domain with 61 exposure columns and 20 contact rows.
 The former 40-contact envelope result must not control or label default status.

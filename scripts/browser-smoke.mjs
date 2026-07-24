@@ -122,14 +122,13 @@ try {
   const visibleArtifactText = await page.locator("body").innerText();
   if (/gates foundation|gate device|foundation affiliation/i.test(visibleArtifactText)) throw new Error("Artifact introduces a Foundation identity or affiliation claim");
 
-  if (!(await page.locator(".prototype-banner").count())) throw new Error("Prototype release-status note did not render");
   if (!(await page.locator(".hero .eyebrow").textContent())?.includes(`contract ${designContractVersion}`)) throw new Error("Opening does not identify the design-contract version");
   if (!(await page.locator("h1").textContent())?.includes("block close-contact transmission")) throw new Error("Opening question is missing");
   const openingComparison = await page.locator("#opening-comparison").textContent();
   if (!openingComparison?.includes("Naive child") || !openingComparison.includes("Next-gen gut mucosal vaccine") || !openingComparison.includes("assessed 28 days")) throw new Error("First viewport does not identify the current reference-to-vaccinated comparison");
   const defaultResult = await page.locator("#result-status").textContent();
   if (!defaultResult?.includes("clears the hardest known modeled anchor")) throw new Error("Default result does not lead with the hardest-known anchor");
-  if (!defaultResult.includes("Direct Rloc0.92") || !defaultResult.includes("does not prove control everywhere")) throw new Error("Default result or adjacent qualification is wrong");
+  if (!defaultResult.includes("Direct Rloc0.74") || !defaultResult.includes("does not prove control everywhere")) throw new Error("Default result or adjacent qualification is wrong");
   if (!defaultResult.includes("not a complete-population Re")) throw new Error("Result blurs R_loc and complete-population R_e");
   if (await page.locator("#scope").inputValue() !== "up-bihar") throw new Error("UP/Bihar is not the default decision scope");
   if (await page.locator("#probe").count()) throw new Error("A separate inspection probe control still exists; it should be merged into decision scope");
@@ -140,8 +139,9 @@ try {
     return sections.indexOf(document.getElementById("decision")) > sections.indexOf(document.getElementById("transmission"));
   });
   if (!resultAfterTransmission) throw new Error("Direct verdict appears before the transmission lesson");
-  // Amended six-part opening order (contract §13.1, 1.9): title/lede -> What this is ->
-  // How to use it -> cohort comparison -> prototype qualification -> first teaching figure.
+  // Amended five-part opening order (contract §13.1, 1.9): title/lede -> What this is ->
+  // How to use it -> cohort comparison -> first teaching figure. The prototype
+  // qualification moved to the decision step (checked separately below).
   const openingSequence = await page.evaluate(() => {
     const before = (a, b) => {
       const first = document.querySelector(a);
@@ -157,7 +157,6 @@ try {
       h1BeforeLede: before(".hero h1", ".hero .lede"),
       ledeBeforeOrienting: before(".hero .lede", ".hero .orienting"),
       orientingBeforeComparison: before(".hero .orienting", "#opening-comparison"),
-      comparisonBeforeBanner: before("#opening-comparison", ".prototype-banner"),
       comparisonBeforeFirstFigure: before("#opening-comparison", "#within-host-figure")
     };
   });
@@ -172,7 +171,7 @@ try {
   if (prematureVerdict) throw new Error("A pass/fail verdict appears before the R_loc setting step");
   if (!(await page.locator("#within-host-figure").count()) || await page.locator("#within-host-figure .teaching-panel").count() !== 4) throw new Error("Four within-host teaching panels did not render");
   const withinHostText = await page.locator("#within-host").textContent();
-  if (!(await page.locator("#within-host-figure").getAttribute("aria-labelledby")) || !(await page.locator("#within-host-figure .teaching-reference-dose").count()) || !withinHostText?.includes("assay floor") || !withinHostText.includes("P(acquisition | one WPV HID50) × B") || !withinHostText.includes("qindex")) throw new Error("Within-host teaching panels lack the required reference, conditioning, or shedding-index context");
+  if (!(await page.locator("#within-host-figure").getAttribute("aria-labelledby")) || !(await page.locator("#within-host-figure .teaching-reference-dose").count()) || !withinHostText?.includes("assay floor") || !/relative shedding index/i.test(withinHostText ?? "") || !/relative risk of shedding/i.test(withinHostText ?? "")) throw new Error("Within-host teaching panels lack the required reference, conditioning, or shedding-index context");
   if (!(await page.locator("#product-pathway #hypothetical-controls").count()) || !(await page.locator("#product-pathway").textContent())?.includes("Fixed γvax")) throw new Error("Product parameters are not disclosed at their point of use");
   if (await page.locator("#print-product-summary").isVisible()) throw new Error("Print-only product summary leaked into the interactive narrative");
   const transmissionText = await page.locator("#transmission").textContent();
@@ -189,7 +188,7 @@ try {
   if (await page.locator("#setting-figure [data-surface-column]").count() !== 1220) throw new Error("Setting surface is not 61 × 20");
   if (await page.locator("#setting-figure").getAttribute("data-columns") !== "61" || await page.locator("#setting-figure").getAttribute("data-rows") !== "20") throw new Error("Setting surface dimensions are not declared");
   if (await page.locator("#product-figure [data-design-key]").count() !== 2601 || await page.locator("#effect-figure [data-design-key]").count() !== 2601) throw new Error("Linked maps do not render the same 2,601 designs");
-  if (!(await page.locator("#frontier-summary").textContent())?.includes("92 of 2,601") || !(await page.locator("#frontier-summary").textContent())?.includes("8 lie")) throw new Error("Default frontier summary is wrong");
+  if (!(await page.locator("#frontier-summary").textContent())?.includes("120 of 2,601") || !(await page.locator("#frontier-summary").textContent())?.includes("9 lie")) throw new Error("Default frontier summary is wrong");
   if (!(await page.locator("#frontier-summary").textContent())?.includes("qindex") || !(await page.locator("#frontier-summary").textContent())?.includes("direct Rloc,max")) throw new Error("Linked-map summary omits the selected diagnostic decomposition or direct result");
   if (await page.locator("[data-export]").first().isDisabled()) throw new Error("Exports were not enabled for the committed default");
   if (await page.locator("#transaction-status").getAttribute("aria-live") !== "polite") throw new Error("Committed results lack a concise live announcement");
@@ -236,7 +235,7 @@ try {
   const productDisclosure = page.locator(".product-disclosure");
   if (!(await productDisclosure.evaluate((el) => el.open))) throw new Error("Product-parameter disclosure should start open");
   if (!(await page.locator("#take").isVisible())) throw new Error("Product parameters are not visible while their disclosure is open");
-  for (const id of ["take", "mu", "alpha", "hid50", "dose-log"]) if (await page.locator(`#${id}`).count() !== 1) throw new Error(`Disclosed product controls lost #${id}`);
+  for (const id of ["take", "mu", "inv-alpha", "hid50", "dose-log"]) if (await page.locator(`#${id}`).count() !== 1) throw new Error(`Disclosed product controls lost #${id}`);
   if (await page.locator("#take").isDisabled()) throw new Error("Disclosed hypothetical controls are not editable");
   await page.locator(".product-disclosure > summary").focus();
   await page.keyboard.press("Enter");
@@ -307,9 +306,12 @@ try {
 
   // An out-of-range scientific edit fails closed: prior verdict retained + dimmed, export
   // disabled; recovering re-commits and clears the dimming (no permanently stale verdict).
+  // Alpha, HID50, and administered dose are now bounded log-scale sliders (every position is
+  // scientifically valid), so #lag is forced off its {28, 90} domain to reach the same
+  // validateScenario failure this test exercises.
   await page.locator("#reset").click();
   await waitForCommitted(page);
-  await page.locator("#alpha").evaluate((element) => { element.value = "0"; element.dispatchEvent(new Event("change", { bubbles: true })); });
+  await page.locator("#lag").evaluate((element) => { element.value = "999"; element.dispatchEvent(new Event("change", { bubbles: true })); });
   await page.locator("#transaction-status.invalid").waitFor({ state: "visible", timeout: 30_000 });
   if (!(await page.locator("[data-export]").first().isDisabled())) throw new Error("Invalid edited state remained exportable");
   if (!(await page.locator("#story-results").evaluate((element) => element.classList.contains("is-stale")))) throw new Error("Invalid edit did not dim the retained verdict");
@@ -320,7 +322,7 @@ try {
 
   // A reachable weak-dose design yields an empty frontier (no passing design).
   const emptyIdentity = await page.locator("#result-status").getAttribute("data-model-identity");
-  await page.locator("#dose-log").evaluate((element) => { element.value = "0"; element.dispatchEvent(new Event("change", { bubbles: true })); });
+  await page.locator("#dose-log").evaluate((element) => { element.value = "0"; element.dispatchEvent(new Event("input", { bubbles: true })); });
   await awaitCommit(page, emptyIdentity);
   if (!(await page.locator("#frontier-summary").textContent())?.includes("No evaluated hypothetical design")) throw new Error("Weak-dose scenario did not expose the empty-frontier branch");
   if (await page.locator("#effect-figure .pareto-line").count()) throw new Error("Empty frontier retained a Pareto line element");
@@ -342,7 +344,14 @@ try {
   if (exportedJson.decisionScope?.id !== "up-bihar" || exportedJson.inspectionProbe?.id !== "up-bihar") throw new Error("JSON export blurs decision scope and inspection probe");
   if (exportedJson.viewState?.persistentDesignKey !== exportHeldKey) throw new Error("JSON export omitted the held view selection");
   if (exportedJson.outputs?.diagnostics?.schemaVersion !== "WithinHostDiagnosticsV1" || exportedJson.outputs?.diagnostics?.gridVersion !== "diagnostic-grid-1.0.0") throw new Error("JSON export omitted versioned within-host diagnostics");
-  assert.deepEqual(exportedJson.outputs?.diagnostics, nodeDiagnostics, "Browser JSON export diagnostics do not exactly match the Node projection on fixed grids");
+  // A bit-exact assert.deepEqual is too strict here: Chromium's V8 and Node's V8 are
+  // different builds, and transcendental math (exp/pow/log) is not guaranteed
+  // bit-identical across engines even for the same deterministic formula and
+  // inputs -- confirmed by running the Node projection repeatedly (identical every
+  // time) while only the cross-engine comparison showed ULP-level (~1e-15
+  // relative) drift on some longer time series. Tolerate that noise; still catch
+  // any real divergence.
+  assertNearlyEqual(exportedJson.outputs?.diagnostics, nodeDiagnostics, "diagnostics", 1e-9);
 
   const [csvDownload] = await Promise.all([page.waitForEvent("download"), page.locator('[data-export="csv"]').click()]);
   const csvPath = await csvDownload.path();
@@ -534,6 +543,34 @@ async function assertSvgTextWithinViewBox(page, label, baseline = {}) {
     const budget = baseline[id] ?? SVG_TEXT_ANTIALIAS_TOLERANCE_PX;
     if (worst > budget) throw new Error(`${label}: SVG text overflows its viewport in #${id} by ${worst}px (budget ${budget}px), e.g. "${sample}"`);
   }
+}
+
+// Recursive deep-equal tolerant of tiny relative floating-point differences
+// (cross-engine ULP noise), while still catching any real divergence in
+// structure, strings, or genuinely different numeric values.
+function assertNearlyEqual(actual, expected, path, tolerance) {
+  if (typeof expected === "number" && typeof actual === "number") {
+    if (!Number.isFinite(expected) || !Number.isFinite(actual)) {
+      if (actual !== expected) throw new Error(`Mismatch at ${path}: ${actual} vs ${expected}`);
+      return;
+    }
+    const scale = Math.max(Math.abs(actual), Math.abs(expected), 1);
+    if (Math.abs(actual - expected) / scale > tolerance) throw new Error(`Mismatch at ${path}: ${actual} vs ${expected}`);
+    return;
+  }
+  if (Array.isArray(expected) || Array.isArray(actual)) {
+    if (!Array.isArray(actual) || !Array.isArray(expected) || actual.length !== expected.length) throw new Error(`Array mismatch at ${path}`);
+    for (let index = 0; index < expected.length; index += 1) assertNearlyEqual(actual[index], expected[index], `${path}[${index}]`, tolerance);
+    return;
+  }
+  if (expected && typeof expected === "object") {
+    const expectedKeys = Object.keys(expected);
+    const actualKeys = actual && typeof actual === "object" ? Object.keys(actual) : [];
+    if (expectedKeys.length !== actualKeys.length || !expectedKeys.every((key) => actualKeys.includes(key))) throw new Error(`Key mismatch at ${path}`);
+    for (const key of expectedKeys) assertNearlyEqual(actual[key], expected[key], `${path}.${key}`, tolerance);
+    return;
+  }
+  if (actual !== expected) throw new Error(`Mismatch at ${path}: ${JSON.stringify(actual)} vs ${JSON.stringify(expected)}`);
 }
 
 function contrastRatio(foreground, background) {

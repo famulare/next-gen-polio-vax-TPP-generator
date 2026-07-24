@@ -729,12 +729,17 @@ test("fractional contact frequency uses the equivalent Poisson hazard", () => {
 
 test("schedule events and assessment lag follow the locked days", () => {
   const scenario = defaultScenario();
-  assert.deepEqual(scheduleDays(scenario.schedule), [42, 70, 98]);
+  // Default schedule (2026-07-24 amendment): a booster at age 1 year, a crude
+  // campaign mimic, on top of the routine 6/10/14-week series.
+  assert.deepEqual(scheduleDays(scenario.schedule), [42, 70, 98, 365.25]);
   const state = buildScheduleState(scenario.vaccine, scenario.schedule);
-  const explicitState = buildStateAtAssessment(scenario.vaccine, scheduleDays(scenario.schedule), 126);
-  assert.deepEqual(state.events, [42, 70, 98]);
-  assert.equal(state.assessmentAgeDays, 126);
+  const explicitState = buildStateAtAssessment(scenario.vaccine, scheduleDays(scenario.schedule), 393.25);
+  assert.deepEqual(state.events, [42, 70, 98, 365.25]);
+  assert.equal(state.assessmentAgeDays, 393.25);
   assert.deepEqual(explicitState, state);
+  const routineOnly = buildScheduleState(scenario.vaccine, { ...scenario.schedule, boosterAgeYears: 0 });
+  assert.deepEqual(routineOnly.events, [42, 70, 98]);
+  assert.equal(routineOnly.assessmentAgeDays, 126);
   const boosted = buildScheduleState(scenario.vaccine, { ...scenario.schedule, boosterAgeYears: 2 });
   assert.deepEqual(boosted.events, [42, 70, 98, 730.5]);
   assert.equal(boosted.assessmentAgeDays, 758.5);
@@ -980,10 +985,10 @@ test("default decision scope is direct UP/Bihar and owns the committed frontier 
   assert.equal(scenario.envelope.ThsMin, scenario.envelope.ThsMax);
   assert.equal(scenario.envelope.NsMin, 10);
   assert.equal(scenario.envelope.NsMax, 10);
-  assert.ok(Math.abs(outputs.metrics.rLocEnvelopeMax - 0.9201071208363125) / 0.9201071208363125 < 1e-10);
+  assert.ok(Math.abs(outputs.metrics.rLocEnvelopeMax - 0.7366389853385256) / 0.7366389853385256 < 1e-10);
   assert.equal(outputs.frontier.selectedDesign?.passes, true);
-  assert.equal(outputs.frontier.points.filter((point) => point.passes).length, 92);
-  assert.equal(outputs.frontier.pareto.length, 8);
+  assert.equal(outputs.frontier.points.filter((point) => point.passes).length, 120);
+  assert.equal(outputs.frontier.pareto.length, 9);
 });
 
 test("changing only the setting probe preserves classification and scientific identity", () => {

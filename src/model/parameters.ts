@@ -119,7 +119,7 @@ export const PRODUCT_LABELS: Record<ProductId, string> = {
 export const DEFAULT_PRODUCT_ID: ProductId = "hypothetical";
 export const DEFAULTS = {
   productId: DEFAULT_PRODUCT_ID,
-  boosterAgeYears: 0 as const,
+  boosterAgeYears: 1 as const,
   assessmentLagDays: 28 as const,
   settingId: DEFAULT_DECISION_SCOPE_ANCHOR_ID,
   successRule: "point" as const,

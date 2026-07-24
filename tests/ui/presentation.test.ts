@@ -10,8 +10,8 @@ test("presentation derives the default hardest-anchor pass without duplicating t
   assert.match(presentation.result.headline, /hardest known modeled anchor/);
   assert.match(presentation.result.qualification, /does not prove control everywhere/);
   assert.match(presentation.result.qualification, /not a complete-population R_e/);
-  assert.equal(presentation.frontier.passingCount, 92);
-  assert.equal(presentation.frontier.paretoCount, 8);
+  assert.equal(presentation.frontier.passingCount, 120);
+  assert.equal(presentation.frontier.paretoCount, 9);
   assert.equal(presentation.frontier.branch, "available");
   assert.equal(presentation.uncertainty.branch, "unavailable");
 });

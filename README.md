@@ -19,8 +19,9 @@ calibration are the approved hybrid-equivalence evidence for this iteration.
 
 The default decision is a direct point comparison at the UP/Bihar high anchor,
 the hardest known empirical/model-calibrated stress-test in the committed
-setting catalog. The default hypothetical product has direct `R_loc =
-0.9201071208363125` there and therefore meets the strict `R_loc < 1` criterion.
+setting catalog. The default hypothetical product (routine schedule plus a
+booster at age 1 year) has direct `R_loc = 0.7366389853385256` there and
+therefore meets the strict `R_loc < 1` criterion.
 Clearing that anchor supports likely adequacy under less demanding conditions
 represented by this mechanism, but does not prove control everywhere. The
 blue-white-red setting surface is a fixed, nonbinding interpretation domain

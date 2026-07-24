@@ -99,8 +99,6 @@ h3 { font-size: var(--fs-h3); }
 .opening-comparison .cohort-tag { color: var(--russet-dark); font-size: var(--fs-body); font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
 .opening-comparison strong { font-weight: 600; }
 .opening-comparison i { align-self: center; color: var(--russet); font-family: var(--serif); font-size: var(--fs-accent); font-style: normal; }
-.prototype-banner { display: flex; gap: 14px; align-items: baseline; max-width: 840px; padding-top: 13px; border-top: 4px solid var(--accent); color: var(--muted); font-size: var(--fs-body); }
-.prototype-banner strong { flex: 0 0 auto; color: var(--ink); }
 .prov-tag { display: inline-block; padding: 1px 7px; border: 1px solid var(--line-dark); border-radius: 0; font-size: var(--fs-body); font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--ink); white-space: nowrap; vertical-align: middle; }
 .prov-tag[data-kind="measured"] { background: rgb(33 102 172 / 13%); }
 .prov-tag[data-kind="derived"] { background: rgb(41 89 88 / 15%); }
@@ -344,7 +342,6 @@ fieldset > p { color: var(--muted); font-size: var(--fs-body); }
   .site-header .section-nav > nav { display: none; }
   .site-header .section-nav[open] > nav { display: flex; flex-direction: column; position: absolute; top: 100%; right: clamp(16px, 4vw, 58px); z-index: 25; min-width: 190px; margin-top: 1px; padding: 12px 18px; gap: 12px; background: var(--accent); border: 1px solid var(--ink); }
   .site-header .section-nav > nav a { white-space: nowrap; }
-  .prototype-banner { align-items: flex-start; flex-direction: column; gap: 4px; }
   .opening-meta { grid-template-columns: 1fr; gap: 14px; }
   .opening-comparison { grid-template-columns: 1fr; gap: 14px; }
   .opening-comparison i { display: none; }
@@ -382,7 +379,7 @@ fieldset > p { color: var(--muted); font-size: var(--fs-body); }
   .transmission-handshake dl { grid-template-columns: 1fr; }
   .chart-slot { max-width: 100%; overflow-x: clip; }
   .scientific-chart { max-width: 100%; overflow: hidden; }
-  .site-footer p, .prototype-banner span, #export-status { overflow-wrap: anywhere; }
+  .site-footer p, #export-status { overflow-wrap: anywhere; }
 }
 
 @media (prefers-reduced-motion: reduce) {

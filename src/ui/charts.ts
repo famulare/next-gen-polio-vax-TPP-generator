@@ -58,7 +58,7 @@ function withinHostFigure(outputs: TeachingView, mobile: boolean): string {
     "Acquisition probability",
     [1, 100, 10_000, 1_000_000],
     [0, .25, .5, .75, 1],
-    { note: "One WPV HID50: the residual-acquisition reference.", referenceX: diagnostics.referenceChallengeDoseCID50, referenceLabel: "1 WPV HID50" }
+    { note: "Assume exposure is one WPV HID50.", referenceX: diagnostics.referenceChallengeDoseCID50, referenceLabel: "1 WPV HID50" }
   );
   const survival = curvePanel(
     panels[1]!,
@@ -70,7 +70,7 @@ function withinHostFigure(outputs: TeachingView, mobile: boolean): string {
     "P(still shedding)",
     timeTicks,
     [0, .25, .5, .75, 1],
-    { note: "Conditioned on acquisition, not vaccine take." }
+    { note: "Given received full schedule, averaged over vaccine take." }
   );
   const concentration = curvePanel(
     panels[2]!,
@@ -82,7 +82,7 @@ function withinHostFigure(outputs: TeachingView, mobile: boolean): string {
     "Expected TCID50/g",
     timeTicks,
     [1e2, 1e4, 1e6, 1e8],
-    { note: `Age ${diagnostics.assessmentAgeDays} d; assay floor 10^${Math.log10(PARAMETERS.shedding.titerFloor).toFixed(1)} TCID50/g.` }
+    { note: `Age ${ageLabel(diagnostics.assessmentAgeDays)}; assay floor 10^${Math.log10(PARAMETERS.shedding.titerFloor).toFixed(1)} TCID50/g.` }
   );
   const sheddingIndex = indexBarPanel(
     panels[3]!,
@@ -90,7 +90,7 @@ function withinHostFigure(outputs: TeachingView, mobile: boolean): string {
     diagnostics.vaccinated.sheddingIndexAtReferenceTCID50DaysPerGram,
     "Shedding index",
     "TCID50-days/g",
-    `P(acquisition) × burden B, over take and ${diagnosticHorizonDays} days.`
+    "Expected total virus shed per gram of stool"
   );
   const id = mobile ? "within-host-mobile-figure" : "within-host-figure";
   const titleId = mobile ? "within-host-mobile-title" : "within-host-title";
@@ -104,7 +104,7 @@ function withinHostFigure(outputs: TeachingView, mobile: boolean): string {
     : `<text class="chart-title" x="58" y="54">How a WPV exposure becomes—or fails to become—infectious shedding</text>`;
   const legend = mobile
     ? `<g class="teaching-legend" transform="translate(12 ${height - 60})"><line x1="0" x2="28" y1="0" y2="0" class="teaching-reference"/><text x="36" y="4">Naive reference</text><line x1="180" x2="208" y1="0" y2="0" class="teaching-candidate"/><text x="216" y="4">Selected cohort</text>${tspanLines("", 0, 24, wrapChars("Named conditioning; full distributions stay in the model.", 40))}</g>`
-    : `<g class="teaching-legend" transform="translate(58 ${height - 44})"><line x1="0" x2="28" y1="0" y2="0" class="teaching-reference"/><text x="36" y="4">Naive reference</text><line x1="165" x2="193" y1="0" y2="0" class="teaching-candidate"/><text x="201" y="4">Selected vaccinated cohort</text><text x="440" y="4">Curves are conditioned as named; full immunity distributions remain in the calculation.</text></g>`;
+    : `<g class="teaching-legend" transform="translate(58 ${height - 44})"><line x1="0" x2="28" y1="0" y2="0" class="teaching-reference"/><text x="36" y="4">Naive reference</text><line x1="165" x2="193" y1="0" y2="0" class="teaching-candidate"/><text x="201" y="4">Selected vaccinated cohort</text></g>`;
   return `<svg id="${id}" class="scientific-chart teaching-chart${mobile ? " teaching-chart-mobile" : ""}" role="img" aria-labelledby="${titleId} ${descId}" viewBox="0 0 ${width} ${height}">
     <title id="${titleId}">Within-host components of the WPV transmission model</title>
     <desc id="${descId}">Four panels compare a naive reference cohort with the selected vaccinated cohort at the same assessment age. They show productive WPV acquisition by challenge dose, including the marked one-WPV-HID50 reference; probability of still shedding conditional on acquisition; expected concentration conditional on still shedding; and the shedding index at the reference challenge — acquisition probability times the burden integral B — as paired log-scale bars for the two cohorts. The calculation preserves the joint expectation rather than using an average-person approximation.</desc>
@@ -182,7 +182,7 @@ function doseResponseFigure(view: TeachingView, mobile: boolean): string {
   const yTicks = [0, 0.25, 0.5, 0.75, 1].map((value) => `<g><line class="grid-line" x1="${margin.left}" x2="${margin.left + plotWidth}" y1="${y(value)}" y2="${y(value)}"/><text class="tick" x="${margin.left - 10}" y="${y(value) + 3}" text-anchor="end">${formatPercentTick(value)}</text></g>`).join("");
   const xTicks = (mobile ? [1, 1e3, 1e6, 1e9] : [1, 1e2, 1e4, 1e6, 1e8]).map((dose) => `<g><line class="tick-mark" x1="${x(dose)}" x2="${x(dose)}" y1="${margin.top + plotHeight}" y2="${margin.top + plotHeight + 6}"/><text class="tick" x="${x(dose)}" y="${margin.top + plotHeight + 22}" text-anchor="middle">${powerLabel(dose)}</text></g>`).join("");
   const doseMark = vaccine.dose > 0
-    ? `<line class="teaching-reference-dose" x1="${x(vaccine.dose)}" x2="${x(vaccine.dose)}" y1="${margin.top}" y2="${margin.top + plotHeight}"/><text class="teaching-reference-dose-label" x="${x(vaccine.dose) + 5}" y="${margin.top + 12}">selected dose</text>`
+    ? `<line class="teaching-reference-dose" x1="${x(vaccine.dose)}" x2="${x(vaccine.dose)}" y1="${margin.top}" y2="${margin.top + plotHeight}"/><text class="teaching-reference-dose-label" x="${x(vaccine.dose) + 5}" y="${margin.top + (mobile ? 12 : 34)}">selected dose</text>`
     : "";
   const id = mobile ? "dose-response-mobile-figure" : "dose-response-figure";
   const titleId = mobile ? "dose-response-mobile-title" : "dose-response-title";
@@ -195,13 +195,13 @@ function doseResponseFigure(view: TeachingView, mobile: boolean): string {
     : `<text class="chart-title" x="${margin.left}" y="49">How dose and prior immunity set vaccine take</text>`;
   const legend = mobile
     ? `<g class="teaching-legend" transform="translate(12 100)"><line x1="0" x2="24" y1="0" y2="0" class="teaching-reference"/><text x="30" y="4">Naive (bin 0)</text><line x1="150" x2="174" y1="0" y2="0" class="teaching-candidate"/><text x="180" y="4">Primed (bin 6)</text></g>`
-    : `<g class="teaching-legend" transform="translate(${margin.left + plotWidth - 210} 32)"><line x1="0" x2="26" y1="0" y2="0" class="teaching-reference"/><text x="34" y="4">Naive recipient (bin 0)</text><line x1="0" x2="26" y1="20" y2="20" class="teaching-candidate"/><text x="34" y="24">Primed recipient (bin 6)</text></g>`;
+    : `<g class="teaching-legend" transform="translate(${margin.left + plotWidth - 210} ${margin.top + plotHeight - 34})"><line x1="0" x2="26" y1="0" y2="0" class="teaching-reference"/><text x="34" y="4">Naive recipient (bin 0)</text><line x1="0" x2="26" y1="20" y2="20" class="teaching-candidate"/><text x="34" y="24">Primed recipient (bin 6)</text></g>`;
   const xAxisLabel = mobile
     ? tspanLines("axis-label", margin.left + plotWidth / 2, height - 26, ["Administered dose", "(TCID50, log scale)"], 1.1, `text-anchor="middle"`)
     : `<text class="axis-label" x="${margin.left + plotWidth / 2}" y="${height - 16}" text-anchor="middle">Administered dose (TCID50, log scale)</text>`;
   return `<svg id="${id}" class="scientific-chart ${mobile ? "dose-response-mobile" : "dose-response-desktop"}" role="img" aria-labelledby="${titleId} ${descId}" viewBox="0 0 ${width} ${height}">
     <title id="${titleId}">Vaccine take by administered dose and prior immunity</title>
-    <desc id="${descId}">Productive vaccine take as a function of administered dose for a naive recipient (mucosal-immunity bin 0) and a primed recipient (bin 6), shaped by vaccine alpha, beta, and take context. Take rises with dose and falls with prior immunity. This is the take that seeds the cohort immunity distribution and therefore the downstream acquisition and shedding reductions; it does not change the fixed WPV challenge equation.</desc>
+    <desc id="${descId}">Productive vaccine take as a function of administered dose for a naive recipient (mucosal-immunity bin 0) and a primed recipient (bin 6), shaped by the product HID50, take heterogeneity parameter alpha, and take context. Take rises with dose and falls with prior immunity. This is the take that seeds the cohort immunity distribution and therefore the downstream acquisition and shedding reductions.</desc>
     ${kicker}${title}
     <rect class="plot-bg" x="${margin.left}" y="${margin.top}" width="${plotWidth}" height="${plotHeight}"/>
     ${yTicks}${xTicks}${doseMark}
@@ -285,6 +285,11 @@ function indexBarPanel(
 }
 
 function formatScientific(value: number): string { return formatNumber(value); }
+
+// Panel-note age label: friendly months/years rather than raw days.
+function ageLabel(days: number): string {
+  return days < 730 ? `${Math.round(days / 30.44)} months` : `${(days / 365.25).toFixed(1)} years`;
+}
 
 // SVG subscript: a baseline-shifted, smaller tspan for in-figure variable subscripts.
 function svgSub(base: string, subscript: string): string { return `${base}<tspan baseline-shift="sub" font-size="0.72em">${subscript}</tspan>`; }
