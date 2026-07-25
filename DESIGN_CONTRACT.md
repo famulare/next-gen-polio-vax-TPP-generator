@@ -2,7 +2,7 @@
 
 **Status:** LOCKED FOR IMPLEMENTATION
 
-**Contract version:** 2.0
+**Contract version:** 2.1
 
 **Locked:** 2026-07-21
 
@@ -208,6 +208,28 @@ receipt values and "the fixed values below are v1 assumptions" note drop
 rule, or uncertainty semantics changes. The version number moves to 2.0 to
 mark this as a clean copy baseline after the cumulative 1.7-to-1.9
 communication rework and the two 2026-07-24 amendments above.
+
+**Immune-response teaching amendment (contract 2.1, 2026-07-24, Mike's
+direction).** The product chapter is split into three displayed chapters:
+received dose and biological take; immune response and schedule composition;
+and the interactive product-and-schedule panel. Between the existing vaccine
+take figure and the existing assessment-age immunity-distribution figure, the
+page now teaches how the live-vaccine response is represented, how the mean and
+variance of the boost act, how immunity wanes, and how repeated scheduled doses
+compose over the full cohort distribution. For Sabin OPV and the hypothetical
+OPV-like live-vaccine pathway, the teaching layer may visualize the modeled
+OPV-equivalent mucosal state as a one-to-one **serum-equivalent neutralizing
+titer** because the locked pathway assumes aligned serum and mucosal boosting
+after successful take and applies the same waning operator to both. This is an
+explicit non-mechanistic correlate convention, not a claim that serum antibody
+causes mucosal protection, that all measured serum titers map to mucosal
+protection, or that the modeled distribution predicts a particular clinical
+assay distribution. The equivalence does not apply to IPV, whose serum and
+mucosal effects remain distinct under the fixed comparator semantics. The
+amendment adds deterministic read-only schedule-trace diagnostics and a
+two-panel immune-response teaching figure; it changes no equation, parameter,
+default, comparator, dose schedule, success rule, uncertainty semantics,
+transmission calculation, or meaning of `R_loc`.
 
 **Primary audience:** people well versed in vaccine development who do not yet
 have a clean mechanistic mental model analogous to this mathematical model
@@ -480,12 +502,27 @@ immunity bins `0..15`.
 - Transmission, susceptibility, and shedding depend only on mucosal immunity.
 
 The core TPP model does not need to carry a separate serum distribution because
-serum does not drive transmission in the current India model. The UI may report
-an **OPV-equivalent correlate titer**, but it must not imply that any measured
-serum neutralizing titer is universally causal for mucosal protection. For the
-hypothetical OPV-like pathway, a successful take is assumed to generate aligned
-serologic and mucosal boosting, so serum neutralization can be discussed as a
-candidate measurable correlate of the latent mucosal state.
+serum does not drive transmission in the current India model. The state used by
+the WPV acquisition and shedding kernels remains the latent OPV-equivalent
+mucosal-immunity state.
+
+For Sabin OPV and the hypothetical OPV-like live-vaccine pathway, a successful
+take is assumed to generate aligned serologic and mucosal boosting, and the
+same waning operator is applied to both states. The teaching UI is therefore
+authorized to map `n` one-to-one to a **serum-equivalent neutralizing titer**
+`2^n` and to visualize the live-vaccine schedule on that coordinate. This is a
+non-mechanistic correlate convention: it makes serum neutralization a candidate
+measurable proxy for the latent mucosal state in the declared OPV-like pathway,
+not the causal state used by transmission.
+
+The UI must not imply that serum antibody causes mucosal protection, that any
+measured serum neutralizing titer universally determines mucosal immunity, or
+that a displayed modeled distribution is a prediction for a named clinical
+assay. Visible wording must distinguish **serum-equivalent titer** from a
+measured serum-titer distribution. The one-to-one display convention does not
+apply to IPV: under the fixed comparator semantics, IPV boosts serum immunity
+in a naive recipient without creating the corresponding mucosal state, and its
+serum and mucosal responses must not be collapsed or relabeled as equivalent.
 
 This wording is a contract item, not cosmetic copy.
 
@@ -498,14 +535,11 @@ The reduced transmission chain has three roles:
 3. `social`: a vaccinated close social contact exposed by the infected
    household member.
 
-The same selected schedule is applied to all three roles. All roles are assessed
-at the same selected lag after the schedule's last dose. This encodes a
+The same selected schedule is applied to all three roles, and all roles are
+assessed at the same selected lag after the schedule's last dose, so every child
+in the motif carries the same modeled immune distribution. This encodes a
 universal product profile and avoids changing age while moving through the
-transmission motif.
-
-The cessation model's 12-month index and 48-month contact assumptions are
-retained only in a named **legacy compatibility fixture**. They are not primary
-TPP defaults and do not appear as independent role-age controls.
+transmission motif. Age-specific role assumptions are out of scope.
 
 ### 6.3 Initial state
 
@@ -614,6 +648,13 @@ default is `mu0_new = 6.0` log2 units. Recommended fixed comparators:
 After a dose, boosted take mass and unboosted no-take mass are recombined. This
 is a Markov transition on the full distribution, so repeated doses compose
 without inventing an average person.
+
+For teaching only, the boost may be plotted against the pre-dose state using
+the exact `post_mean` and `post_sd` equations above. A band labeled as
+`mean +/- one modeled SD before bin projection` is a response-distribution
+summary, not a confidence or uncertainty interval. The production calculation
+continues to project the Gaussian into all 16 bins and propagate the resulting
+probability mass.
 
 Recommended `mu0_new` exploration range is 0 to 8 log2 units. Values outside
 this range require typed advanced input and remain subject to the immunity cap.
@@ -1180,26 +1221,164 @@ or by evaluating kernels at a mean-immunity state.
 
 ### 13.3 Product mechanism -- from received dose to pre-WPV immunity
 
-Before the application treats take or mean boost as product controls, it must
-show their role in the schedule calculation:
+The displayed product sequence is split into three consecutive chapters. The
+separation is part of the teaching contract, not optional heading copy:
 
 ```text
-received live dose -> immunity-dependent vaccine take -> take/no-take split
--> boosted take mass + unboosted no-take mass -> waning -> next dose
--> assessment-age immunity distribution
+02 / received dose and biological take
+-> 03 / immune response and schedule composition
+-> 04 / explore the product and schedule
+-> assessment-age immunity enters the later WPV and transmission calculations
 ```
 
-The product explanation exposes the minimum necessary parameters at their
-point of use: vaccine dose-response (`alpha_vax`, `beta_vax`, fixed
-`gamma_vax`), administered dose, setting-specific biological `take_context`,
-and mean boost `mu0_new` with fixed variance. It must state that vaccine take
-is productive infection after a received vaccine dose; core receipt is fixed
-at 100% and take is not coverage. The schedule-derived distribution is a
-derived diagnostic, not a serum-titer distribution or a new trial endpoint.
+The static DOM, mobile layout, print layout, and keyboard reading order must
+preserve this sequence. The existing vaccine take figure precedes the new
+immune-response figure; the existing assessment-age distribution follows the
+new figure; the interactive panel follows that distribution in its own
+chapter.
 
-The reference-to-vaccinated transition in Section 13.2 must be visibly linked
-to this distribution. A fixed comparator remains its catalog product; its
-parameters are not reinterpreted as hypothetical controls.
+#### 13.3.1 Received dose and biological take
+
+Before the page uses take as an input, it states that all core scheduled doses
+are received and that biological take is productive live-vaccine infection
+after receipt, not receipt, coverage, or direct protection against a WPV dose.
+The existing vaccine dose-response figure remains the teaching figure for this
+step. It exposes administered dose, vaccine dose-response (`alpha_vax`,
+`beta_vax`, fixed `gamma_vax`), and biological `take_context` at their point of
+use. It compares the take kernel at a naive and a primed pre-dose state and
+shows the selected administered dose.
+
+The chapter must show that each pre-dose bin is divided separately:
+
+```text
+received live dose -> immunity-dependent vaccine take
+-> bin-specific take mass + bin-specific no-take mass
+```
+
+It must not apply a cohort-mean take probability to an unchanged immunity
+distribution. Only take mass proceeds through the live-vaccine boost operator;
+no-take mass retains its pre-dose state until subsequent waning or another
+event.
+
+#### 13.3.2 Immune response and schedule composition
+
+Between the vaccine take figure and the final schedule-output figure, a new
+chapter must teach the response model in this order:
+
+1. The production state is latent OPV-equivalent mucosal immunity on bins
+   `n = 0..15`; WPV acquisition and shedding read this mucosal state.
+2. For Sabin OPV and the hypothetical OPV-like live-vaccine pathway, the
+   teaching display maps `n` one-to-one to serum-equivalent neutralizing titer
+   `2^n` under the aligned-response assumption in Section 6.1.
+3. Conditional on successful take, the exact Section 7.3 boost operator sets a
+   pre-projection mean and standard deviation. `mu0` is the maximum mean boost
+   at the naive state. `sigma0` is the maximum response SD, fixed at `2.4`
+   log2 units for the hypothetical product, and the modeled log2 response
+   variance is `post_sd^2`. Both the mean shift and SD shrink as pre-dose
+   immunity approaches the bin-15 cap. On the serum-equivalent titer scale, the
+   mean log2 shift corresponds to a response-center fold rise of
+   `2^(mu0 * scale(x))`; this is the polio operator's analogue of a fold-rise
+   plot, not the typhoid prototype's equation.
+4. The Gaussian response is projected into the 16 bins. The display may
+   summarize its mean and SD, but the model propagates the entire distribution.
+5. Between events, the exact Section 7.5 waning operator shifts probability
+   mass toward lower states using elapsed time; it does not replace the
+   distribution with its mean.
+6. At every scheduled dose, the model wanes to the exact event age, calculates
+   bin-specific take, splits take/no-take mass, boosts only take mass,
+   recombines the branches, and continues to the next event or assessment.
+
+The required read-only immune-response figure contains exactly two panels:
+
+**Panel A -- response after a taking dose.**
+
+- x-axis: pre-dose `log2 OPV-equivalent serum titer`, 0 through 15;
+- y-axis: post-response `log2 OPV-equivalent serum titer`, 0 through 15;
+- a line for the exact Section 7.3 `post_mean`;
+- a shaded band for `post_mean +/- post_sd`, visibly labeled
+  `one modeled SD before bin projection`, clipped only to the displayed state
+  range;
+- a no-change diagonal;
+- the panel is conditioned on successful take (stated in the panel title and
+  the accessible description), and the band is labeled response variation
+  rather than parameter uncertainty; `mu0` and `sigma0` are recorded in the
+  diagnostic and description.
+
+**As-implemented note (contract 2.1, Mike's direction).** Per live art-direction
+the on-figure fold-rise equation label and the visible bin-15 cap annotation
+were dropped as clutter; the `responseCenterFoldRise` datum is still computed
+in `ImmuneResponseDiagnosticsV1`. The immune coordinate is labeled `log2
+OPV-equivalent serum titer` throughout rather than `state n` / `2^n`. These are
+presentation changes and alter no scientific value.
+
+**Panel B -- the selected schedule builds a cohort distribution.**
+
+- the x-axis is real age in months from birth through assessment; a column of
+  cohort probability across all 16 titer bins is drawn at each monthly sample,
+  so the distribution is visibly waning between events;
+- dose ages, the booster, and the assessment age are marked; per-dose aggregate
+  take is shown in a `take:` row and must be calculated from the bin-specific
+  split used by the state transition;
+- the mean-state overlay is a secondary dashed line labeled `mean` and is never
+  used as the propagated state.
+
+The figure must render from deterministic pure-model diagnostics. The
+`ImmuneResponseDiagnosticsV1` also retains the event snapshots (initial, before
+and after each dose, and assessment) and the monthly trace, both strictly
+validated. The final monthly sample and the final event snapshot must each equal
+the existing schedule-derived vaccinated immunity distribution within `1e-12`;
+the figure must not implement an independent teaching approximation.
+
+For Sabin OPV and the hypothetical OPV-like live vaccine, visible figure copy
+uses the formulation:
+
+> OPV-equivalent immune titer, visualized as a serum neutralizing correlate and
+> mapped one-to-one to mucosal immunity for this live-vaccine pathway.
+
+Adjacent qualification must state:
+
+> Serum titer is a non-mechanistic correlate here. The WPV model uses the
+> corresponding mucosal state; the figure is not a prediction of a particular
+> serum assay distribution.
+
+Equivalent shorter wording is allowed only if it preserves all four facts:
+non-mechanistic correlate, one-to-one assumption limited to the live OPV-like
+pathway, mucosal state used downstream, and no assay-distribution claim.
+
+When IPV is selected, the figure must not apply or display the one-to-one
+serum--mucosal equivalence. It instead states that the fixed IPV comparator has
+no live-vaccine take coordinate and that serum boosting in a live-virus-naive
+recipient does not create the corresponding mucosal transmission state. The
+schedule panel continues to show the mucosal state used by transmission. A
+fixed comparator remains its catalog product; its parameters are never
+reinterpreted as hypothetical controls.
+
+The existing assessment-age distribution follows the two-panel figure and is
+the explicit schedule output delivered to the later WPV calculation. For the
+live-vaccine pathways it may be labeled:
+
+> Serum-equivalent titer distribution used as the OPV-like mucosal-immunity
+> correlate.
+
+It remains a derived model diagnostic, not a measured serum-titer distribution,
+not a clinical assay prediction, and not a new trial endpoint. The
+reference-to-vaccinated transition in Section 13.2 must remain visibly linked
+to this distribution.
+
+#### 13.3.3 Product-and-schedule interaction
+
+The existing product and schedule form moves, without changing its scientific
+controls, into its own displayed chapter immediately after the assessment-age
+distribution. Its introduction states that changing a control recomputes
+vaccine take, every schedule transition, the full assessment-age distribution,
+the downstream WPV diagnostics, and the final close-contact result. It also
+states that the controls are scenario/product assumptions rather than
+independently validated clinical endpoints.
+
+All interaction continues to follow the contract-1.9 auto-commit behavior.
+Separating the form into its own chapter does not create a manual commit step,
+new parameter, independent boost-variance control, free-form parameter-slice
+laboratory, or alternate scientific state.
 
 ### 13.4 Transmission -- from shed virus to a local reproduction number
 
@@ -1259,10 +1438,13 @@ must include the conditioning and units for acquisition, duration,
 concentration, conditional burden, `q_shed`, `q_index`, and `R_loc`.
 
 The map must prevent users from reading a common shedding-index value as
-evidence of a common mechanism, `take_context` as dose receipt, or
-OPV-equivalent mucosal immunity as a measured serum titer. It must also make
-clear that parameter uncertainty and a threshold-crossing probability are
-unavailable in v1.
+evidence of a common mechanism or `take_context` as dose receipt. It must
+identify OPV-equivalent mucosal immunity as the latent state used by
+transmission and the serum-equivalent titer display as the Section 6.1
+non-mechanistic correlate convention for live OPV-like vaccines, not a measured
+assay distribution. It must identify IPV as an exception for which serum and
+mucosal responses are not collapsed. It must also make clear that parameter
+uncertainty and a threshold-crossing probability are unavailable in v1.
 
 ### 13.7 Visual 2 -- linked TPP maps (required together, after the model map)
 
@@ -1295,10 +1477,12 @@ intentionally changes classification, and editing a defining value changes the
 preset label to Custom.
 
 Controls are disclosed where their semantics have been taught. Product and
-schedule controls enter with Section 13.3; setting probe and explicit decision
-scope enter with Sections 13.4-13.5; target inspection enters with the linked
-maps. The fixed point success rule is visible but is not presented as an
-editable scientific choice.
+schedule controls enter only in the separate interaction chapter specified by
+Section 13.3.3, after received-dose, immune-response, schedule-composition, and
+assessment-output teaching. Setting probe and explicit decision scope enter
+with Sections 13.4-13.5; target inspection enters with the linked maps. The
+fixed point success rule is visible but is not presented as an editable
+scientific choice.
 
 Advanced controls contain:
 
@@ -1759,6 +1943,28 @@ teaching order, the reference-to-vaccinated transition, correct panel labels
 and conditioning, the UP/Bihar setting explanation, and no early pass/fail
 verdict before the `R_loc` step.
 
+Immune-response teaching tests must additionally establish: every schedule
+snapshot conserves total probability mass within `1e-12`; snapshot ages and
+phases are chronological and include initial, pre-dose, post-dose, and
+assessment states; each displayed per-dose take probability is the aggregate
+of the same bin-specific split used by the state transition; the final trace
+state equals `buildScheduleState` and the existing vaccinated diagnostic bins
+within `1e-12`; Panel A values agree with the exact Section 7.3 mean and SD
+equations over all 16 pre-dose bins; and selected schedules with and without a
+booster show the correct events and waning intervals. Fixed-comparator tests
+must verify the live-vaccine serum-equivalent wording for Sabin OPV, editable
+live-vaccine wording for the hypothetical product, and the explicit
+non-equivalence branch for IPV.
+
+The browser test must additionally verify static DOM order:
+received-dose explanation and take figure; immune-response explanation and
+two-panel figure; assessment-age distribution; separate product-and-schedule
+interaction chapter; then transmission. Accessible titles/descriptions and
+visible copy must include the non-mechanistic-correlate qualification, state
+that the downstream model uses mucosal immunity, and avoid describing the
+modeled distribution as a measured serum assay distribution or an uncertainty
+interval.
+
 The release build must pass:
 
 - exactly one required runtime file: `dist/index.html`;
@@ -1817,15 +2023,20 @@ Implementation is complete only when all of the following are true:
 6. Users can vary take, boost, dose-response, setting, contacts, sanitation, and
    schedule.
 7. The teaching-first sequence begins at UP/Bihar; it develops the
-   reference-to-vaccinated within-host transition, then the close-contact
-   motif, then the visually dominant setting surface and direct result. No
-   scalar shedding target is the primary result.
+   reference-to-vaccinated within-host transition, then received-dose take,
+   immune boosting and waning across the schedule, the assessment-age
+   distribution, the separate product-and-schedule interaction chapter, the
+   close-contact motif, and finally the visually dominant setting surface and
+   direct result. No scalar shedding target is the primary result.
 8. Acquisition, conditional shedding duration, concentration among shedders,
    conditional integrated burden, and the relative acquisition-adjusted
    shedding index are shown with their conditioning and units.
-9. The schedule-derived immunity distribution and fixed-grid within-host
-   diagnostics are produced by the pure model boundary, serialized, and tested;
-   they do not alter any transmission calculation.
+9. The schedule-derived immunity distribution, schedule-trace diagnostics,
+   boost-response diagnostics, and fixed-grid within-host diagnostics are
+   produced by the pure model boundary, serialized, and tested; they do not
+   alter any transmission calculation. Live OPV-like figures use the
+   serum-equivalent correlate convention in Section 6.1, while IPV preserves
+   distinct serum and mucosal semantics.
 10. The setting surface includes low, Houston/Louisiana, Matlab, and UP/Bihar.
 11. The point `R_loc_max < 1` rule is explicit, with UP/Bihar high as the
    default singleton decision scope. Parameter uncertainty and an upper-95
@@ -1929,6 +2140,16 @@ The following decisions are binding for v1:
     decision, or exports (§15.3). None of these is the free-form parameter-slice
     laboratory deferred in §19; the four-panel within-host figure (§13.2) is
     unchanged and remains exactly four panels.
+22. (Contract 2.1) The product sequence is split as specified in Section 13.3
+    into displayed chapters for received dose/take, immune response/schedule
+    composition, and product/schedule interaction. A deterministic two-panel
+    immune-response figure and schedule trace are core explanatory diagnostics.
+    For Sabin OPV and the hypothetical OPV-like pathway only, the display may
+    map the modeled state one-to-one to serum-equivalent neutralizing titer
+    under the explicit non-mechanistic correlate convention in Section 6.1.
+    IPV retains distinct serum and mucosal semantics. This teaching convention
+    changes no model equation, transmission state, comparator, parameter,
+    default, decision rule, uncertainty claim, or endpoint.
 
 Implementation discretion is limited to presentation details, accessible color
 choices, module decomposition below the ownership boundaries, and equivalent

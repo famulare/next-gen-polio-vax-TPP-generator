@@ -58,14 +58,21 @@ runtime network dependency.
 - A teaching-first model narrative: dose-dependent WPV acquisition,
   breakthrough-conditioned shedding duration and concentration, daily joint
   infectious burden, and a one-WPV-HID50 relative analogue to the source
-  paper's shedding-index idea;
-  schedule-derived immunity distribution; close-contact motif; only then the
-  direct UP/Bihar result, setting surface, measurement handshake, and linked
-  outcome/product maps.
-- Versioned `WithinHostDiagnosticsV1` outputs on a committed 41-dose CID50 and
-  1-120 day grid. These are deterministic projections of the production
-  schedule, dose-response, and joint shedding kernels; they are explanatory
-  diagnostics, not new decision rules or measured endpoints.
+  paper's shedding-index idea; a received dose and biological take; the
+  live-vaccine immune response and how the schedule composes the cohort
+  distribution month by month; the schedule-derived assessment-age immunity
+  distribution; a separate product-and-schedule interaction chapter; the
+  close-contact motif; only then the direct UP/Bihar result, setting surface,
+  measurement handshake, and linked outcome/product maps. For Sabin OPV and the
+  hypothetical OPV-like product the immune coordinate is visualized one-to-one
+  as a serum-equivalent neutralizing correlate; IPV keeps distinct serum and
+  mucosal semantics.
+- Versioned `WithinHostDiagnosticsV2` outputs on a committed 41-dose CID50 and
+  1-120 day grid, now carrying read-only immune-response diagnostics — the
+  taking-dose boost-response curve and the monthly schedule trace. These are
+  deterministic projections of the production schedule, dose-response, and joint
+  shedding kernels; they are explanatory diagnostics, not new decision rules or
+  measured endpoints.
 - A blue-white-red setting surface centered at `R_loc = 1`, with independent
   decision-scope and inspection-probe controls and low, Houston/Louisiana,
   Matlab hybrid, and UP/Bihar anchors.
@@ -76,7 +83,7 @@ runtime network dependency.
   fail invalid state closed, and disable export until all dependent outputs
   commit atomically.
 - Canonical URL state plus versioned JSON, stable CSV grids, and standalone SVG
-  exports (including the within-host teaching figure) with scenario, scope,
+  exports (including the within-host and immune-response teaching figures) with scenario, scope,
   probe, model, build, qualification, conditioning, and selection context.
 
 The locked [design contract](./DESIGN_CONTRACT.md) remains canonical. This

@@ -148,7 +148,7 @@ export function describeDecisionScope(envelope: EnvelopeV1): { id: AnchorSetting
       && envelope.NsMin === anchor.Ns && envelope.NsMax === anchor.Ns
       && envelope.dIhMin === anchor.dIh.value && envelope.dIhMax === anchor.dIh.value
       && envelope.dHsMin === anchor.dHs.value && envelope.dHsMax === anchor.dHs.value) {
-      return { id: anchor.id, label: `${anchor.label} singleton anchor`, shortLabel: anchor.label };
+      return { id: anchor.id, label: `${anchor.label} anchor`, shortLabel: anchor.label };
     }
   }
   const exposure = envelope.linkedExposure

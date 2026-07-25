@@ -122,7 +122,8 @@ try {
   const visibleArtifactText = await page.locator("body").innerText();
   if (/gates foundation|gate device|foundation affiliation/i.test(visibleArtifactText)) throw new Error("Artifact introduces a Foundation identity or affiliation claim");
 
-  if (!(await page.locator(".hero .eyebrow").textContent())?.includes(`contract ${designContractVersion}`)) throw new Error("Opening does not identify the design-contract version");
+  if (await page.locator(".hero > .eyebrow").count()) throw new Error("Hero eyebrow banner should be removed");
+  if (!(await page.locator(".wordmark").textContent())?.includes("Next-Gen OPV")) throw new Error("Wordmark does not identify the next-gen OPV TPP");
   if (!(await page.locator("h1").textContent())?.includes("block close-contact transmission")) throw new Error("Opening question is missing");
   const openingComparison = await page.locator("#opening-comparison").textContent();
   if (!openingComparison?.includes("Naive child") || !openingComparison.includes("Next-gen gut mucosal vaccine") || !openingComparison.includes("assessed 28 days")) throw new Error("First viewport does not identify the current reference-to-vaccinated comparison");
@@ -131,8 +132,22 @@ try {
   if (!defaultResult.includes("Direct Rloc0.74") || !defaultResult.includes("does not prove control everywhere")) throw new Error("Default result or adjacent qualification is wrong");
   if (await page.locator("#scope").inputValue() !== "up-bihar") throw new Error("UP/Bihar is not the default decision scope");
   if (await page.locator("#probe").count()) throw new Error("A separate inspection probe control still exists; it should be merged into decision scope");
-  const narrativeOrder = await page.evaluate(() => ["within-host", "product-pathway", "transmission", "decision", "measurement", "design-space"].map((id) => [...document.querySelectorAll("section")].indexOf(document.getElementById(id))));
-  if (narrativeOrder.some((index, position) => position > 0 && index <= narrativeOrder[position - 1])) throw new Error("Teaching chapters are not in within-host, product, transmission, decision, measurement, design order");
+  const narrativeOrder = await page.evaluate(() => ["within-host", "product-pathway", "immune-response", "product-controls", "transmission", "decision", "measurement", "design-space", "assumptions"].map((id) => [...document.querySelectorAll("section")].indexOf(document.getElementById(id))));
+  if (narrativeOrder.some((index) => index < 0)) throw new Error("A contract-2.1 chapter section is missing");
+  if (narrativeOrder.some((index, position) => position > 0 && index <= narrativeOrder[position - 1])) throw new Error("Contract-2.1 chapters are not in within-host, received-dose, immune-response, explore, transmission, decision, measurement, design, assumptions order");
+  // Contract 2.1 DOM order within the product region: received-dose take figure, then the
+  // immune-response two-panel figure, then the assessment-age distribution, then the controls.
+  const productRegionOrder = await page.evaluate(() => {
+    const pos = (sel) => { const el = document.querySelector(sel); return el ? [...document.querySelectorAll("*")].indexOf(el) : -1; };
+    return {
+      takeFigure: pos("#product-pathway #dose-response-figure"),
+      immuneFigure: pos("#immune-response #immune-response-figure"),
+      distribution: pos("#immune-response #immunity-distribution-figure"),
+      controls: pos("#product-controls #hypothetical-controls")
+    };
+  });
+  if (Object.values(productRegionOrder).some((v) => v < 0)) throw new Error(`A product-region figure/control is misplaced: ${JSON.stringify(productRegionOrder)}`);
+  if (!(productRegionOrder.takeFigure < productRegionOrder.immuneFigure && productRegionOrder.immuneFigure < productRegionOrder.distribution && productRegionOrder.distribution < productRegionOrder.controls)) throw new Error("Product region order must be take figure -> immune-response figure -> distribution -> controls");
   const resultAfterTransmission = await page.evaluate(() => {
     const sections = [...document.querySelectorAll("section")];
     return sections.indexOf(document.getElementById("decision")) > sections.indexOf(document.getElementById("transmission"));
@@ -171,7 +186,16 @@ try {
   if (!(await page.locator("#within-host-figure").count()) || await page.locator("#within-host-figure .teaching-panel").count() !== 4) throw new Error("Four within-host teaching panels did not render");
   const withinHostText = await page.locator("#within-host").textContent();
   if (!(await page.locator("#within-host-figure").getAttribute("aria-labelledby")) || !(await page.locator("#within-host-figure .teaching-reference-dose").count()) || !withinHostText?.includes("assay floor") || !/relative shedding index/i.test(withinHostText ?? "") || !/relative risk of shedding/i.test(withinHostText ?? "")) throw new Error("Within-host teaching panels lack the required reference, conditioning, or shedding-index context");
-  if (!(await page.locator("#product-pathway #hypothetical-controls").count()) || !(await page.locator("#product-pathway").textContent())?.includes("Fixed γvax")) throw new Error("Product parameters are not disclosed at their point of use");
+  if (!(await page.locator("#product-controls #hypothetical-controls").count()) || !(await page.locator("#product-controls").textContent())?.includes("Fixed γvax")) throw new Error("Product parameters are not disclosed in the interaction chapter");
+  // Contract 2.1 immune-response figure: two-panel teaching figure with the live serum-equivalent
+  // correlate convention, its non-mechanistic qualification, and the monthly schedule trace.
+  if (!(await page.locator("#immune-response-figure").count()) || await page.locator("#immune-response-figure .teaching-panel").count() !== 2) throw new Error("Two-panel immune-response figure did not render");
+  if (!(await page.locator("#immune-response-figure").getAttribute("aria-labelledby"))) throw new Error("Immune-response figure lacks labelled title/description");
+  const immuneResponseText = await page.locator("#immune-response").textContent();
+  for (const phrase of ["serum-equivalent", "one-to-one", "not a prediction of a particular serum assay distribution", "mucosal", "one modeled SD before bin projection", "Age (months)"]) {
+    if (!immuneResponseText?.includes(phrase)) throw new Error(`Immune-response chapter omits required wording: ${phrase}`);
+  }
+  if (/uncertainty interval|confidence interval|credible interval|measured serum(-| )titer distribution/i.test(immuneResponseText ?? "")) throw new Error("Immune-response copy overclaims uncertainty or a measured serum-titer distribution");
   if (await page.locator("#print-product-summary").isVisible()) throw new Error("Print-only product summary leaked into the interactive narrative");
   const transmissionText = await page.locator("#transmission").textContent();
   const expectedIndexLink = `${upBihar.T_ih.value} µg stool-equivalent/exposure × ${upBihar.dIh.value} exposure/person/day`;
@@ -219,10 +243,15 @@ try {
   await awaitCommit(page, identity);
   if (!(await page.locator("#hypothetical-controls").evaluate((element) => element.hidden)) || !(await page.locator("#take").isDisabled())) throw new Error("Fixed Sabin 2 exposed hypothetical product controls");
   if (!(await page.locator("#catalog-product-note").textContent())?.includes("fixed catalog comparator")) throw new Error("Sabin 2 catalog semantics are not visible");
+  if (!(await page.locator("#immune-response-mapping").textContent())?.includes("serum neutralizing correlate")) throw new Error("Sabin immune-response chapter lost the live serum-equivalent correlate wording");
   identity = await page.locator("#result-status").getAttribute("data-model-identity");
   await page.selectOption("#product", "ipv");
   await awaitCommit(page, identity);
   if (!(await page.locator("#catalog-product-note").textContent())?.includes("fixed non-live comparator")) throw new Error("IPV catalog semantics are not visible");
+  const ipvImmuneText = await page.locator("#immune-response").textContent();
+  if (!ipvImmuneText?.includes("IPV is the fixed non-live comparator") || !ipvImmuneText.includes("Not applicable to IPV")) throw new Error("IPV immune-response chapter omits the non-equivalence explanation or draws a live response curve");
+  if (!(await page.locator("#immune-response-figure").textContent())?.includes("log2 mucosal-immunity state")) throw new Error("IPV schedule panel must label the mucosal state, not a serum titer");
+  if ((await page.locator("#immune-response-figure").textContent())?.includes("OPV-equivalent serum titer")) throw new Error("IPV figure must not label its state as an OPV-equivalent serum titer");
   identity = await page.locator("#result-status").getAttribute("data-model-identity");
   await page.selectOption("#product", "hypothetical");
   await awaitCommit(page, identity);
@@ -303,6 +332,23 @@ try {
   if (await page.locator("[data-export]").first().isDisabled()) throw new Error("Exports were not re-enabled after auto-commit");
   console.log("Browser smoke: live verdict and auto-commit checked");
 
+  // Contract 2.1: mu0 drives Panel A; the booster drives the schedule trace and the distribution.
+  await page.locator("#reset").click();
+  await waitForCommitted(page);
+  const immuneBeforeMu = await page.locator("#immune-response-figure").innerHTML();
+  await page.locator("#mu").evaluate((element) => { element.value = "2"; element.dispatchEvent(new Event("input", { bubbles: true })); });
+  await page.waitForFunction((prev) => document.querySelector("#immune-response-figure")?.innerHTML !== prev, immuneBeforeMu, { timeout: 30_000 });
+  await page.locator("#reset").click();
+  await waitForCommitted(page);
+  const traceBeforeBooster = await page.locator("#immune-response-figure").innerHTML();
+  const distBeforeBooster = await page.locator("#immunity-distribution-figure").innerHTML();
+  await page.selectOption("#booster", "0");
+  await page.waitForFunction((prev) => document.querySelector("#immune-response-figure")?.innerHTML !== prev, traceBeforeBooster, { timeout: 30_000 });
+  if (await page.locator("#immunity-distribution-figure").innerHTML() === distBeforeBooster) throw new Error("Removing the booster did not change the assessment-age distribution");
+  await page.locator("#reset").click();
+  await waitForCommitted(page);
+  console.log("Browser smoke: immune-response figure tracks mu0 and booster changes");
+
   // An out-of-range scientific edit fails closed: prior verdict retained + dimmed, export
   // disabled; recovering re-commits and clears the dimming (no permanently stale verdict).
   // Alpha, HID50, and administered dose are now bounded log-scale sliders (every position is
@@ -342,7 +388,8 @@ try {
   if (exportedJson.buildIdentity !== expectedBuildIdentity || exportedJson.exportIdentity !== committedIdentity) throw new Error("JSON export identities do not match visible committed state");
   if (exportedJson.decisionScope?.id !== "up-bihar" || exportedJson.inspectionProbe?.id !== "up-bihar") throw new Error("JSON export blurs decision scope and inspection probe");
   if (exportedJson.viewState?.persistentDesignKey !== exportHeldKey) throw new Error("JSON export omitted the held view selection");
-  if (exportedJson.outputs?.diagnostics?.schemaVersion !== "WithinHostDiagnosticsV1" || exportedJson.outputs?.diagnostics?.gridVersion !== "diagnostic-grid-1.0.0") throw new Error("JSON export omitted versioned within-host diagnostics");
+  if (exportedJson.outputs?.diagnostics?.schemaVersion !== "WithinHostDiagnosticsV2" || exportedJson.outputs?.diagnostics?.gridVersion !== "diagnostic-grid-1.0.0") throw new Error("JSON export omitted versioned within-host diagnostics");
+  if (exportedJson.outputs?.diagnostics?.immuneResponse?.schemaVersion !== "ImmuneResponseDiagnosticsV1" || !Array.isArray(exportedJson.outputs?.diagnostics?.immuneResponse?.monthlyTrace)) throw new Error("JSON export omitted the immune-response diagnostics");
   // A bit-exact assert.deepEqual is too strict here: Chromium's V8 and Node's V8 are
   // different builds, and transcendental math (exp/pow/log) is not guaranteed
   // bit-identical across engines even for the same deterministic formula and
@@ -360,13 +407,14 @@ try {
   if (!csv.includes(`PrototypeGridExportV2,${expectedBuildIdentity},`)) throw new Error("CSV export schema or build identity is stale");
   if (!csv.includes("decision_scope,inspection_probe,model_identity")) throw new Error("CSV export omitted scope, probe, or identity");
 
-  for (const kind of ["within-host", "setting", "effect", "product"]) {
+  for (const kind of ["within-host", "immune-response", "setting", "effect", "product"]) {
     const [svgDownload] = await Promise.all([page.waitForEvent("download"), page.locator(`[data-export="${kind}-svg"]`).click()]);
     const svgPath = await svgDownload.path();
     if (!svgPath) throw new Error(`${kind} SVG export did not provide local content`);
     const svg = readFileSync(svgPath, "utf8");
     const requiredContext = ["PrototypeFigureExportV2", expectedBuildIdentity, "SCIENTIFIC PROTOTYPE", "UP/Bihar", "does not prove control everywhere", "Held inspection design"];
-    if (kind === "within-host") requiredContext.push("Teaching grid: diagnostic-grid-1.0.0", "conditioned on WPV acquisition", "Within-host components", "sheddingIndexAtReferenceTCID50DaysPerGram", "data-diagnostic-schema=\"WithinHostDiagnosticsV1\"");
+    if (kind === "within-host") requiredContext.push("Teaching grid: diagnostic-grid-1.0.0", "conditioned on WPV acquisition", "Within-host components", "sheddingIndexAtReferenceTCID50DaysPerGram", "data-diagnostic-schema=\"WithinHostDiagnosticsV2\"");
+    else if (kind === "immune-response") requiredContext.push("serum-equivalent neutralizing correlate", "not a measured serum assay distribution", "not parameter uncertainty", "data-immune-response-schema=\"ImmuneResponseDiagnosticsV1\"");
     else requiredContext.push("Contours are interpolated display context");
     for (const phrase of requiredContext) {
       if (!svg.includes(phrase)) throw new Error(`Standalone ${kind} SVG omitted required context: ${phrase}`);

@@ -21,6 +21,65 @@ does not replace source provenance, git history, or verification output.
 
 ## Planning-stage review record
 
+### 2026-07-24 -- Contract 2.1 immune-response teaching sequence
+
+- **Date:** 2026-07-24.
+- **Objective:** execute
+  `docs/immune-response-teaching-implementation-plan.md` -- split the product
+  chapter into received-dose, immune-response/schedule-composition, and
+  product-and-schedule-interaction chapters; add read-only schedule-trace and
+  boost-response diagnostics; and render a deterministic two-panel
+  immune-response teaching figure, with no change to any equation, parameter,
+  default, comparator, decision rule, uncertainty semantics, or `R_loc`.
+- **Executor/model version:** Claude Opus 4.8 (`claude-opus-4-8`), bounded
+  implementation agent; application version `0.5.0-prototype`; design-contract
+  version bumped 2.0 -> 2.1 (`src/data/parameters.json`,
+  `src/data/provenance.json`) to carry the new read-only diagnostic identity.
+- **Contract sections and source files supplied:** the plan; the
+  `DESIGN_CONTRACT.md` contract-2.1 amendment and §5, §6.1-6.3, §7.1-7.5,
+  §8.1-8.3, §13 (esp. §13.3.1-13.3.3), §14.2-14.6, §15.3/15.6, §16-18. Inputs:
+  the plan, this repository, and `DESIGN_CONTRACT.md`.
+- **Allowed files or worktree:** this repository -- `src/model/{types,schedule,
+  diagnostics,serialization}.ts`, `src/data/{parameters,provenance}.json`,
+  `src/ui/charts.ts`, `src/app.ts`, `src/styles.css`, tests, `scripts/
+  browser-smoke.mjs`, `README.md`, `IMPLEMENTATION_LOG.md`, and the generated
+  `dist/index.html` + `reference/artifact-sha256.txt`.
+- **Required output and discriminator:** one shared schedule transition and
+  runner feeding both the non-allocating production path and a trace-collecting
+  teaching path; `WithinHostDiagnosticsV2` carrying `ImmuneResponseDiagnosticsV1`
+  (boost-response points, event schedule snapshots, per-dose aggregate take, and
+  a monthly waned trace); strict recompute-and-compare serialization; a
+  two-panel SVG (Panel A taking-dose response conditional on take with a
+  one-modeled-SD band; Panel B the monthly schedule trace as a 16-bin heatmap);
+  the live serum-equivalent correlate convention and the visible IPV exception;
+  and a standalone immune-response SVG export.
+- **Content-block classification and rationale:** not applicable; bounded
+  software implementation.
+- **Reframe/retry status:** not applicable.
+- **Result disposition:** implemented; pending primary-integrator semantic
+  review and merge disposition.
+- **Primary review:** self-review against the contract invariants -- one schedule
+  engine, bin-specific take conditioning, no average-person propagation,
+  mass conservation within `1e-12`, final trace/monthly state identical to
+  `buildScheduleState` and the vaccinated diagnostic bins, live/IPV wording,
+  and unchanged direct `R_loc = 0.7366389853385256`, 120 passing designs, 9
+  Pareto designs. **Integrator attention:** during implementation Mike gave
+  live art-direction that intentionally departs from the letter of §13.3.2 and
+  §13.1: Panel A drops the fold-rise equation label and the visible bin-15 cap
+  annotation (the `responseCenterFoldRise` datum is retained in the diagnostic);
+  Panel B replaces the event-column display with a real monthly-age axis showing
+  the waned distribution (the event snapshots and per-dose take remain in the
+  diagnostic and validation); the opening hero eyebrow was removed and the
+  wordmark changed to "TPP for a Next-Gen OPV". These are presentation changes
+  only and alter no scientific value; they are flagged here for the integrator.
+- **Verification run:** `npm run typecheck`, `npm test` (68 tests),
+  `npm run build`, `node scripts/browser-smoke.mjs`, `npm run verify`, and
+  `npm run check:artifact`; two consecutive builds byte-identical.
+- **Residual uncertainty:** the serum-equivalent correlate is an explicit
+  non-mechanistic display convention (§6.1), not an assay prediction; the
+  response-SD band is conditional response variation, not parameter uncertainty.
+  Both are stated in visible copy and accessible descriptions.
+
 ### 2026-07-23 -- Frontend streamlining: single-column spine and responsive figures
 
 - **Date:** 2026-07-23.

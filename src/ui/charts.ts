@@ -2,7 +2,7 @@ import { scaleLinear, scaleLog } from "d3-scale";
 import { line } from "d3-shape";
 import { FRONTIER_GRID, PARAMETERS, SETTING_ANCHORS, SETTING_DISPLAY_DOMAIN } from "../model/parameters";
 import { vaccineTakeCurve } from "../model/diagnostics";
-import type { DesignGridPoint, ModelOutputsV1, TeachingView } from "../model/types";
+import type { BoostResponsePointV1, DesignGridPoint, ImmuneResponseDiagnosticsV1, ModelOutputsV1, TeachingView } from "../model/types";
 import { BRAND_COLORS, SCIENTIFIC_SURFACE_COLORS } from "./brand";
 import { designKey, describeDecisionScope } from "./presentation";
 
@@ -18,6 +18,7 @@ const WHITE = SCIENTIFIC_SURFACE_COLORS.threshold;
 const RED = SCIENTIFIC_SURFACE_COLORS.aboveThreshold;
 const REFERENCE = BRAND_COLORS.dvMediumOrange;
 const CANDIDATE = BRAND_COLORS.dvDarkMagenta;
+const SLATE = BRAND_COLORS.weatheredSlate;
 
 /**
  * Four read-only projections of the exact production kernels. The curves are
@@ -127,6 +128,13 @@ function immunityDistributionFigure(outputs: TeachingView, mobile: boolean): str
   const plotHeight = height - margin.top - margin.bottom;
   const reference = outputs.diagnostics.reference.immunityBins;
   const vaccinated = outputs.diagnostics.vaccinated.immunityBins;
+  const live = outputs.scenario.vaccine.live;
+  const distTitle = live ? "Schedule-derived OPV-equivalent titer distribution" : "Schedule-derived mucosal-immunity distribution";
+  const distDesc = live
+    ? "Paired bars compare the naive reference distribution and the selected vaccinated cohort's marginal immunity distribution before WPV exposure, on the OPV-equivalent coordinate shown one-to-one as a serum-equivalent correlate for this live-vaccine pathway. The production calculation retains take history and the full distribution rather than using this marginal display as an average person, and the WPV model reads the corresponding mucosal state; this is not a measured serum assay distribution."
+    : "Paired bars compare the naive reference distribution and the selected IPV cohort's marginal mucosal-immunity distribution used by transmission before WPV exposure. IPV's mucosal state is not relabeled as a serum-equivalent correlate. The production calculation retains take history and the full distribution rather than using this marginal display as an average person.";
+  const xAxisDesktop = live ? "OPV-equivalent immune titer (log2 serum-equivalent correlate)" : "Mucosal-immunity state used by transmission";
+  const xAxisMobile = live ? ["OPV-equivalent titer", "(log2 serum-equivalent)"] : ["Mucosal-immunity state", "used by transmission"];
   const maxValue = Math.max(.1, ...reference, ...vaccinated);
   const x = scaleLinear().domain([0, reference.length]).range([margin.left, margin.left + plotWidth]);
   const y = scaleLinear().domain([0, maxValue]).nice().range([margin.top + plotHeight, margin.top]);
@@ -152,15 +160,173 @@ function immunityDistributionFigure(outputs: TeachingView, mobile: boolean): str
     ? `<g class="teaching-legend" transform="translate(12 122)"><rect class="immunity-reference" x="0" y="-10" width="13" height="13"/><text x="20" y="1">Naive</text><rect class="immunity-candidate" x="92" y="-10" width="13" height="13"/><text x="112" y="1">Selected</text></g>`
     : `<g class="teaching-legend" transform="translate(${margin.left + plotWidth - 150} ${margin.top + 16})"><rect class="immunity-reference" x="0" y="-10" width="14" height="14"/><text x="22" y="1">Naive reference</text><rect class="immunity-candidate" x="0" y="10" width="14" height="14"/><text x="22" y="21">Selected</text></g>`;
   return `<svg id="${id}" class="scientific-chart immunity-chart${mobile ? " immunity-chart-mobile" : ""}" role="img" aria-labelledby="${titleId} ${descId}" viewBox="0 0 ${width} ${height}">
-    <title id="${titleId}">Schedule-derived mucosal immunity distribution</title>
-    <desc id="${descId}">Paired bars compare the naive reference distribution and the selected vaccinated cohort's marginal mucosal immunity distribution before WPV exposure. The production calculation retains take history and dose conditioning rather than using this marginal display as an average person.</desc>
+    <title id="${titleId}">${escapeXml(distTitle)}</title>
+    <desc id="${descId}">${escapeXml(distDesc)}</desc>
     ${kicker}${title}
     <rect class="plot-bg" x="${margin.left}" y="${margin.top}" width="${plotWidth}" height="${plotHeight}"/>${yTicks}${bars}${xTicks}
     ${mobile
-      ? tspanLines("axis-label", margin.left + plotWidth / 2, height - 30, ["Mucosal-immunity bin", "(log2 NAb-equivalent)"], 1.1, `text-anchor="middle"`)
-      : `<text class="axis-label" x="${margin.left + plotWidth / 2}" y="${height - 14}" text-anchor="middle">Mucosal-immunity bin (log2 NAb-equivalent)</text>`}${rotatedYLabel("axis-label", 16, margin.top + plotHeight / 2, "Cohort probability")}
+      ? tspanLines("axis-label", margin.left + plotWidth / 2, height - 30, xAxisMobile, 1.1, `text-anchor="middle"`)
+      : `<text class="axis-label" x="${margin.left + plotWidth / 2}" y="${height - 14}" text-anchor="middle">${escapeXml(xAxisDesktop)}</text>`}${rotatedYLabel("axis-label", 16, margin.top + plotHeight / 2, "Cohort probability")}
     ${legend}
   </svg>`;
+}
+
+/**
+ * Two-panel immune-response teaching figure. Panel A is the exact Section 7.3
+ * boost operator plotted against the pre-dose state (conditional on take); Panel
+ * B is the distribution-native schedule trace as a 16-bin heatmap across events.
+ * Every scientific coordinate is read from the deterministic diagnostics; this
+ * renderer computes no boost, take, or waning equation of its own.
+ */
+export function renderImmuneResponseTeaching(view: TeachingView): string {
+  return `${immuneResponseFigure(view, false)}${immuneResponseFigure(view, true)}`;
+}
+
+interface PanelBox { x: number; y: number; width: number; height: number }
+
+function immuneResponseFigure(view: TeachingView, mobile: boolean): string {
+  const vaccine = view.scenario.vaccine;
+  const ir = view.diagnostics.immuneResponse;
+  const live = vaccine.live;
+  const width = mobile ? 360 : 820;
+  const pad = mobile ? 12 : 30;
+  const id = mobile ? "immune-response-mobile-figure" : "immune-response-figure";
+  const titleId = mobile ? "immune-response-mobile-title" : "immune-response-title";
+  const descId = mobile ? "immune-response-mobile-desc" : "immune-response-desc";
+  const kickerText = live
+    ? "TAKING-DOSE RESPONSE · SERUM-EQUIVALENT CORRELATE · FULL DISTRIBUTION"
+    : "FIXED IPV COMPARATOR · MUCOSAL STATE · FULL DISTRIBUTION";
+  const headlineText = live
+    ? "A successful take boosts immunity; the schedule then composes the cohort distribution"
+    : "IPV has no live take; the schedule leaves the transmission mucosal state unchanged";
+  const correlateShort = live
+    ? "The immune coordinate is shown one-to-one as a log2 OPV-equivalent serum titer for this live-vaccine pathway; a non-mechanistic serum-equivalent correlate. The WPV model uses the corresponding mucosal state — not a measured serum assay distribution."
+    : "IPV boosts serum immunity in a live-virus-naive recipient without creating the corresponding mucosal state; serum and mucosal responses are not collapsed or relabeled as equivalent.";
+  const kickerLines = mobile ? wrapChars(kickerText, 32) : [kickerText];
+  const headlineLines = wrapChars(headlineText, mobile ? 26 : 62);
+  const correlateLines = wrapChars(correlateShort, mobile ? 42 : 88);
+  // Flow the header vertically from wrapped line counts and measured line heights
+  // (note/kicker ~19, title ~25 viewBox units) so nothing overlaps at any width.
+  const noteLH = 19;
+  const titleLH = 25;
+  const gap = 10;
+  const topPad = mobile ? 16 : 20;
+  const kickerBlock = kickerLines.length * noteLH;
+  const headlineBlock = headlineLines.length * titleLH;
+  const kickerTop = topPad + 14;
+  const headlineTop = topPad + kickerBlock + gap + 18;
+  const correlateTop = topPad + kickerBlock + gap + headlineBlock + gap + 14;
+  const headerBottom = topPad + kickerBlock + gap + headlineBlock + gap + correlateLines.length * noteLH + gap;
+  const boxA: PanelBox = { x: pad, y: headerBottom, width: width - 2 * pad, height: mobile ? 330 : 404 };
+  const boxB: PanelBox = { x: pad, y: boxA.y + boxA.height + (mobile ? 40 : 30), width: width - 2 * pad, height: mobile ? 470 : 474 };
+  const height = boxB.y + boxB.height + 16;
+  const kicker = tspanLines("chart-kicker", pad, kickerTop, kickerLines);
+  const headline = tspanLines("chart-title", pad, headlineTop, headlineLines, 1.1);
+  const correlate = tspanLines("teaching-panel-note", pad, correlateTop, correlateLines);
+  const panelA = live ? immuneResponsePanelA(ir.boostResponse!, boxA, mobile) : immuneResponsePanelNotApplicable(boxA, mobile);
+  const panelB = immuneResponsePanelB(ir, boxB, mobile, live);
+  const title = live
+    ? `Immune response for ${vaccine.label}: taking-dose boost and schedule composition`
+    : `Immune response for ${vaccine.label}: no live take and schedule composition`;
+  const desc = live
+    ? `Two panels for ${vaccine.label}. The upper panel plots the exact post-take response on the log2 OPV-equivalent serum titer from 0 to 15, a one-to-one serum-equivalent neutralizing correlate for this live-vaccine pathway: the post-response mean line, the shaded mean plus or minus one modeled SD before bin projection which is response variation and not parameter uncertainty, and the no-change diagonal, conditional on successful take with maximum mean boost mu0 and fixed maximum SD sigma0. The lower panel is a heatmap of cohort probability across all 16 titer bins by age in months from birth through assessment, marking the dose ages, the booster, per-dose aggregate take, and the assessment; between events the distribution wanes toward lower titer, and the mean-state overlay is a visual summary only. The production model propagates the full distribution, the WPV acquisition and shedding calculation uses the corresponding mucosal state, and this figure is not a prediction of a particular serum assay distribution.`
+    : `Two panels for ${vaccine.label}, the fixed non-live comparator. IPV has no live-vaccine take coordinate, so Panel A shows no live-response curve: serum boosting in a live-virus-naive recipient does not create the corresponding mucosal transmission state, and serum and mucosal responses are not collapsed or relabeled as equivalent. The lower panel is a heatmap of cohort probability across all 16 mucosal-immunity bins by age in months from birth through assessment, marking the dose ages, the booster, and the assessment; between events the distribution only wanes, and the mean-state overlay is a visual summary only. Transmission uses this mucosal state.`;
+  return `<svg id="${id}" class="scientific-chart immune-response-chart${mobile ? " immune-response-chart-mobile" : ""}" role="img" aria-labelledby="${titleId} ${descId}" viewBox="0 0 ${width} ${height}">
+    <title id="${titleId}">${escapeXml(title)}</title>
+    <desc id="${descId}">${escapeXml(desc)}</desc>
+    ${kicker}${headline}${correlate}
+    ${panelA}${panelB}
+  </svg>`;
+}
+
+interface BoostGeom { xScale: (value: number) => number; yScale: (value: number) => number }
+
+function immuneResponsePanelA(points: BoostResponsePointV1[], box: PanelBox, mobile: boolean): string {
+  const titleLines = mobile ? wrapChars("Response after a taking dose", 30) : ["Response after a taking dose"];
+  const noteText = "The shaded band is mean ± one modeled SD before bin projection — response variation, not parameter uncertainty.";
+  const noteLines = wrapChars(noteText, mobile ? 40 : Math.floor((box.width - 6) / 8.6));
+  const noteTop = box.y + 16 + titleLines.length * 20;
+  const plotTop = noteTop + noteLines.length * 15 + 6;
+  const plot = { x: box.x + 42, y: plotTop, width: box.width - 56, height: box.y + box.height - (mobile ? 54 : 40) - plotTop };
+  const xScale = scaleLinear().domain([0, 15]).range([plot.x, plot.x + plot.width]);
+  const yScale = scaleLinear().domain([0, 15]).range([plot.y + plot.height, plot.y]);
+  const ticks = [0, 3, 6, 9, 12, 15];
+  const grid = ticks.map((value) => `<line class="grid-line" x1="${plot.x}" x2="${plot.x + plot.width}" y1="${yScale(value)}" y2="${yScale(value)}"/><line class="grid-line" x1="${xScale(value)}" x2="${xScale(value)}" y1="${plot.y}" y2="${plot.y + plot.height}"/>`).join("");
+  const xTicks = ticks.map((value) => `<text class="tick" x="${xScale(value)}" y="${plot.y + plot.height + 16}" text-anchor="middle">${value}</text>`).join("");
+  const yTicks = ticks.map((value) => `<text class="tick" x="${plot.x - 8}" y="${yScale(value) + 3}" text-anchor="end">${value}</text>`).join("");
+  const ribbon = `<polygon points="${[...points.map((point) => `${xScale(point.preStateLog2)},${yScale(point.bandHighLog2)}`), ...[...points].reverse().map((point) => `${xScale(point.preStateLog2)},${yScale(point.bandLowLog2)}`)].join(" ")}" fill="${CANDIDATE}" fill-opacity="0.16" stroke="none"><title>Mean ± one modeled SD before bin projection</title></polygon>`;
+  const diagonal = `<line x1="${xScale(0)}" y1="${yScale(0)}" x2="${xScale(15)}" y2="${yScale(15)}" stroke="${SLATE}" stroke-width="1.4" stroke-dasharray="5 4" stroke-opacity="0.5"/>`;
+  const meanPath = line<BoostResponsePointV1>().x((point) => xScale(point.preStateLog2)).y((point) => yScale(point.postMeanLog2))(points) ?? "";
+  const meanLine = `<path d="${meanPath}" fill="none" stroke="${CANDIDATE}" stroke-width="2.5"/>`;
+  const diagonalLabel = `<text class="teaching-panel-note" x="${xScale(11)}" y="${yScale(11) + 14}" text-anchor="start">no change</text>`;
+  const xAxisLabel = mobile
+    ? tspanLines("axis-label", plot.x + plot.width / 2, plot.y + plot.height + 30, ["Pre-dose log2", "OPV-equivalent serum titer"], 1.1, `text-anchor="middle"`)
+    : `<text class="axis-label" x="${plot.x + plot.width / 2}" y="${plot.y + plot.height + 32}" text-anchor="middle">Pre-dose log2 OPV-equivalent serum titer</text>`;
+  return `<g class="teaching-panel">${tspanLines("teaching-panel-title", box.x, box.y + 16, titleLines)}${tspanLines("teaching-panel-note", box.x, noteTop, noteLines)}<rect class="plot-bg teaching-panel-bg" x="${plot.x}" y="${plot.y}" width="${plot.width}" height="${plot.height}"/>${grid}${ribbon}${diagonal}${meanLine}${diagonalLabel}${xTicks}${yTicks}${xAxisLabel}${rotatedYLabel("teaching-y-label", box.x + 6, plot.y + plot.height / 2, "Post-response log2 OPV-equivalent serum titer")}</g>`;
+}
+
+function immuneResponsePanelNotApplicable(box: PanelBox, mobile: boolean): string {
+  const lines = wrapChars("Not applicable to IPV. IPV is the fixed non-live comparator: it has no live-vaccine take coordinate, so no taking-dose response curve is drawn. Serum boosting in a live-virus-naive recipient does not create the corresponding mucosal transmission state, and serum and mucosal responses are not collapsed or relabeled as equivalent.", mobile ? 40 : 54);
+  return `<g class="teaching-panel">${tspanLines("teaching-panel-title", box.x, box.y + 18, ["Response after a taking dose"])}<rect class="plot-bg teaching-panel-bg" x="${box.x}" y="${box.y + 30}" width="${box.width}" height="${box.height - 40}"/>${tspanLines("teaching-panel-note", box.x + 14, box.y + 64, lines, 1.35)}<text class="teaching-panel-note" x="${box.x + box.width / 2}" y="${box.y + box.height - 8}" text-anchor="middle">No live-response curve is shown for IPV.</text></g>`;
+}
+
+function immuneResponsePanelB(ir: ImmuneResponseDiagnosticsV1, box: PanelBox, mobile: boolean, live: boolean): string {
+  const points = ir.monthlyTrace;
+  const binCount = 16;
+  const daysPerMonth = points[1]!.ageDays; // month-1 age in days = one month
+  const maxMonth = points.at(-1)!.ageMonths;
+  const titleLines = mobile ? wrapChars("The schedule builds the cohort distribution", 30) : ["The schedule builds the cohort distribution"];
+  const noteText = live
+    ? "Cohort probability across all 16 titer bins by age in months; darker is more mass. After each dose the take mass is boosted and the no-take mass wanes; between events the whole distribution wanes toward lower titer."
+    : "Cohort probability across all 16 mucosal-immunity bins by age in months; darker is more mass. IPV creates no live take, so the distribution only wanes toward lower immunity between events.";
+  const noteLines = wrapChars(noteText, mobile ? 40 : Math.floor((box.width - 6) / 8.6));
+  const noteTop = box.y + 16 + titleLines.length * 20;
+  const plotTop = noteTop + noteLines.length * 15 + 36;
+  const labelBudget = mobile ? 62 : 56;
+  const plot = { x: box.x + 42, y: plotTop, width: box.width - 54, height: box.y + box.height - labelBudget - plotTop };
+  const cellH = plot.height / binCount;
+  const xScale = scaleLinear().domain([0, maxMonth]).range([plot.x, plot.x + plot.width]);
+  const xs = points.map((point) => xScale(point.ageMonths));
+  const maxMass = Math.max(1e-9, ...points.flatMap((point) => point.mucosalBins));
+  const binCenterY = (value: number) => plot.y + plot.height - (value + 0.5) * cellH;
+  const cellTopY = (bin: number) => plot.y + plot.height - (bin + 1) * cellH;
+  const cells = points.map((point, i) => {
+    const leftEdge = i === 0 ? plot.x : (xs[i - 1]! + xs[i]!) / 2;
+    const rightEdge = i === points.length - 1 ? plot.x + plot.width : (xs[i]! + xs[i + 1]!) / 2;
+    const width = Math.max(0.5, rightEdge - leftEdge);
+    return point.mucosalBins.map((mass, bin) =>
+      `<rect x="${leftEdge}" y="${cellTopY(bin)}" width="${width + 0.5}" height="${cellH + 0.6}" fill="${densityColor(mass, maxMass)}"><title>age ${formatNumber(point.ageMonths)} months · log2 titer ≈ ${bin} · probability ${formatPercent(mass)}</title></rect>`
+    ).join("");
+  }).join("");
+  const doseMarkers = ir.doseDiagnostics.map((dose) => {
+    const mx = xScale(dose.day / daysPerMonth);
+    const label = dose.doseNumber > 3 ? "Booster" : `D${dose.doseNumber}`;
+    const take = live && dose.aggregateTakeProbability !== null ? `<text class="teaching-panel-note" x="${mx}" y="${plot.y - 4}" text-anchor="middle">${formatPercent(dose.aggregateTakeProbability)}</text>` : "";
+    return `<line x1="${mx}" x2="${mx}" y1="${plot.y}" y2="${plot.y + plot.height}" stroke="${SLATE}" stroke-width="1" stroke-dasharray="3 2" stroke-opacity="0.5"/><text class="teaching-panel-note" x="${mx}" y="${plot.y - 18}" text-anchor="middle">${escapeXml(label)}</text>${take}`;
+  }).join("");
+  // "take:" row label, anchored at the birth (month-0) line so it stays put across settings.
+  const takeRowLabel = live ? `<text class="teaching-panel-note" x="${plot.x}" y="${plot.y - 4}" text-anchor="start">take:</text>` : "";
+  // The assessment marker sits on the plot's right edge (age = assessment); the
+  // "Age (months)" axis maxing at the assessment age labels it, so no text tag is
+  // needed and it never crowds the nearby booster label.
+  const assessmentX = xScale(maxMonth);
+  const assessmentMarker = `<line x1="${assessmentX}" x2="${assessmentX}" y1="${plot.y}" y2="${plot.y + plot.height}" stroke="${SLATE}" stroke-width="1.4" stroke-opacity="0.7"/>`;
+  const meanPoints = points.map((point) => [xScale(point.ageMonths), binCenterY(point.meanStateLog2)] as [number, number]);
+  // "mean" label sits just above the mean line near month 8 (or a sensible fraction for short schedules).
+  const meanLabelMonth = maxMonth >= 8 ? 8 : Math.max(1, Math.round(maxMonth * 0.6));
+  const meanLabelPoint = points.reduce((best, point) => Math.abs(point.ageMonths - meanLabelMonth) < Math.abs(best.ageMonths - meanLabelMonth) ? point : best, points[0]!);
+  const meanOverlay = `<path d="${line()(meanPoints) ?? ""}" fill="none" stroke="${SLATE}" stroke-width="1.4" stroke-dasharray="3 3" stroke-opacity="0.8"/><text class="teaching-panel-note" x="${xScale(meanLabelPoint.ageMonths)}" y="${binCenterY(meanLabelPoint.meanStateLog2) - 8}" text-anchor="middle">mean</text>`;
+  const yTicks = [0, 5, 10, 15].map((bin) => `<text class="tick" x="${plot.x - 7}" y="${binCenterY(bin) + 3}" text-anchor="end">${bin}</text>`).join("");
+  const stride = maxMonth <= 8 ? 1 : maxMonth <= 18 ? 2 : 4;
+  const monthTicks: number[] = [];
+  for (let month = 0; month <= maxMonth + 1e-9; month += stride) monthTicks.push(month);
+  const xTicks = monthTicks.map((month) => `<text class="tick" x="${xScale(month)}" y="${plot.y + plot.height + 16}" text-anchor="middle">${month}</text>`).join("");
+  const yLabel = live ? "log2 OPV-equivalent serum titer" : "log2 mucosal-immunity state";
+  return `<g class="teaching-panel">${tspanLines("teaching-panel-title", box.x, box.y + 16, titleLines)}${tspanLines("teaching-panel-note", box.x, noteTop, noteLines)}<rect class="plot-bg teaching-panel-bg" x="${plot.x}" y="${plot.y}" width="${plot.width}" height="${plot.height}"/>${cells}${doseMarkers}${takeRowLabel}${assessmentMarker}${meanOverlay}${yTicks}${xTicks}<text class="axis-label" x="${plot.x + plot.width / 2}" y="${plot.y + plot.height + 34}" text-anchor="middle">Age (months)</text>${rotatedYLabel("teaching-y-label", box.x + 2, plot.y + plot.height / 2, yLabel)}</g>`;
+}
+
+function densityColor(mass: number, maxMass: number): string {
+  return scaleLinear<string>().domain([0, maxMass]).range([BRAND_COLORS.white, CANDIDATE]).clamp(true)(mass);
 }
 
 export function renderVaccineDoseResponse(view: TeachingView): string {

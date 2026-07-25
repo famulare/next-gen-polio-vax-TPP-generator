@@ -1,5 +1,6 @@
 import { DIAGNOSTIC_GRID, FRONTIER_GRID, PARAMETERS, SETTING_ANCHORS, SETTING_MANIFEST_VERSION, UNCERTAINTY_ENSEMBLE, vaccineDefaults } from "./parameters";
 import { diagnosticDoseGrid, diagnosticTimeGrid } from "./diagnostics";
+import { scheduleDays } from "./schedule";
 import { ROUTINE_DAYS } from "./types";
 import type { DesignGridPoint, ModelOutputsV1, ScenarioV1, SettingV1, UnitValueV1, VaccineV1 } from "./types";
 import { canonicalHash, canonicalJson } from "./canonical";
@@ -92,22 +93,23 @@ export function validateModelOutputs(value: unknown): asserts value is ModelOutp
 }
 
 function validateWithinHostDiagnostics(value: unknown, metrics: Record<string, any>, scenario: ScenarioV1, modelIdentity: string): void {
-  const diagnostics = requireRecord(value, "WithinHostDiagnosticsV1");
-  exactKeys(diagnostics, ["schemaVersion", "gridVersion", "gridSchemaVersion", "sourceParameterSchemaVersion", "sourceParameterManifestVersion", "modelIdentity", "challengeUnit", "units", "referenceChallengeDoseCID50", "assessmentAgeDays", "acquisitionCondition", "sheddingCondition", "burdenDefinition", "reference", "vaccinated", "qAcq", "qShed", "qIndex"], "WithinHostDiagnosticsV1");
-  if (diagnostics.schemaVersion !== "WithinHostDiagnosticsV1") throw new Error("Unsupported within-host diagnostic schema");
+  const diagnostics = requireRecord(value, "WithinHostDiagnosticsV2");
+  exactKeys(diagnostics, ["schemaVersion", "gridVersion", "gridSchemaVersion", "sourceParameterSchemaVersion", "sourceParameterManifestVersion", "modelIdentity", "challengeUnit", "units", "referenceChallengeDoseCID50", "assessmentAgeDays", "acquisitionCondition", "sheddingCondition", "burdenDefinition", "reference", "vaccinated", "qAcq", "qShed", "qIndex", "immuneResponse"], "WithinHostDiagnosticsV2");
+  if (diagnostics.schemaVersion !== "WithinHostDiagnosticsV2") throw new Error("Unsupported within-host diagnostic schema");
   if (diagnostics.gridVersion !== DIAGNOSTIC_GRID.version || diagnostics.gridSchemaVersion !== DIAGNOSTIC_GRID.schemaVersion || diagnostics.sourceParameterSchemaVersion !== PARAMETERS.schemaVersion || diagnostics.sourceParameterManifestVersion !== PARAMETERS.manifestVersion || diagnostics.modelIdentity !== modelIdentity) throw new Error("Within-host diagnostics do not identify the bundled scientific inputs");
   if (diagnostics.challengeUnit !== "CID50" || diagnostics.acquisitionCondition !== "productive WPV acquisition after oral challenge" || diagnostics.sheddingCondition !== "conditioned on WPV acquisition" || diagnostics.burdenDefinition !== "survival probability times concentration conditional on still shedding") throw new Error("Within-host diagnostics have invalid conditioning");
-  const units = requireRecord(diagnostics.units, "WithinHostDiagnosticsV1.units");
-  exactKeys(units, ["challengeDose", "assessmentAge", "sheddingTime", "concentration", "dailyBurden", "integratedBurden", "sheddingIndex"], "WithinHostDiagnosticsV1.units");
+  const units = requireRecord(diagnostics.units, "WithinHostDiagnosticsV2.units");
+  exactKeys(units, ["challengeDose", "assessmentAge", "sheddingTime", "concentration", "dailyBurden", "integratedBurden", "sheddingIndex"], "WithinHostDiagnosticsV2.units");
   const expectedUnits = { challengeDose: "CID50", assessmentAge: "days", sheddingTime: "days after WPV acquisition", concentration: "TCID50/g", dailyBurden: "TCID50/g", integratedBurden: "TCID50-days/g", sheddingIndex: "TCID50-days/g" } as const;
   for (const [key, expected] of Object.entries(expectedUnits)) if (units[key] !== expected) throw new Error(`Within-host diagnostic unit ${key} is invalid`);
-  finiteRange(diagnostics.referenceChallengeDoseCID50, 0, Number.MAX_VALUE, "WithinHostDiagnosticsV1.referenceChallengeDoseCID50");
-  finiteRange(diagnostics.assessmentAgeDays, 0, Number.MAX_VALUE, "WithinHostDiagnosticsV1.assessmentAgeDays");
+  finiteRange(diagnostics.referenceChallengeDoseCID50, 0, Number.MAX_VALUE, "WithinHostDiagnosticsV2.referenceChallengeDoseCID50");
+  finiteRange(diagnostics.assessmentAgeDays, 0, Number.MAX_VALUE, "WithinHostDiagnosticsV2.assessmentAgeDays");
   if (diagnostics.referenceChallengeDoseCID50 !== scenario.indexReferenceExposure || diagnostics.referenceChallengeDoseCID50 !== metrics.indexReferenceExposure) throw new Error("Within-host reference challenge does not match the scenario");
   if (diagnostics.assessmentAgeDays !== metrics.assessmentAgeDays) throw new Error("Within-host assessment age does not match the scenario");
-  const reference = validateDiagnosticCohort(diagnostics.reference, "naive-reference", "WithinHostDiagnosticsV1.reference");
-  const vaccinated = validateDiagnosticCohort(diagnostics.vaccinated, "selected-vaccinated", "WithinHostDiagnosticsV1.vaccinated");
-  for (const key of ["qAcq", "qShed", "qIndex"] as const) finiteRange(diagnostics[key], 0, 1, `WithinHostDiagnosticsV1.${key}`);
+  const reference = validateDiagnosticCohort(diagnostics.reference, "naive-reference", "WithinHostDiagnosticsV2.reference");
+  const vaccinated = validateDiagnosticCohort(diagnostics.vaccinated, "selected-vaccinated", "WithinHostDiagnosticsV2.vaccinated");
+  validateImmuneResponse(diagnostics.immuneResponse, scenario, vaccinated.immunityBins as number[]);
+  for (const key of ["qAcq", "qShed", "qIndex"] as const) finiteRange(diagnostics[key], 0, 1, `WithinHostDiagnosticsV2.${key}`);
   const expectedQAcq = reference.acquisitionAtReference > 0 ? vaccinated.acquisitionAtReference / reference.acquisitionAtReference : 0;
   const expectedQShed = reference.integratedConditionalBurdenTCID50DaysPerGram > 0 ? vaccinated.integratedConditionalBurdenTCID50DaysPerGram / reference.integratedConditionalBurdenTCID50DaysPerGram : 0;
   const expectedQIndex = reference.sheddingIndexAtReferenceTCID50DaysPerGram > 0 ? vaccinated.sheddingIndexAtReferenceTCID50DaysPerGram / reference.sheddingIndexAtReferenceTCID50DaysPerGram : 0;
@@ -116,6 +118,108 @@ function validateWithinHostDiagnostics(value: unknown, metrics: Record<string, a
   if (Math.abs(diagnostics.qAcq - metrics.qAcq) > 1e-12 || Math.abs(diagnostics.qShed - metrics.qShed) > 1e-12 || Math.abs(diagnostics.qIndex - metrics.qIndex) > 1e-12) {
     throw new Error("Within-host diagnostics do not agree with point metrics");
   }
+}
+
+function validateImmuneResponse(value: unknown, scenario: ScenarioV1, vaccinatedBins: number[]): void {
+  const response = requireRecord(value, "ImmuneResponseDiagnosticsV1");
+  exactKeys(response, ["schemaVersion", "displayMapping", "responseCondition", "boostResponse", "scheduleSnapshots", "monthlyTrace", "doseDiagnostics"], "ImmuneResponseDiagnosticsV1");
+  if (response.schemaVersion !== "ImmuneResponseDiagnosticsV1") throw new Error("Unsupported immune-response diagnostic schema");
+  const vaccine = scenario.vaccine;
+  const live = vaccine.live;
+  if (response.displayMapping !== (live ? "serum-equivalent-live-opv-like" : "mucosal-only-ipv")) throw new Error("Immune-response display mapping does not match the selected vaccine");
+  if (response.responseCondition !== (live ? "conditioned on successful live-vaccine take" : "not applicable to non-live IPV")) throw new Error("Immune-response conditioning does not match the selected vaccine");
+
+  // Panel A: the Section 7.3 boost operator, recomputed and compared exactly.
+  const nMax = PARAMETERS.immunity.maxLog2;
+  if (!live) {
+    if (response.boostResponse !== null) throw new Error("IPV must not fabricate a live-vaccine boost-response curve");
+  } else {
+    if (!Array.isArray(response.boostResponse) || response.boostResponse.length !== PARAMETERS.immunity.bins) throw new Error("Live boost response must have one point per immunity bin");
+    response.boostResponse.forEach((pointValue: unknown, index: number) => {
+      const point = requireRecord(pointValue, `boostResponse[${index}]`);
+      exactKeys(point, ["preStateLog2", "meanShiftLog2", "responseCenterFoldRise", "postMeanLog2", "postSdLog2", "postVarianceLog2Squared", "bandLowLog2", "bandHighLog2"], `boostResponse[${index}]`);
+      if (point.preStateLog2 !== index) throw new Error(`boostResponse[${index}] pre-state must equal its bin index`);
+      const scale = Math.max(0, 1 - index / nMax);
+      const meanShiftLog2 = vaccine.mu0 * scale;
+      const postMeanLog2 = Math.min(nMax, index + vaccine.mu0 * scale);
+      const postSdLog2 = vaccine.sigma0 * scale;
+      const expected: Record<string, number> = {
+        meanShiftLog2,
+        responseCenterFoldRise: 2 ** meanShiftLog2,
+        postMeanLog2,
+        postSdLog2,
+        postVarianceLog2Squared: postSdLog2 * postSdLog2,
+        bandLowLog2: Math.max(0, postMeanLog2 - postSdLog2),
+        bandHighLog2: Math.min(nMax, postMeanLog2 + postSdLog2)
+      };
+      for (const [key, target] of Object.entries(expected)) {
+        finiteNumber(point[key], `boostResponse[${index}].${key}`);
+        if (Math.abs(point[key] - target) > 1e-12) throw new Error(`boostResponse[${index}].${key} does not match the Section 7.3 boost operator`);
+      }
+    });
+  }
+
+  // Panel B: schedule snapshots must match the selected schedule chronology exactly.
+  const doseEventDays = scheduleDays(scenario.schedule);
+  const assessmentDay = (doseEventDays.at(-1) ?? 0) + scenario.schedule.assessmentLagDays;
+  const expectedSnapshots: Array<{ day: number; phase: string; doseNumber: number | null }> = [{ day: 0, phase: "initial", doseNumber: null }];
+  doseEventDays.forEach((day, index) => {
+    expectedSnapshots.push({ day, phase: "pre-dose", doseNumber: index + 1 });
+    expectedSnapshots.push({ day, phase: "post-dose", doseNumber: index + 1 });
+  });
+  expectedSnapshots.push({ day: assessmentDay, phase: "assessment", doseNumber: null });
+  if (!Array.isArray(response.scheduleSnapshots) || response.scheduleSnapshots.length !== expectedSnapshots.length) throw new Error("Schedule snapshots do not match the selected schedule chronology");
+  response.scheduleSnapshots.forEach((snapshotValue: unknown, index: number) => {
+    const snapshot = requireRecord(snapshotValue, `scheduleSnapshots[${index}]`);
+    exactKeys(snapshot, ["sequence", "day", "phase", "doseNumber", "label", "mucosalBins", "meanStateLog2"], `scheduleSnapshots[${index}]`);
+    const expected = expectedSnapshots[index]!;
+    if (snapshot.sequence !== index) throw new Error(`scheduleSnapshots[${index}] is out of sequence`);
+    if (snapshot.phase !== expected.phase || snapshot.doseNumber !== expected.doseNumber) throw new Error(`scheduleSnapshots[${index}] phase or dose number does not match the schedule`);
+    finiteNumber(snapshot.day, `scheduleSnapshots[${index}].day`);
+    if (Math.abs(snapshot.day - expected.day) > 1e-9) throw new Error(`scheduleSnapshots[${index}] day does not match the schedule`);
+    if (typeof snapshot.label !== "string" || snapshot.label.length === 0) throw new Error(`scheduleSnapshots[${index}] label is missing`);
+    finiteArray(snapshot.mucosalBins, `scheduleSnapshots[${index}].mucosalBins`);
+    const bins = snapshot.mucosalBins as number[];
+    if (bins.length !== PARAMETERS.immunity.bins || bins.some((mass) => mass < 0) || Math.abs(bins.reduce((sum, mass) => sum + mass, 0) - 1) > 1e-12) throw new Error(`scheduleSnapshots[${index}].mucosalBins is not a probability distribution`);
+    finiteNumber(snapshot.meanStateLog2, `scheduleSnapshots[${index}].meanStateLog2`);
+    if (Math.abs(snapshot.meanStateLog2 - bins.reduce((sum, mass, bin) => sum + mass * bin, 0)) > 1e-12) throw new Error(`scheduleSnapshots[${index}].meanStateLog2 must be the bin-weighted mean`);
+  });
+  const finalBins = (response.scheduleSnapshots.at(-1) as Record<string, any>).mucosalBins as number[];
+  if (finalBins.some((mass, bin) => Math.abs(mass - (vaccinatedBins[bin] ?? 0)) > 1e-12)) throw new Error("Final assessment snapshot does not match the vaccinated immunity distribution");
+
+  // Monthly waned trace: strictly increasing ages from birth to assessment, each a
+  // conserved distribution; the final month equals the vaccinated distribution.
+  if (!Array.isArray(response.monthlyTrace) || response.monthlyTrace.length < 2) throw new Error("Monthly trace must sample at least birth and assessment");
+  let previousAgeMonths = -Infinity;
+  response.monthlyTrace.forEach((pointValue: unknown, index: number) => {
+    const point = requireRecord(pointValue, `monthlyTrace[${index}]`);
+    exactKeys(point, ["ageMonths", "ageDays", "mucosalBins", "meanStateLog2"], `monthlyTrace[${index}]`);
+    finiteRange(point.ageMonths, 0, Number.MAX_VALUE, `monthlyTrace[${index}].ageMonths`);
+    finiteRange(point.ageDays, 0, Number.MAX_VALUE, `monthlyTrace[${index}].ageDays`);
+    if (point.ageMonths <= previousAgeMonths) throw new Error(`monthlyTrace[${index}] ages must strictly increase`);
+    previousAgeMonths = point.ageMonths;
+    finiteArray(point.mucosalBins, `monthlyTrace[${index}].mucosalBins`);
+    const bins = point.mucosalBins as number[];
+    if (bins.length !== PARAMETERS.immunity.bins || bins.some((mass) => mass < 0) || Math.abs(bins.reduce((sum, mass) => sum + mass, 0) - 1) > 1e-12) throw new Error(`monthlyTrace[${index}].mucosalBins is not a probability distribution`);
+    finiteNumber(point.meanStateLog2, `monthlyTrace[${index}].meanStateLog2`);
+    if (Math.abs(point.meanStateLog2 - bins.reduce((sum, mass, bin) => sum + mass * bin, 0)) > 1e-12) throw new Error(`monthlyTrace[${index}].meanStateLog2 must be the bin-weighted mean`);
+  });
+  if (response.monthlyTrace[0].ageMonths !== 0) throw new Error("Monthly trace must begin at birth");
+  if (Math.abs(response.monthlyTrace.at(-1).ageDays - assessmentDay) > 1e-9) throw new Error("Monthly trace must end at the assessment age");
+  const finalMonthly = response.monthlyTrace.at(-1).mucosalBins as number[];
+  if (finalMonthly.some((mass, bin) => Math.abs(mass - (vaccinatedBins[bin] ?? 0)) > 1e-12)) throw new Error("Final monthly snapshot does not match the vaccinated immunity distribution");
+
+  // Per-dose aggregate take: bin-specific mass for a live dose, null for IPV.
+  if (!Array.isArray(response.doseDiagnostics) || response.doseDiagnostics.length !== doseEventDays.length) throw new Error("Dose diagnostics do not match the schedule dose count");
+  response.doseDiagnostics.forEach((doseValue: unknown, index: number) => {
+    const dose = requireRecord(doseValue, `doseDiagnostics[${index}]`);
+    exactKeys(dose, ["doseNumber", "day", "aggregateTakeProbability"], `doseDiagnostics[${index}]`);
+    if (dose.doseNumber !== index + 1) throw new Error(`doseDiagnostics[${index}] dose number is wrong`);
+    finiteNumber(dose.day, `doseDiagnostics[${index}].day`);
+    if (Math.abs(dose.day - doseEventDays[index]!) > 1e-9) throw new Error(`doseDiagnostics[${index}] day does not match the schedule`);
+    if (live) finiteRange(dose.aggregateTakeProbability, 0, 1, `doseDiagnostics[${index}].aggregateTakeProbability`);
+    else if (dose.aggregateTakeProbability !== null) throw new Error(`doseDiagnostics[${index}] must be null for non-live IPV`);
+  });
 }
 
 function validateDiagnosticCohort(value: unknown, id: string, label: string): Record<string, any> {

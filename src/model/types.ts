@@ -134,6 +134,33 @@ export interface ImmuneState {
   events: number[];
 }
 
+// Read-only schedule-trace diagnostics. These record the same distribution-native
+// transitions the production schedule runs; they never feed transmission.
+export type ScheduleTracePhase = "initial" | "pre-dose" | "post-dose" | "assessment";
+
+export interface ScheduleTraceSnapshotV1 {
+  sequence: number;
+  day: number;
+  phase: ScheduleTracePhase;
+  doseNumber: number | null;
+  label: string;
+  mucosalBins: number[]; // length 16, sums to one
+  meanStateLog2: number; // display summary only
+}
+
+export interface ScheduleDoseDiagnosticV1 {
+  doseNumber: number;
+  day: number;
+  aggregateTakeProbability: number | null; // null for IPV
+}
+
+export interface ScheduleMonthlySnapshotV1 {
+  ageMonths: number;
+  ageDays: number;
+  mucosalBins: number[]; // length 16, sums to one
+  meanStateLog2: number;
+}
+
 export interface SourceCohort {
   infectionDay: number;
   sourceBin: number;
@@ -205,7 +232,7 @@ export interface ModelOutputsV1 {
   metrics: PointMetrics;
   settingSurface: SettingResult[];
   frontier: FrontierResult;
-  diagnostics: WithinHostDiagnosticsV1;
+  diagnostics: WithinHostDiagnosticsV2;
   uncertainty: {
     available: false;
     label: "parameter-uncertainty interval is out of scope for this iteration";
@@ -284,8 +311,33 @@ export interface WithinHostCohortDiagnosticsV1 {
   sheddingIndexAtReferenceTCID50DaysPerGram: number;
 }
 
-export interface WithinHostDiagnosticsV1 {
-  schemaVersion: "WithinHostDiagnosticsV1";
+export interface BoostResponsePointV1 {
+  preStateLog2: number;
+  meanShiftLog2: number;
+  responseCenterFoldRise: number;
+  postMeanLog2: number;
+  postSdLog2: number;
+  postVarianceLog2Squared: number;
+  bandLowLog2: number;
+  bandHighLog2: number;
+}
+
+export interface ImmuneResponseDiagnosticsV1 {
+  schemaVersion: "ImmuneResponseDiagnosticsV1";
+  displayMapping:
+    | "serum-equivalent-live-opv-like"
+    | "mucosal-only-ipv";
+  responseCondition:
+    | "conditioned on successful live-vaccine take"
+    | "not applicable to non-live IPV";
+  boostResponse: BoostResponsePointV1[] | null;
+  scheduleSnapshots: ScheduleTraceSnapshotV1[];
+  monthlyTrace: ScheduleMonthlySnapshotV1[];
+  doseDiagnostics: ScheduleDoseDiagnosticV1[];
+}
+
+export interface WithinHostDiagnosticsV2 {
+  schemaVersion: "WithinHostDiagnosticsV2";
   gridVersion: string;
   gridSchemaVersion: "DiagnosticGridV1";
   sourceParameterSchemaVersion: "ParameterManifestV1";
@@ -311,4 +363,5 @@ export interface WithinHostDiagnosticsV1 {
   qAcq: number;
   qShed: number;
   qIndex: number;
+  immuneResponse: ImmuneResponseDiagnosticsV1;
 }

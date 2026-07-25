@@ -1,16 +1,16 @@
-import { combinedMucosal, initialImmuneState } from "./schedule";
+import { buildScheduleTrace, buildStateAtAssessment, combinedMucosal, initialImmuneState, scheduleDays } from "./schedule";
 import { clamp01, doseResponse } from "./dose-response";
 import { DIAGNOSTIC_GRID, PARAMETERS } from "./parameters";
 import { sheddingTerms } from "./shedding";
 import { conditionIndexBreakthrough } from "./transmission";
 import { DAYS_PER_MONTH } from "./waning";
-import type { ImmuneState, ScenarioV1, VaccineV1, WithinHostCohortDiagnosticsV1, WithinHostDiagnosticsV1 } from "./types";
+import type { BoostResponsePointV1, ImmuneResponseDiagnosticsV1, ImmuneState, ScenarioV1, ScheduleMonthlySnapshotV1, ScheduleV1, VaccineV1, WithinHostCohortDiagnosticsV1, WithinHostDiagnosticsV2 } from "./types";
 
 export interface VaccineTakeCurve { level: number; points: { dose: number; take: number }[] }
 
 // Render-time teaching helper: productive vaccine take vs administered dose at a few
 // pre-dose immunity levels. Take = dose-response susceptibility x take context. This is
-// NOT part of the hashed WithinHostDiagnosticsV1 grid; it never affects model identity.
+// NOT part of the hashed within-host diagnostic grid; it never affects model identity.
 export function vaccineTakeCurve(vaccine: VaccineV1, immunityLevels: number[], doseGrid: number[]): VaccineTakeCurve[] {
   return immunityLevels.map((level) => ({
     level,
@@ -19,10 +19,86 @@ export function vaccineTakeCurve(vaccine: VaccineV1, immunityLevels: number[], d
 }
 
 /**
+ * Panel A of the immune-response teaching figure. For each integer pre-dose
+ * state x = 0..15, this reports the exact Section 7.3 boost operator summary:
+ * the mean log2 shift, its implied response-center fold rise, the post-response
+ * mean and SD, the modeled log2 variance, and the clipped ±1 SD display band.
+ * The curve is conditioned on successful live-vaccine take and summarizes the
+ * Gaussian before projection into bins; it is null for non-live IPV.
+ */
+export function boostResponsePoints(vaccine: VaccineV1): BoostResponsePointV1[] | null {
+  if (!vaccine.live) return null;
+  const nMax = PARAMETERS.immunity.maxLog2;
+  return Array.from({ length: PARAMETERS.immunity.bins }, (_, preStateLog2) => {
+    const scale = Math.max(0, 1 - preStateLog2 / nMax);
+    const meanShiftLog2 = vaccine.mu0 * scale;
+    const postMeanLog2 = Math.min(nMax, preStateLog2 + vaccine.mu0 * scale);
+    const postSdLog2 = vaccine.sigma0 * scale;
+    return {
+      preStateLog2,
+      meanShiftLog2,
+      responseCenterFoldRise: 2 ** meanShiftLog2,
+      postMeanLog2,
+      postSdLog2,
+      postVarianceLog2Squared: postSdLog2 * postSdLog2,
+      bandLowLog2: Math.max(0, postMeanLog2 - postSdLog2),
+      bandHighLog2: Math.min(nMax, postMeanLog2 + postSdLog2)
+    };
+  });
+}
+
+/**
+ * Deterministic read-only immune-response diagnostics: the Panel A boost-response
+ * curve plus the Panel B schedule trace. Both derive from the exact production
+ * transitions; the schedule trace reruns the identical event loop so its final
+ * assessment snapshot equals the vaccinated diagnostic distribution. For a live
+ * vaccine the display maps the modeled state one-to-one to a serum-equivalent
+ * titer; IPV keeps distinct serum and mucosal semantics and has no live take.
+ */
+export function buildImmuneResponseDiagnostics(vaccine: VaccineV1, schedule: ScheduleV1): ImmuneResponseDiagnosticsV1 {
+  const trace = buildScheduleTrace(vaccine, schedule);
+  return {
+    schemaVersion: "ImmuneResponseDiagnosticsV1",
+    displayMapping: vaccine.live ? "serum-equivalent-live-opv-like" : "mucosal-only-ipv",
+    responseCondition: vaccine.live ? "conditioned on successful live-vaccine take" : "not applicable to non-live IPV",
+    boostResponse: boostResponsePoints(vaccine),
+    scheduleSnapshots: trace.snapshots,
+    monthlyTrace: buildMonthlyTrace(vaccine, schedule),
+    doseDiagnostics: trace.doseDiagnostics
+  };
+}
+
+/**
+ * Panel B sampling: the waned cohort distribution at each integer month of age
+ * from birth through assessment, plus an exact sample at the assessment age.
+ * Each sample runs the same production schedule engine to that age, so the final
+ * sample equals the vaccinated diagnostic distribution.
+ */
+function buildMonthlyTrace(vaccine: VaccineV1, schedule: ScheduleV1): ScheduleMonthlySnapshotV1[] {
+  const doseDays = scheduleDays(schedule);
+  const assessmentDays = (doseDays.at(-1) ?? 0) + schedule.assessmentLagDays;
+  const lastMonth = Math.floor(assessmentDays / DAYS_PER_MONTH);
+  const points: ScheduleMonthlySnapshotV1[] = [];
+  for (let month = 0; month <= lastMonth; month += 1) {
+    points.push(monthlySample(vaccine, doseDays, month * DAYS_PER_MONTH, month));
+  }
+  if (Math.abs(lastMonth * DAYS_PER_MONTH - assessmentDays) > 1e-9) {
+    points.push(monthlySample(vaccine, doseDays, assessmentDays, assessmentDays / DAYS_PER_MONTH));
+  }
+  return points;
+}
+
+function monthlySample(vaccine: VaccineV1, doseDays: number[], ageDays: number, ageMonths: number): ScheduleMonthlySnapshotV1 {
+  const dosesBefore = doseDays.filter((day) => day <= ageDays);
+  const bins = combinedMucosal(buildStateAtAssessment(vaccine, dosesBefore, ageDays));
+  return { ageMonths, ageDays, mucosalBins: bins, meanStateLog2: bins.reduce((sum, mass, bin) => sum + mass * bin, 0) };
+}
+
+/**
  * Read-only teaching diagnostics. These project the production state and
  * kernels; they never feed back into the transmission calculation.
  */
-export function buildWithinHostDiagnostics(scenario: ScenarioV1, vaccinatedState: ImmuneState, modelIdentity: string): WithinHostDiagnosticsV1 {
+export function buildWithinHostDiagnostics(scenario: ScenarioV1, vaccinatedState: ImmuneState, modelIdentity: string): WithinHostDiagnosticsV2 {
   const referenceState: ImmuneState = {
     ...initialImmuneState(),
     assessmentAgeDays: vaccinatedState.assessmentAgeDays
@@ -36,7 +112,7 @@ export function buildWithinHostDiagnostics(scenario: ScenarioV1, vaccinatedState
     ? stableDiagnosticNumber(vaccinated.integratedConditionalBurdenTCID50DaysPerGram / reference.integratedConditionalBurdenTCID50DaysPerGram)
     : 0;
   return {
-    schemaVersion: "WithinHostDiagnosticsV1",
+    schemaVersion: "WithinHostDiagnosticsV2",
     gridVersion: DIAGNOSTIC_GRID.version,
     gridSchemaVersion: DIAGNOSTIC_GRID.schemaVersion,
     sourceParameterSchemaVersion: PARAMETERS.schemaVersion,
@@ -61,7 +137,8 @@ export function buildWithinHostDiagnostics(scenario: ScenarioV1, vaccinatedState
     vaccinated,
     qAcq,
     qShed,
-    qIndex: qAcq * qShed
+    qIndex: qAcq * qShed,
+    immuneResponse: buildImmuneResponseDiagnostics(scenario.vaccine, scenario.schedule)
   };
 }
 

@@ -126,6 +126,12 @@ h3 { font-size: var(--fs-h3); }
 .narrative-summary { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: baseline; margin: 0 0 30px; padding: 13px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); color: var(--muted); font-size: var(--fs-body); }
 .narrative-summary strong { color: var(--ink); font-family: var(--serif); font-size: var(--fs-accent); font-weight: 400; }
 .print-product-summary { display: none; }
+.immune-response-mapping { margin: 0 0 var(--space-4); }
+.immune-response-mapping p { margin: 12px 0 0; color: var(--muted); font-size: var(--fs-body); }
+.immune-response-mapping .correlate-note { margin: 0 0 12px; padding: 10px 0 10px 16px; border-left: 3px solid var(--accent); color: var(--ink); font-size: var(--fs-body); font-style: italic; }
+.immune-response-mapping .comparator-exception { margin: 0; padding: 12px 16px; border-left: 3px solid var(--russet-dark); background: rgba(29, 37, 40, .025); color: var(--ink); }
+.figure-lede { margin: 0 0 12px; color: var(--muted); font-size: var(--fs-body); }
+.figure-lede strong { color: var(--ink); }
 .controls-title { display: flex; justify-content: space-between; align-items: start; gap: 12px; }
 .controls-title h2 { font-family: var(--serif); font-size: var(--fs-h3); }
 label { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; font-size: var(--fs-body); font-weight: 750; letter-spacing: .02em; }
@@ -272,6 +278,7 @@ fieldset > p { color: var(--muted); font-size: var(--fs-body); }
 .immunity-candidate { fill: #6C1446; }
 .immunity-chart-mobile { display: none; }
 .dose-response-mobile { display: none; }
+.immune-response-chart-mobile { display: none; }
 .surface-cell, .design-cell { stroke: none; }
 .surface-cell.is-inspected { stroke: #6C1446; stroke-width: 2; vector-effect: non-scaling-stroke; }
 .threshold-line { fill: none; stroke: #111; stroke-width: 2.2; stroke-dasharray: 7 5; vector-effect: non-scaling-stroke; }
@@ -351,6 +358,8 @@ fieldset > p { color: var(--muted); font-size: var(--fs-body); }
   .immunity-chart-mobile { display: block; }
   .dose-response-desktop { display: none; }
   .dose-response-mobile { display: block; }
+  .immune-response-chart { display: none; }
+  .immune-response-chart-mobile { display: block; }
   .motif-desktop { display: none; }
   .motif-mobile { display: block; }
   .pathway article { grid-template-columns: 1fr; }

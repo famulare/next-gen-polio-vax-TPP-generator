@@ -7,7 +7,7 @@ import { defaultScenario, evaluateScenario, evaluateScenarioLight, scenarioWithD
 import { DIAGNOSTIC_GRID, FRONTIER_GRID, PARAMETERS, SETTING_ANCHORS, SETTING_DISPLAY_DOMAIN, vaccineDefaults } from "../../src/model/parameters";
 import { envelopeCorner } from "../../src/model/metrics";
 import { canonicalHash, canonicalJson, decodeScenario, encodeScenario, validateModelOutputs, validateScenario } from "../../src/model/serialization";
-import { applyDose, buildScheduleState, buildStateAtAssessment, initialImmuneState, moveState, scheduleDays } from "../../src/model/schedule";
+import { applyDose, applyDoseWithTake, buildScheduleState, buildScheduleTrace, buildStateAtAssessment, combinedMucosal, initialImmuneState, moveState, scheduleDays } from "../../src/model/schedule";
 import { peakSheddingAgeAmplitude, sheddingTerms } from "../../src/model/shedding";
 import { doseResponse, susceptibilityPerBin, vaccineTakePerBin, wpvSusceptibilityPerBin } from "../../src/model/dose-response";
 import { clearTransmissionCaches, conditionIndexBreakthrough, createRLocEvaluator, naiveRLocForSetting, repeatedExposureProbability, rLocForSetting, transmitLink, transmissionCacheStats } from "../../src/model/transmission";
@@ -15,7 +15,7 @@ import { DAYS_PER_MONTH, waneMucosal, waningDeltaMonths } from "../../src/model/
 import { evaluateMatlabFixedTiterMotif } from "../../src/model/matlab-compat";
 import { sha256Hex } from "../../src/model/canonical";
 import { deriveCalibrationVarianceConstraint, evaluatePrevalenceMotif, gaussianCalibrationStateForMean, immunityMoments } from "../../src/model/calibration";
-import { diagnosticDoseGrid, diagnosticTimeGrid } from "../../src/model/diagnostics";
+import { boostResponsePoints, buildImmuneResponseDiagnostics, diagnosticDoseGrid, diagnosticTimeGrid } from "../../src/model/diagnostics";
 import { validateDiagnosticGridManifest, validateFrontierGridManifest, validateParameterManifest, validateSettingManifest, validateUncertaintyManifest } from "../../src/model/manifest-validation";
 import type { ProductId, ScenarioV1, ScheduleV1, SettingV1, VaccineV1 } from "../../src/model/types";
 
@@ -772,6 +772,92 @@ test("all-IPV naive schedule has no mucosal endpoint effect", () => {
   assert.ok(Math.abs(metrics.metrics.qAcq - 1) < 1e-12);
 });
 
+function expectedAggregateTake(state: ReturnType<typeof initialImmuneState>, vaccine: VaccineV1): number {
+  let aggregate = 0;
+  for (const group of state.groups) {
+    const take = vaccineTakePerBin(vaccine.dose, vaccine.alpha, vaccine.beta, vaccine.gamma, vaccine.takeContext, vaccine.formulationMultiplier, group.everInfected);
+    aggregate += group.mass * group.mucosal.reduce((sum, mass, bin) => sum + mass * (take[bin] ?? 0), 0);
+  }
+  return aggregate;
+}
+
+test("schedule trace reuses production transitions and reaches identical final state", () => {
+  const scenario = defaultScenario();
+  const trace = buildScheduleTrace(scenario.vaccine, scenario.schedule);
+  const production = buildScheduleState(scenario.vaccine, scenario.schedule);
+  assert.deepEqual(trace.state, production);
+  const assessment = trace.snapshots.at(-1)!;
+  assert.equal(assessment.phase, "assessment");
+  assert.deepEqual(assessment.mucosalBins, combinedMucosal(production));
+});
+
+test("schedule trace conserves probability at every snapshot", () => {
+  const scenario = defaultScenario();
+  for (const boosterAgeYears of [0, 1, 2] as const) {
+    const trace = buildScheduleTrace(scenario.vaccine, { ...scenario.schedule, boosterAgeYears });
+    for (const snapshot of trace.snapshots) {
+      assert.equal(snapshot.mucosalBins.length, 16);
+      assert.ok(snapshot.mucosalBins.every((mass) => mass >= 0));
+      assert.ok(Math.abs(snapshot.mucosalBins.reduce((sum, mass) => sum + mass, 0) - 1) <= 1e-12);
+      assert.ok(Number.isFinite(snapshot.day) && snapshot.day >= 0);
+    }
+  }
+});
+
+test("schedule trace records exact routine booster and assessment chronology", () => {
+  const trace = buildScheduleTrace(defaultScenario().vaccine, defaultScenario().schedule);
+  assert.deepEqual(
+    trace.snapshots.map((snapshot) => [snapshot.sequence, snapshot.phase, snapshot.day, snapshot.doseNumber, snapshot.label]),
+    [
+      [0, "initial", 0, null, "Birth"],
+      [1, "pre-dose", 42, 1, "Before Dose 1"],
+      [2, "post-dose", 42, 1, "After Dose 1"],
+      [3, "pre-dose", 70, 2, "Before Dose 2"],
+      [4, "post-dose", 70, 2, "After Dose 2"],
+      [5, "pre-dose", 98, 3, "Before Dose 3"],
+      [6, "post-dose", 98, 3, "After Dose 3"],
+      [7, "pre-dose", 365.25, 4, "Before Booster"],
+      [8, "post-dose", 365.25, 4, "After Booster"],
+      [9, "assessment", 393.25, null, "Assessment"]
+    ]
+  );
+  // Sequence indices are monotone and same-day pre/post are not reordered.
+  assert.ok(trace.snapshots.every((snapshot, index) => snapshot.sequence === index));
+  assert.deepEqual(trace.doseDiagnostics.map((dose) => [dose.doseNumber, dose.day]), [[1, 42], [2, 70], [3, 98], [4, 365.25]]);
+});
+
+test("aggregate take equals the transition's bin-specific take mass", () => {
+  const scenario = defaultScenario();
+  const doseDays = scheduleDays(scenario.schedule);
+  const trace = buildScheduleTrace(scenario.vaccine, scenario.schedule);
+  doseDays.forEach((doseDay, index) => {
+    const preDoseState = buildStateAtAssessment(scenario.vaccine, doseDays.slice(0, index), doseDay);
+    const transition = applyDoseWithTake(preDoseState, scenario.vaccine);
+    const expected = expectedAggregateTake(preDoseState, scenario.vaccine);
+    assert.ok(transition.aggregateTakeProbability !== null);
+    assert.ok(Math.abs(transition.aggregateTakeProbability! - expected) <= 1e-12);
+    assert.ok(Math.abs(trace.doseDiagnostics[index]!.aggregateTakeProbability! - expected) <= 1e-12);
+    assert.ok(transition.aggregateTakeProbability! >= 0 && transition.aggregateTakeProbability! <= 1);
+  });
+});
+
+test("no-booster trace contains no booster event", () => {
+  const scenario = defaultScenario();
+  const trace = buildScheduleTrace(scenario.vaccine, { ...scenario.schedule, boosterAgeYears: 0 });
+  assert.equal(trace.doseDiagnostics.length, 3);
+  assert.equal(trace.snapshots.length, 8);
+  assert.ok(trace.snapshots.every((snapshot) => !snapshot.label.includes("Booster")));
+  assert.ok(trace.snapshots.every((snapshot) => snapshot.day <= 126));
+});
+
+test("IPV trace exposes no live-vaccine take coordinate", () => {
+  const ipv = vaccineDefaults("ipv");
+  const schedule = { ...defaultScenario().schedule, productId: "ipv" as const };
+  const trace = buildScheduleTrace(ipv, schedule);
+  assert.ok(trace.doseDiagnostics.every((dose) => dose.aggregateTakeProbability === null));
+  assert.equal(applyDoseWithTake(initialImmuneState(), ipv).aggregateTakeProbability, null);
+});
+
 test("Rloc is monotone in setting axes and zero on any interrupted transmission link", () => {
   const scenario = defaultScenario();
   const state = buildScheduleState(scenario.vaccine, scenario.schedule);
@@ -1098,7 +1184,7 @@ test("within-host teaching diagnostics preserve the production kernels and metri
   const outputs = evaluateScenario(defaultScenario());
   const { diagnostics, metrics } = outputs;
 
-  assert.equal(diagnostics.schemaVersion, "WithinHostDiagnosticsV1");
+  assert.equal(diagnostics.schemaVersion, "WithinHostDiagnosticsV2");
   assert.equal(diagnostics.gridVersion, DIAGNOSTIC_GRID.version);
   assert.equal(diagnostics.gridSchemaVersion, DIAGNOSTIC_GRID.schemaVersion);
   assert.equal(diagnostics.sourceParameterSchemaVersion, PARAMETERS.schemaVersion);
@@ -1181,6 +1267,99 @@ test("displayed within-host kernel quantities do not increase with mucosal immun
       assert.ok(terms[bin]!.conditionalConcentration <= terms[bin - 1]!.conditionalConcentration + 1e-8);
     }
   }
+});
+
+test("boost response points match mean and SD equations at bins 0 through 15", () => {
+  const vaccine = defaultScenario().vaccine;
+  const points = boostResponsePoints(vaccine)!;
+  assert.equal(points.length, 16);
+  points.forEach((point, x) => {
+    const scale = Math.max(0, 1 - x / 15);
+    const meanShift = vaccine.mu0 * scale;
+    const postMean = Math.min(15, x + vaccine.mu0 * scale);
+    const postSd = vaccine.sigma0 * scale;
+    assert.equal(point.preStateLog2, x);
+    assert.ok(Math.abs(point.meanShiftLog2 - meanShift) <= 1e-12);
+    assert.ok(Math.abs(point.responseCenterFoldRise - 2 ** meanShift) <= 1e-12);
+    assert.ok(Math.abs(point.postMeanLog2 - postMean) <= 1e-12);
+    assert.ok(Math.abs(point.postSdLog2 - postSd) <= 1e-12);
+    assert.ok(Math.abs(point.postVarianceLog2Squared - postSd * postSd) <= 1e-12);
+    assert.ok(Math.abs(point.bandLowLog2 - Math.max(0, postMean - postSd)) <= 1e-12);
+    assert.ok(Math.abs(point.bandHighLog2 - Math.min(15, postMean + postSd)) <= 1e-12);
+    assert.ok(point.bandLowLog2 >= 0 && point.bandHighLog2 <= 15);
+  });
+  assert.equal(boostResponsePoints(vaccineDefaults("ipv")), null);
+});
+
+test("boost response reaches zero SD and no shift at the bin-15 cap", () => {
+  const capped = boostResponsePoints(defaultScenario().vaccine)![15]!;
+  assert.equal(capped.postSdLog2, 0);
+  assert.equal(capped.meanShiftLog2, 0);
+  assert.equal(capped.postVarianceLog2Squared, 0);
+  assert.equal(capped.responseCenterFoldRise, 1);
+  assert.equal(capped.postMeanLog2, 15);
+  assert.equal(capped.bandLowLog2, 15);
+  assert.equal(capped.bandHighLog2, 15);
+});
+
+test("live and full evaluations emit identical response diagnostics", () => {
+  for (const productId of ["hypothetical", "sabin2", "ipv"] as const) {
+    const scenario = scenarioWithProduct(defaultScenario(), productId);
+    const full = evaluateScenario(scenario).diagnostics.immuneResponse;
+    const light = evaluateScenarioLight(scenario).diagnostics.immuneResponse;
+    assert.deepEqual(light, full);
+    assert.deepEqual(full, buildImmuneResponseDiagnostics(scenario.vaccine, scenario.schedule));
+  }
+});
+
+test("strict validation rejects malformed immune-response diagnostics", () => {
+  const outputs = evaluateScenario(defaultScenario());
+  const ir = outputs.diagnostics.immuneResponse;
+  const snapshots = ir.scheduleSnapshots;
+  const withImmuneResponse = (next: unknown): unknown => ({ ...outputs, diagnostics: { ...outputs.diagnostics, immuneResponse: next } });
+  // Final assessment snapshot disagreeing with vaccinated bins (still a valid distribution).
+  const naiveFinal = snapshots.map((snapshot, index) => index === snapshots.length - 1 ? { ...snapshot, mucosalBins: snapshot.mucosalBins.map((_, bin) => bin === 0 ? 1 : 0), meanStateLog2: 0 } : snapshot);
+  assert.throws(() => validateModelOutputs(withImmuneResponse({ ...ir, scheduleSnapshots: naiveFinal })), /Final assessment snapshot/);
+  // Broken mass conservation.
+  const brokenMass = snapshots.map((snapshot, index) => index === 0 ? { ...snapshot, mucosalBins: snapshot.mucosalBins.map((mass) => mass * 2) } : snapshot);
+  assert.throws(() => validateModelOutputs(withImmuneResponse({ ...ir, scheduleSnapshots: brokenMass })), /probability distribution/);
+  // Reordered same-day pre/post phases.
+  const swapped = [snapshots[0], snapshots[2], snapshots[1], ...snapshots.slice(3)];
+  assert.throws(() => validateModelOutputs(withImmuneResponse({ ...ir, scheduleSnapshots: swapped })), /out of sequence|phase or dose number/);
+  // Boost SD disagreeing with the Section 7.3 operator.
+  const badBoost = ir.boostResponse!.map((point, index) => index === 0 ? { ...point, postSdLog2: point.postSdLog2 + 1 } : point);
+  assert.throws(() => validateModelOutputs(withImmuneResponse({ ...ir, boostResponse: badBoost })), /boost operator/);
+  // Live mapping/take relabeled as IPV.
+  assert.throws(() => validateModelOutputs(withImmuneResponse({ ...ir, displayMapping: "mucosal-only-ipv" })), /display mapping/);
+  const nulledTake = ir.doseDiagnostics.map((dose) => ({ ...dose, aggregateTakeProbability: null }));
+  assert.throws(() => validateModelOutputs(withImmuneResponse({ ...ir, doseDiagnostics: nulledTake })), /aggregateTakeProbability/);
+});
+
+test("monthly schedule trace wanes month by month to the vaccinated distribution", () => {
+  const outputs = evaluateScenario(defaultScenario());
+  const monthly = outputs.diagnostics.immuneResponse.monthlyTrace;
+  assert.ok(monthly.length >= 2);
+  assert.equal(monthly[0]!.ageMonths, 0);
+  assert.ok(monthly.every((point, index) => index === 0 || point.ageMonths > monthly[index - 1]!.ageMonths));
+  for (const point of monthly) {
+    assert.equal(point.mucosalBins.length, 16);
+    assert.ok(Math.abs(point.mucosalBins.reduce((sum, mass) => sum + mass, 0) - 1) <= 1e-12);
+    assert.ok(Math.abs(point.meanStateLog2 - point.mucosalBins.reduce((sum, mass, bin) => sum + mass * bin, 0)) <= 1e-12);
+  }
+  const finalBins = monthly.at(-1)!.mucosalBins;
+  assert.ok(finalBins.every((mass, bin) => Math.abs(mass - outputs.diagnostics.vaccinated.immunityBins[bin]!) <= 1e-12));
+  // A strictly increasing but wrong-final monthly trace fails validation.
+  const naiveFinal = monthly.map((point, index) => index === monthly.length - 1 ? { ...point, mucosalBins: point.mucosalBins.map((_, bin) => bin === 0 ? 1 : 0), meanStateLog2: 0 } : point);
+  const broken = { ...outputs, diagnostics: { ...outputs.diagnostics, immuneResponse: { ...outputs.diagnostics.immuneResponse, monthlyTrace: naiveFinal } } };
+  assert.throws(() => validateModelOutputs(broken), /Final monthly snapshot/);
+});
+
+test("IPV immune-response diagnostics fail closed if given a live boost curve", () => {
+  const scenario = scenarioWithProduct(defaultScenario(), "ipv");
+  const outputs = evaluateScenario(scenario);
+  const ir = outputs.diagnostics.immuneResponse;
+  const fabricated = { ...outputs, diagnostics: { ...outputs.diagnostics, immuneResponse: { ...ir, boostResponse: boostResponsePoints(defaultScenario().vaccine) } } };
+  assert.throws(() => validateModelOutputs(fabricated), /IPV must not fabricate/);
 });
 
 test("canonical identities use SHA-256", () => {
