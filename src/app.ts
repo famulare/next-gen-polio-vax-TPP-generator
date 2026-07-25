@@ -338,7 +338,7 @@ export function mountApp(root: HTMLElement): void {
     const metrics = outputs.metrics;
     byId<HTMLElement>("mechanism-values").innerHTML = `<article><span>1 · acquisition</span><strong>${formatPercent(1 - metrics.qAcq)} reduction</strong><p>Relative risk of shedding = ${formatNumber(metrics.qAcq)}.</p></article>
       <article><span>2 · breakthrough shedding</span><strong>${formatPercent(1 - metrics.qShed)} reduction</strong><p>Relative amount shed given infection = ${formatNumber(metrics.qShed)}.</p></article>
-      <article class="diagnostic"><span>3 · relative shedding index</span><strong>${formatNumber(metrics.qIndex)}</strong><p>Relative risk of shedding × relative amount shed given infection; useful for reading, not the decision rule.</p></article>
+      <article><span>3 · relative shedding index</span><strong>${formatNumber(metrics.qIndex)}</strong><p>Relative risk of shedding × relative amount shed given infection; useful for reading, not the decision rule.</p></article>
       <article class="authoritative"><span>4 · close contact decision rule</span><strong>R<sub>loc</sub> = N<sub>s</sub> × P(contact infected)</strong><p>The next step evaluates the selected product at the declared setting scope. This formula, not q<sub>index</sub>, is authoritative.</p></article>`;
   }
 

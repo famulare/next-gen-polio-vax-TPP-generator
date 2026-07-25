@@ -178,7 +178,6 @@ figcaption strong { color: var(--ink); }
 .mechanism-values span { color: var(--muted); font-size: var(--fs-body); font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
 .mechanism-values strong { display: block; font-family: var(--serif); font-size: var(--fs-accent); font-weight: 400; }
 .mechanism-values p { grid-column: 2; grid-row: 1 / 4; margin: 0; color: var(--muted); font-size: var(--fs-body); }
-.mechanism-values .diagnostic { background: rgba(29, 37, 40, .025); padding-inline: var(--space-3); }
 .mechanism-values .authoritative strong { color: var(--russet-dark); }
 .meaning-note { margin-top: var(--space-5); padding-top: var(--space-4); border-top: 1px solid var(--line); color: var(--muted); font-size: var(--fs-body); }
 .meaning-note strong { display: block; margin-bottom: 6px; color: var(--ink); }
