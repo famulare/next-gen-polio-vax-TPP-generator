@@ -338,9 +338,12 @@ fieldset > p { color: var(--muted); font-size: var(--fs-body); }
 }
 
 @media (max-width: 720px) {
-  .site-header { gap: 12px; }
+  .site-header { gap: 10px; padding-inline: 12px; }
+  /* The longer wordmark must yield to the Sections toggle on narrow screens: allow it
+     to shrink (and ellipsize as a last resort) so the header never overflows. */
+  .wordmark { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: .8rem; letter-spacing: .05em; }
   .chapter-nav { display: none; }
-  .section-nav { display: block; }
+  .section-nav { display: block; flex: 0 0 auto; }
   .section-nav > summary { display: block; list-style: none; padding: 6px 12px; border: 1px solid rgb(49 58 68 / 45%); font-weight: 800; font-size: var(--fs-body); cursor: pointer; }
   .section-nav > summary::-webkit-details-marker { display: none; }
   .section-nav > summary::after { content: " \25BE"; }

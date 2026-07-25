@@ -281,7 +281,7 @@ function immuneResponsePanelB(ir: ImmuneResponseDiagnosticsV1, box: PanelBox, mo
     : "Cohort probability across all 16 mucosal-immunity bins by age in months; darker is more mass. IPV creates no live take, so the distribution only wanes toward lower immunity between events.";
   const noteLines = wrapChars(noteText, mobile ? 40 : Math.floor((box.width - 6) / 8.6));
   const noteTop = box.y + 16 + titleLines.length * 20;
-  const plotTop = noteTop + noteLines.length * 15 + 36;
+  const plotTop = noteTop + noteLines.length * 15 + (mobile ? 24 : 36);
   const labelBudget = mobile ? 62 : 56;
   const plot = { x: box.x + 42, y: plotTop, width: box.width - 54, height: box.y + box.height - labelBudget - plotTop };
   const cellH = plot.height / binCount;
@@ -301,11 +301,12 @@ function immuneResponsePanelB(ir: ImmuneResponseDiagnosticsV1, box: PanelBox, mo
   const doseMarkers = ir.doseDiagnostics.map((dose) => {
     const mx = xScale(dose.day / daysPerMonth);
     const label = dose.doseNumber > 3 ? "Booster" : `D${dose.doseNumber}`;
-    const take = live && dose.aggregateTakeProbability !== null ? `<text class="teaching-panel-note" x="${mx}" y="${plot.y - 4}" text-anchor="middle">${formatPercent(dose.aggregateTakeProbability)}</text>` : "";
-    return `<line x1="${mx}" x2="${mx}" y1="${plot.y}" y2="${plot.y + plot.height}" stroke="${SLATE}" stroke-width="1" stroke-dasharray="3 2" stroke-opacity="0.5"/><text class="teaching-panel-note" x="${mx}" y="${plot.y - 18}" text-anchor="middle">${escapeXml(label)}</text>${take}`;
+    // Per-dose take percentages crowd the narrow mobile plot, so they are desktop-only.
+    const take = live && !mobile && dose.aggregateTakeProbability !== null ? `<text class="teaching-panel-note" x="${mx}" y="${plot.y - 4}" text-anchor="middle">${formatPercent(dose.aggregateTakeProbability)}</text>` : "";
+    return `<line x1="${mx}" x2="${mx}" y1="${plot.y}" y2="${plot.y + plot.height}" stroke="${SLATE}" stroke-width="1" stroke-dasharray="3 2" stroke-opacity="0.5"/><text class="teaching-panel-note" x="${mx}" y="${plot.y - (mobile ? 8 : 18)}" text-anchor="middle">${escapeXml(label)}</text>${take}`;
   }).join("");
   // "take:" row label, anchored at the birth (month-0) line so it stays put across settings.
-  const takeRowLabel = live ? `<text class="teaching-panel-note" x="${plot.x}" y="${plot.y - 4}" text-anchor="start">take:</text>` : "";
+  const takeRowLabel = live && !mobile ? `<text class="teaching-panel-note" x="${plot.x}" y="${plot.y - 4}" text-anchor="start">take:</text>` : "";
   // The assessment marker sits on the plot's right edge (age = assessment); the
   // "Age (months)" axis maxing at the assessment age labels it, so no text tag is
   // needed and it never crowds the nearby booster label.
