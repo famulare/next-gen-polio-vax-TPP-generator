@@ -60,8 +60,7 @@ export function evaluateScenario(scenario: ScenarioV1): ModelOutputsV1 {
     "The close-contact criterion is a conditional-plausibility screen under the sufficiency axiom: the modeled motif is treated as high strength and remaining connections as mostly weaker. It is not a calculated complete-population R_e.",
     "All scheduled doses are received; take is biological productive live-vaccine infection, not receipt or coverage.",
     "Transmission, susceptibility, and shedding use mucosal immunity only; IPV has no mucosal effect in a live-virus-naive cohort.",
-    "The Matlab marker is a hybrid setting anchor. Its household exposure evidence is combined with the declared close-contact motif used by this model.",
-    "The setting surface holds both link exposure frequencies at the selected decision setting while varying linked mass per exposure and the number of close social contacts. Only named anchors sharing those frequencies lie on the displayed slice.",
+    "The Matlab marker is a hybrid setting anchor: its household exposure evidence is combined with the declared close-contact motif used by this model. The setting surface holds both link exposure frequencies at the declared decision scope; only named anchors sharing those frequencies lie on the displayed slice.",
     "A parameter-uncertainty interval and upper-95 rule are out of scope for this iteration. This point output does not quantify threshold-crossing probability or support probability-weighted expected-loss or risk-sensitive decisions. Any future low/base/high evaluation must be labeled sensitivity, not probability."
   ];
   const outputs: ModelOutputsV1 = {
@@ -103,11 +102,20 @@ export function buildSettingSurface(scenario: ScenarioV1, state: ReturnType<type
   const thsMax = SETTING_DISPLAY_DOMAIN.exposure.max;
   const exposureCount = SETTING_DISPLAY_DOMAIN.exposure.count;
   const contactStep = SETTING_DISPLAY_DOMAIN.contacts.step;
-  // The one setting selector decides and inspects the same anchor. Hold that
-  // anchor's two exposure frequencies fixed across the nonbinding surface so the
-  // selected marker is a valid point on the displayed linked-exposure slice.
-  const displayDIh = { ...scenario.setting.dIh };
-  const displayDHs = { ...scenario.setting.dHs };
+  // The decision envelope, not the view-only setting probe, defines the
+  // scientific identity. Hold its two exposure frequencies fixed across the
+  // nonbinding surface so legacy links with a mismatched probe cannot change
+  // the raster without changing model identity.
+  const displayDIh: SettingV1["dIh"] = {
+    value: scenario.envelope.dIhMax,
+    unit: "exposures/person/day",
+    basis: "per_day"
+  };
+  const displayDHs: SettingV1["dHs"] = {
+    value: scenario.envelope.dHsMax,
+    unit: "exposures/person/day",
+    basis: "per_day"
+  };
   const cacheKey = canonicalHash({
     scientificManifest: SCIENTIFIC_MANIFEST_ID,
     gridVersion: FRONTIER_GRID.version,
