@@ -30,6 +30,11 @@ try {
   await page.locator('button[data-tpp-mode="design"]').click();
   assert.equal(await page.locator("body").getAttribute("data-tpp-mode"), "design");
   assert.ok(await page.locator("#tpp-workbench").isVisible(), "Design mode should expose the TPP workbench");
+  const resetBox = await page.locator("#reset").evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    return { width: rect.width, height: rect.height };
+  });
+  assert.ok(resetBox.width >= 100 && resetBox.height <= 40, "Reset defaults must not be squeezed into a wrapped button");
   const profileText = await page.locator("#tpp-profile-content").textContent();
   for (const phrase of ["Context multiplier on take", "Modeled take by dose", "Direct Rloc", "Evidence status"]) {
     assert.ok(profileText?.includes(phrase), `TPP profile omits ${phrase}`);
@@ -49,9 +54,10 @@ try {
   assert.ok(comparison?.includes("UP/Bihar"));
   assert.ok(comparison?.includes("Matlab"));
   const sliceNote = await page.locator(".tpp-surface-slice-note").textContent();
-  assert.ok(sliceNote?.includes("1 exposure/person/day"));
+  assert.ok(sliceNote?.includes("All named anchors share this frequency slice"));
   assert.ok(await page.locator("#setting-figure text.anchor-label", { hasText: "Matlab" }).isVisible());
-  assert.ok(await page.locator("#setting-figure text.anchor-label", { hasText: "Houston" }).isHidden());
+  assert.ok(await page.locator("#setting-figure text.anchor-label", { hasText: "Houston" }).isVisible());
+  assert.ok(await page.locator("#setting-figure text.anchor-label", { hasText: "UP/Bihar" }).isVisible());
   assert.ok(comparison?.includes("Direct R_loc"));
 
   const decision = await page.locator("#result-status").textContent();

@@ -54,9 +54,10 @@ export const SETTING_MANIFEST_VERSION = rawAnchors.version;
 export const SETTING_ANCHORS = deepFreeze((rawAnchors.anchors as Array<Record<string, unknown>>).map((record) => {
   const dIh = record.dIh as SettingAnchorRecord["dIh"];
   const dHs = record.dHs as SettingAnchorRecord["dHs"];
-  // Teaching convention: the Matlab anchor intentionally uses linked 18.6 micrograms/exposure
-  // on both links with one exposure/person/day. This is a small deviation from the source
-  // parameterization, chosen so the named point lies on the linked-exposure display slice.
+  // The Matlab anchor's measured household exposure (18.6 micrograms/day, Taniuchi 2017)
+  // is applied as the per_day basis for both links; canonicalExposure below divides by
+  // each link's own contact frequency (dIh, dHs), which are the same shared frequencies
+  // as Houston and UP/Bihar. This keeps all three named anchors on one frequency slice.
   return {
     id: record.id as SettingAnchorRecord["id"],
     label: record.label as string,

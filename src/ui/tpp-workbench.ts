@@ -465,8 +465,8 @@ function patchSurfaceUnits(doc: Document): void {
   const desc = svg.querySelector("#setting-desc");
   if (desc?.textContent) {
     const next = desc.textContent
-      .replace("micrograms of stool exposure per day", "micrograms of linked stool-equivalent mass per exposure on both links")
-      .replace("micrograms of stool exposure per exposure", "micrograms of linked stool-equivalent mass per exposure on both links");
+      .replace("micrograms of stool exposure per day", "micrograms of stool-equivalent mass per exposure on the index-to-household link, T_ih")
+      .replace("micrograms of stool exposure per exposure", "micrograms of stool-equivalent mass per exposure on the index-to-household link, T_ih");
     if (next !== desc.textContent) desc.textContent = next;
   }
   svg.querySelectorAll("rect.surface-cell > title").forEach((title) => {
@@ -478,7 +478,7 @@ function patchSurfaceUnits(doc: Document): void {
     if (next !== current) title.textContent = next;
   });
   svg.querySelectorAll<SVGTextElement>("text.axis-label").forEach((text) => {
-    if (text.textContent?.includes("Stool exposure per day")) text.textContent = "Linked stool-equivalent mass per exposure (µg; log scale)";
+    if (text.textContent?.includes("Stool exposure per day")) text.textContent = "Stool-equivalent mass per exposure, T_ih (µg; log scale)";
   });
   const readout = svg.querySelector<SVGGElement>(".chart-readout");
   const valueLine = readout?.querySelectorAll("text")[1];

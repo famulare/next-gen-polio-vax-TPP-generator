@@ -112,7 +112,7 @@ The guided mechanism contrast searches the current hypothetical product family f
 `tests/tpp-analysis.test.ts` checks:
 
 - exact reconciliation of the teaching waterfall with direct `R_loc`;
-- the linked Matlab setting convention and its one-exposure-per-day surface slice;
+- the Matlab setting sharing the standard close-contact frequency slice with Houston and UP/Bihar, with its household-link dose (T_ih) and derived social-contact dose (T_hs) computed from the same measured daily exposure;
 - the separation of the take-context multiplier from modeled take by dose;
 - the mechanism-contrast construction and its direct-result separation;
 - explicit hypothetical-family context when a fixed comparator is selected; and

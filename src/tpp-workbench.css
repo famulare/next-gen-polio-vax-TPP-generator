@@ -42,6 +42,7 @@ body[data-tpp-mode="design"] .tpp-workbench { display: block; }
 .tpp-workbench[aria-busy="true"] .tpp-panel { opacity: .64; }
 .tpp-experiments { margin-top: var(--space-5); }
 .tpp-experiments > summary { padding-inline: 0; }
+.tpp-experiments > summary > span { flex: 0 0 auto; white-space: nowrap; }
 .tpp-experiment-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px; padding: 22px 0; }
 .tpp-experiment-grid fieldset { margin: 0; padding: 18px; border: 1px solid var(--line-dark); background: var(--paper-deep); }
 .tpp-experiment-grid legend { padding: 0; margin-bottom: 12px; font-size: var(--fs-accent); }
@@ -78,6 +79,9 @@ body[data-tpp-mode="design"] .tpp-workbench { display: block; }
 .tpp-design-context { margin: 0 0 24px; padding: 14px 16px; border-left: 4px solid var(--accent); background: var(--paper-deep); }
 .tpp-design-context span { color: var(--muted); }
 .tpp-point-note { max-width: 760px; margin: 18px 0 0; color: var(--muted); }
+
+.controls-title > div { min-width: 0; }
+.controls-title > .text-button { flex: 0 0 auto; white-space: nowrap; }
 
 body[data-tpp-mode="design"] #within-host,
 body[data-tpp-mode="design"] #product-pathway,

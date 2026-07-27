@@ -94,7 +94,7 @@ export function validateDiagnosticGridManifest(value: unknown): asserts value is
 
 export function validateSettingManifest(value: unknown): void {
   const root = record(value, "SettingManifestV2"); exact(root, ["schemaVersion", "version", "anchors", "matlabInterval", "defaultDecisionScope", "surfaceDisplayDomain"], "SettingManifestV2");
-  literal(root.schemaVersion, "SettingManifestV2", "setting schemaVersion"); literal(root.version, "settings-2.3.0", "setting version");
+  literal(root.schemaVersion, "SettingManifestV2", "setting schemaVersion"); literal(root.version, "settings-2.3.1", "setting version");
   if (!Array.isArray(root.anchors) || root.anchors.length !== 3) throw new Error("Setting manifest must contain three anchors");
   for (const [index, candidate] of root.anchors.entries()) {
     const anchor = record(candidate, `anchors[${index}]`);
@@ -107,8 +107,8 @@ export function validateSettingManifest(value: unknown): void {
   const matlabCandidate = root.anchors.find((candidate) => record(candidate, "anchor").id === "matlab");
   if (!matlabCandidate) throw new Error("Setting manifest must contain the Matlab anchor");
   const matlab = record(matlabCandidate, "Matlab anchor");
-  unitValueExact(matlab.T_ih, "Matlab T_ih", "micrograms/exposure", "per_exposure");
-  unitValueExact(matlab.T_hs, "Matlab T_hs", "micrograms/exposure", "per_exposure");
+  unitValueExact(matlab.T_ih, "Matlab T_ih", "micrograms/day", "per_day");
+  unitValueExact(matlab.T_hs, "Matlab T_hs", "micrograms/day", "per_day");
   unitValueExact(matlab.dIh, "Matlab dIh", "exposures/person/day", "per_day");
   unitValueExact(matlab.dHs, "Matlab dHs", "exposures/person/day", "per_day");
   const matlabTih = record(matlab.T_ih, "Matlab T_ih");
@@ -118,7 +118,7 @@ export function validateSettingManifest(value: unknown): void {
   literal(matlabTih.value, 18.6, "Matlab T_ih.value");
   literal(matlabThs.value, 18.6, "Matlab T_hs.value");
   literal(matlabDIh.value, 1, "Matlab dIh.value");
-  literal(matlabDHs.value, 1, "Matlab dHs.value");
+  literal(matlabDHs.value, 8.9685, "Matlab dHs.value");
   positiveObject(root.matlabInterval, ["low", "high", "unit"], "matlabInterval", ["unit"]);
   const matlabInterval = record(root.matlabInterval, "matlabInterval");
   literal(matlabInterval.unit, "micrograms/day", "matlabInterval.unit");

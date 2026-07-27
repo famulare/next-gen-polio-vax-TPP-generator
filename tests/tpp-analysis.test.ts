@@ -18,18 +18,18 @@ test("transmission teaching diagnostics reconcile with the authoritative direct 
   assert.ok(Math.abs(profile.transmission.reconstructedRLoc - profile.transmission.setting.Ns * profile.transmission.singleSocialContactProbability) < 1e-14);
 });
 
-test("Matlab is a valid linked-exposure point with one exposure per day on both links", () => {
+test("Matlab shares the standard close-contact frequency slice with Houston and UP/Bihar", () => {
   const scenario = scenarioWithSetting(scenarioWithDecisionScope(defaultScenario(), "matlab"), "matlab");
   assert.equal(scenario.setting.Tih.value, 18.6e-6);
-  assert.equal(scenario.setting.Ths.value, 18.6e-6);
+  assert.ok(Math.abs(scenario.setting.Ths.value - 18.6e-6 / 8.9685) / (18.6e-6 / 8.9685) < 1e-12);
   assert.equal(scenario.setting.dIh.value, 1);
-  assert.equal(scenario.setting.dHs.value, 1);
+  assert.equal(scenario.setting.dHs.value, 8.9685);
   const diagnostics = buildTransmissionTeachingDiagnostics(scenario);
   assert.ok(diagnostics.reconciliationError < 1e-10);
   const surface = buildSettingSurface(scenario, buildScheduleState(scenario.vaccine, scenario.schedule));
   assert.ok(surface.length > 0);
   assert.equal(surface[0]!.dIh, 1);
-  assert.equal(surface[0]!.dHs, 1);
+  assert.equal(surface[0]!.dHs, 8.9685);
 });
 
 test("mechanism contrast finds similar shedding indices with opposing component effects", () => {
