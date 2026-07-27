@@ -15,7 +15,7 @@
     "check:reference-fixtures": "node scripts/check-reference-fixtures.mjs",
     "build": "node scripts/build.mjs",
     "record:artifact-hash": "node scripts/check-artifact.mjs --write-hash",
-    "check:artifact": "node scripts/check-artifact.mjs && node scripts/browser-smoke.mjs",
+    "check:artifact": "node scripts/check-artifact.mjs && node scripts/browser-smoke.mjs && node scripts/tpp-browser-smoke.mjs",
     "check:release-negative": "node scripts/check-release-negative.mjs",
     "verify": "npm run typecheck && npm test && npm run test:fixtures && npm run check:reference-fixtures && npm run check:calibration && npm run check:performance && npm run check:cache-memory && npm run build && npm run check:artifact && npm run check:release-negative"
   },

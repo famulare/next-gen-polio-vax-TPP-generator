@@ -94,7 +94,7 @@ export function validateDiagnosticGridManifest(value: unknown): asserts value is
 
 export function validateSettingManifest(value: unknown): void {
   const root = record(value, "SettingManifestV2"); exact(root, ["schemaVersion", "version", "anchors", "matlabInterval", "defaultDecisionScope", "surfaceDisplayDomain"], "SettingManifestV2");
-  literal(root.schemaVersion, "SettingManifestV2", "setting schemaVersion"); literal(root.version, "settings-2.1.0", "setting version");
+  literal(root.schemaVersion, "SettingManifestV2", "setting schemaVersion"); literal(root.version, "settings-2.3.0", "setting version");
   if (!Array.isArray(root.anchors) || root.anchors.length !== 3) throw new Error("Setting manifest must contain three anchors");
   for (const [index, candidate] of root.anchors.entries()) {
     const anchor = record(candidate, `anchors[${index}]`);
@@ -104,7 +104,24 @@ export function validateSettingManifest(value: unknown): void {
     if (anchor.interval !== undefined) positiveObject(anchor.interval, ["low", "high", "unit"], `anchor[${index}].interval`, ["unit"]);
     if (anchor.tooltip !== undefined) string(anchor.tooltip, `anchor[${index}].tooltip`);
   }
+  const matlabCandidate = root.anchors.find((candidate) => record(candidate, "anchor").id === "matlab");
+  if (!matlabCandidate) throw new Error("Setting manifest must contain the Matlab anchor");
+  const matlab = record(matlabCandidate, "Matlab anchor");
+  unitValueExact(matlab.T_ih, "Matlab T_ih", "micrograms/exposure", "per_exposure");
+  unitValueExact(matlab.T_hs, "Matlab T_hs", "micrograms/exposure", "per_exposure");
+  unitValueExact(matlab.dIh, "Matlab dIh", "exposures/person/day", "per_day");
+  unitValueExact(matlab.dHs, "Matlab dHs", "exposures/person/day", "per_day");
+  const matlabTih = record(matlab.T_ih, "Matlab T_ih");
+  const matlabThs = record(matlab.T_hs, "Matlab T_hs");
+  const matlabDIh = record(matlab.dIh, "Matlab dIh");
+  const matlabDHs = record(matlab.dHs, "Matlab dHs");
+  literal(matlabTih.value, 18.6, "Matlab T_ih.value");
+  literal(matlabThs.value, 18.6, "Matlab T_hs.value");
+  literal(matlabDIh.value, 1, "Matlab dIh.value");
+  literal(matlabDHs.value, 1, "Matlab dHs.value");
   positiveObject(root.matlabInterval, ["low", "high", "unit"], "matlabInterval", ["unit"]);
+  const matlabInterval = record(root.matlabInterval, "matlabInterval");
+  literal(matlabInterval.unit, "micrograms/day", "matlabInterval.unit");
   const defaultScope = record(root.defaultDecisionScope, "defaultDecisionScope"); exact(defaultScope, ["kind", "anchorId"], "defaultDecisionScope"); literal(defaultScope.kind, "named_point", "defaultDecisionScope.kind"); literal(defaultScope.anchorId, "up-bihar", "defaultDecisionScope.anchorId");
   const display = record(root.surfaceDisplayDomain, "surfaceDisplayDomain"); exact(display, ["linkedExposure", "exposure", "contacts", "dIh", "dHs"], "surfaceDisplayDomain"); literal(display.linkedExposure, true, "surfaceDisplayDomain.linkedExposure");
   const exposure = record(display.exposure, "surfaceDisplayDomain.exposure"); exact(exposure, ["count", "min", "max", "scale", "unit", "basis"], "surfaceDisplayDomain.exposure"); integer(exposure.count, 2, 1000, "surfaceDisplayDomain.exposure.count"); positive(exposure.min, "surfaceDisplayDomain.exposure.min"); positive(exposure.max, "surfaceDisplayDomain.exposure.max"); if ((exposure.max as number) <= (exposure.min as number)) throw new Error("surfaceDisplayDomain.exposure.max must exceed min"); literal(exposure.scale, "logarithmic", "surfaceDisplayDomain.exposure.scale"); literal(exposure.unit, "micrograms/exposure", "surfaceDisplayDomain.exposure.unit"); literal(exposure.basis, "per_exposure", "surfaceDisplayDomain.exposure.basis");

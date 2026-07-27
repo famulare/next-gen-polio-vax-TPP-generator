@@ -14,7 +14,7 @@ mkdirSync(temp, { recursive: true });
 
 const bundlePath = resolve(temp, "app.js");
 await build({
-  entryPoints: [resolve(root, "src/app.ts")],
+  entryPoints: [resolve(root, "src/main.ts")],
   outfile: bundlePath,
   bundle: true,
   format: "iife",
@@ -29,7 +29,7 @@ await build({
   logLevel: "error"
 });
 
-const css = readFileSync(resolve(root, "src/styles.css"), "utf8");
+const css = `${readFileSync(resolve(root, "src/styles.css"), "utf8")}\n${readFileSync(resolve(root, "src/tpp-workbench.css"), "utf8")}`;
 const js = readFileSync(bundlePath, "utf8");
 const html = `<!doctype html>
 <html lang="en">

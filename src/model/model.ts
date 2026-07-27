@@ -60,7 +60,7 @@ export function evaluateScenario(scenario: ScenarioV1): ModelOutputsV1 {
     "The close-contact criterion is a conditional-plausibility screen under the sufficiency axiom: the modeled motif is treated as high strength and remaining connections as mostly weaker. It is not a calculated complete-population R_e.",
     "All scheduled doses are received; take is biological productive live-vaccine infection, not receipt or coverage.",
     "Transmission, susceptibility, and shedding use mucosal immunity only; IPV has no mucosal effect in a live-virus-naive cohort.",
-    "The Matlab marker is a hybrid: daily exposure mass is converted to mass per exposure using each link's contact frequency; the social-contact structure is inherited rather than fitted by the Matlab study.",
+    "The Matlab marker is a hybrid setting anchor: its household exposure evidence is combined with the declared close-contact motif used by this model. The setting surface holds both link exposure frequencies at the declared decision scope; only named anchors sharing those frequencies lie on the displayed slice.",
     "A parameter-uncertainty interval and upper-95 rule are out of scope for this iteration. This point output does not quantify threshold-crossing probability or support probability-weighted expected-loss or risk-sensitive decisions. Any future low/base/high evaluation must be labeled sensitivity, not probability."
   ];
   const outputs: ModelOutputsV1 = {
@@ -102,11 +102,26 @@ export function buildSettingSurface(scenario: ScenarioV1, state: ReturnType<type
   const thsMax = SETTING_DISPLAY_DOMAIN.exposure.max;
   const exposureCount = SETTING_DISPLAY_DOMAIN.exposure.count;
   const contactStep = SETTING_DISPLAY_DOMAIN.contacts.step;
+  // The decision envelope, not the view-only setting probe, defines the
+  // scientific identity. Hold its two exposure frequencies fixed across the
+  // nonbinding surface so legacy links with a mismatched probe cannot change
+  // the raster without changing model identity.
+  const displayDIh: SettingV1["dIh"] = {
+    value: scenario.envelope.dIhMax,
+    unit: "exposures/person/day",
+    basis: "per_day"
+  };
+  const displayDHs: SettingV1["dHs"] = {
+    value: scenario.envelope.dHsMax,
+    unit: "exposures/person/day",
+    basis: "per_day"
+  };
   const cacheKey = canonicalHash({
     scientificManifest: SCIENTIFIC_MANIFEST_ID,
     gridVersion: FRONTIER_GRID.version,
     vaccine: scenario.vaccine,
     schedule: scenario.schedule,
+    displayFrequencies: { dIh: displayDIh, dHs: displayDHs },
     indexReferenceExposure: scenario.indexReferenceExposure,
     horizonDays: scenario.horizonDays,
     state
@@ -126,8 +141,8 @@ export function buildSettingSurface(scenario: ScenarioV1, state: ReturnType<type
       id: "custom",
       Tih: { value: Tih, unit: "grams/exposure", basis: "per_exposure" },
       Ths: { value: Ths, unit: "grams/exposure", basis: "per_exposure" },
-      dIh: { ...SETTING_DISPLAY_DOMAIN.dIh },
-      dHs: { ...SETTING_DISPLAY_DOMAIN.dHs },
+      dIh: displayDIh,
+      dHs: displayDHs,
       Ns: 1
     };
     if (!settingSurfaceValueCache.has(cacheKey)) {
