@@ -68,17 +68,20 @@ This module installs the view layer after the core app mounts. It relies only on
 - controlled setting, timing, and mechanism experiments;
 - the explicit causal map and direct-transmission waterfall;
 - clarification of the take-context and acquisition language;
-- setting-surface unit corrections and selected-frequency slice labeling;
-- omission of named markers that do not lie on the selected frequency slice; and
+- setting-surface unit corrections at the view boundary; and
 - the human-readable decision-record download.
 
 The workbench listens to both canonical scenario hash changes and the core transaction's committed status. It therefore refreshes only after the core app has produced a scientifically coherent scenario, including reset cases where the canonical hash may not change. It does not participate in the core app's transaction, frontier, identity, or export state.
 
+### `src/ui/setting-surface-scope.ts`
+
+The surface calculation in `src/model/model.ts` holds both link exposure frequencies at the selected decision setting. This view module labels that frequency slice and omits named anchor markers whose `d_ih` or `d_hs` differs from it. The selected marker therefore always belongs to the raster being displayed; no incompatible anchor is silently drawn over a color computed under another frequency convention.
+
 ### Single entrypoint, post-mount installation
 
-`src/main.ts` imports the core application and then the workbench. The core application mounts synchronously; the workbench schedules its installation for the following microtask. `scripts/build.mjs` bundles that dependency graph once and appends the workbench stylesheet to the existing stylesheet. The deliverable remains one self-contained HTML file with no runtime network dependency.
+`src/main.ts` imports the core application and then the workbench and setting-surface view adapter. The core application mounts synchronously; the explanatory layers schedule their installation for the following microtask. `scripts/build.mjs` bundles that dependency graph once and appends the workbench stylesheet to the existing stylesheet. The deliverable remains one self-contained HTML file with no runtime network dependency.
 
-This arrangement keeps one copy of the scientific modules and their caches while preserving a clear ownership boundary: `app.ts` owns scientific transactions and canonical exports; the workbench owns explanatory projections and view-only interaction. A future refactor may integrate the markup directly into `app.ts`, but only if the invariants above remain explicit and the resulting change reduces rather than increases coupling.
+This arrangement keeps one copy of the scientific modules and their caches while preserving a clear ownership boundary: `app.ts` owns scientific transactions and canonical exports; the explanatory modules own read-only projections and view interaction. A future refactor may integrate the markup directly into `app.ts`, but only if the invariants above remain explicit and the resulting change reduces rather than increases coupling.
 
 ## TPP profile structure
 
@@ -115,7 +118,6 @@ The guided mechanism contrast searches the current hypothetical product family f
 - the conditioning and uncertainty language in the decision record.
 
 The existing browser smoke suite remains the authority for the integrated artifact, responsive layout, accessibility, and export behavior. The generated artifact and its retained hash must be refreshed in an environment with the full Node, dependency, and Playwright toolchain before release.
-
 
 ## Human comprehension validation
 
