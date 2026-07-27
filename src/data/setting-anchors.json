@@ -1,12 +1,12 @@
 {
   "schemaVersion": "SettingManifestV2",
-  "version": "settings-2.1.0",
+  "version": "settings-2.2.0",
   "anchors": [
     { "id": "houston", "label": "Houston/Louisiana 1960", "T_ih": { "value": 5, "unit": "micrograms/exposure", "basis": "per_exposure" }, "T_hs": { "value": 5, "unit": "micrograms/exposure", "basis": "per_exposure" }, "dIh": { "value": 1, "unit": "exposures/person/day", "basis": "per_day" }, "dHs": { "value": 8.9685, "unit": "exposures/person/day", "basis": "per_day" }, "Ns": 3, "kind": "published" },
-    { "id": "matlab", "label": "Matlab, Bangladesh 2016", "T_ih": { "value": 18.6, "unit": "micrograms/day", "basis": "per_day" }, "T_hs": { "value": 18.6, "unit": "micrograms/day", "basis": "per_day" }, "dIh": { "value": 1, "unit": "exposures/person/day", "basis": "per_day" }, "dHs": { "value": 8.9685, "unit": "exposures/person/day", "basis": "per_day" }, "Ns": 3, "kind": "hybrid", "interval": { "low": 3.2, "high": 61.7, "unit": "micrograms/day" }, "tooltip": "The trial estimated the index-to-household link only; the social-contact component is inherited from the published moderate-setting reduction." },
+    { "id": "matlab", "label": "Matlab, Bangladesh 2016", "T_ih": { "value": 18.6, "unit": "micrograms/exposure", "basis": "per_exposure" }, "T_hs": { "value": 18.6, "unit": "micrograms/exposure", "basis": "per_exposure" }, "dIh": { "value": 1, "unit": "exposures/person/day", "basis": "per_day" }, "dHs": { "value": 1, "unit": "exposures/person/day", "basis": "per_day" }, "Ns": 3, "kind": "hybrid", "interval": { "low": 3.2, "high": 61.7, "unit": "micrograms/exposure" }, "tooltip": "The trial estimated the index-to-household link only; the social-contact component uses the same linked per-exposure mass and one exposure per day for this teaching representation." },
     { "id": "up-bihar", "label": "UP/Bihar 2003–2008", "T_ih": { "value": 230, "unit": "micrograms/exposure", "basis": "per_exposure" }, "T_hs": { "value": 230, "unit": "micrograms/exposure", "basis": "per_exposure" }, "dIh": { "value": 1, "unit": "exposures/person/day", "basis": "per_day" }, "dHs": { "value": 8.9685, "unit": "exposures/person/day", "basis": "per_day" }, "Ns": 10, "kind": "published" }
   ],
-  "matlabInterval": { "low": 3.2, "high": 61.7, "unit": "micrograms/day" },
+  "matlabInterval": { "low": 3.2, "high": 61.7, "unit": "micrograms/exposure" },
   "defaultDecisionScope": { "kind": "named_point", "anchorId": "up-bihar" },
   "surfaceDisplayDomain": {
     "linkedExposure": true,
