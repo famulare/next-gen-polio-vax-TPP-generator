@@ -95,8 +95,10 @@ runtime network dependency.
   joint shedding kernels; they are explanatory diagnostics, not new decision
   rules or measured endpoints.
 - A blue-white-red setting surface centered at `R_loc = 1`, with one named
-  setting selector that both decides and marks Houston/Louisiana, Matlab, or
-  UP/Bihar on a linked per-exposure display slice.
+  setting selector that both decides and defines the displayed frequency slice.
+  The surface varies linked mass per exposure and close-social-contact count;
+  named anchors with different link frequencies are omitted rather than plotted
+  over nonmatching raster values.
 - The same 2,601 directly evaluated hypothetical designs in linked
   reference-challenge effect and two-parameter product coordinates, including
   keyboard, pointer, and touch inspection, explicit empty-frontier behavior,
