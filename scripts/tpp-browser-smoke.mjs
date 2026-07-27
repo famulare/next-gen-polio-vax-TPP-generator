@@ -37,17 +37,21 @@ try {
 
   await page.locator('button[data-action="pin-current"]').click();
   const priorIdentity = await page.locator("#result-status").getAttribute("data-model-identity");
-  await page.selectOption("#scope", "houston");
+  await page.selectOption("#scope", "matlab");
   await page.waitForFunction((prior) => {
     const status = document.querySelector("#transaction-status");
     const identity = document.querySelector("#result-status")?.getAttribute("data-model-identity");
     return status?.classList.contains("committed") && identity !== prior;
   }, priorIdentity);
-  await page.waitForFunction(() => document.querySelector("#tpp-comparison-content")?.textContent?.includes("Houston/Louisiana"));
+  await page.waitForFunction(() => document.querySelector("#tpp-comparison-content")?.textContent?.includes("Matlab"));
   const comparison = await page.locator("#tpp-comparison-content").textContent();
   assert.ok(comparison?.includes("Pinned scenario"));
   assert.ok(comparison?.includes("UP/Bihar"));
-  assert.ok(comparison?.includes("Houston/Louisiana"));
+  assert.ok(comparison?.includes("Matlab"));
+  const sliceNote = await page.locator(".tpp-surface-slice-note").textContent();
+  assert.ok(sliceNote?.includes("1 exposure/person/day"));
+  assert.ok(await page.locator("#setting-figure text.anchor-label", { hasText: "Matlab" }).isVisible());
+  assert.ok(await page.locator("#setting-figure text.anchor-label", { hasText: "Houston" }).isHidden());
   assert.ok(comparison?.includes("Direct R_loc"));
 
   const decision = await page.locator("#result-status").textContent();
