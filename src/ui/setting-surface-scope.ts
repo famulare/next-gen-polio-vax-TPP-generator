@@ -27,6 +27,8 @@ export function installSettingSurfaceScope(doc: Document): void {
 }
 
 function patchSurfaceScope(doc: Document): void {
+  const host = doc.getElementById("setting-map");
+  if (!host) return;
   const svg = doc.querySelector<SVGSVGElement>("#setting-figure");
   if (!svg) return;
   const scenario = scenarioFromHash();
