@@ -31,9 +31,9 @@ body[data-tpp-mode="design"] .tpp-workbench { display: block; }
 .tpp-actions, .tpp-button-row { display: flex; flex-wrap: wrap; gap: 8px; }
 .tpp-actions { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line); }
 
-.tpp-comparison-table { margin-top: 18px; border-top: 1px solid var(--ink); }
-.tpp-comparison-header, .tpp-comparison-row { display: grid; grid-template-columns: minmax(160px, 1.4fr) repeat(3, minmax(80px, .7fr)); gap: 12px; align-items: baseline; padding: 10px 0; border-bottom: 1px solid var(--line); }
-.tpp-comparison-header { color: var(--muted); font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.tpp-comparison-table { margin-top: 18px; border-top: 1px solid var(--ink); overflow-x: auto; }
+.tpp-comparison-header, .tpp-comparison-row { display: grid; grid-template-columns: minmax(72px, 1.4fr) repeat(3, minmax(80px, .9fr)); gap: 12px; align-items: baseline; padding: 10px 0; border-bottom: 1px solid var(--line); min-width: 348px; }
+.tpp-comparison-header { color: var(--muted); font-weight: 800; font-size: .8rem; letter-spacing: .02em; text-transform: uppercase; }
 .tpp-comparison-row span:not(:first-child), .tpp-comparison-header span:not(:first-child) { text-align: right; font-variant-numeric: tabular-nums; }
 .tpp-comparison-row [data-direction="better"] { color: var(--focus); font-weight: 800; }
 .tpp-comparison-row [data-direction="worse"] { color: var(--error); font-weight: 800; }
@@ -45,7 +45,10 @@ body[data-tpp-mode="design"] .tpp-workbench { display: block; }
 .tpp-experiments > summary > span { flex: 0 0 auto; white-space: nowrap; }
 .tpp-experiment-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px; padding: 22px 0; }
 .tpp-experiment-grid fieldset { margin: 0; padding: 18px; border: 1px solid var(--line-dark); background: var(--paper-deep); }
-.tpp-experiment-grid legend { padding: 0; margin-bottom: 12px; font-size: var(--fs-accent); }
+/* Float the legend to a full-width in-box heading so a multi-line title (e.g. the
+   mechanism-contrast box) never straddles and crosses the fieldset's top border. */
+.tpp-experiment-grid legend { float: left; width: 100%; padding: 0; margin-bottom: 12px; font-size: var(--fs-accent); }
+.tpp-experiment-grid fieldset > *:not(legend) { clear: both; }
 .tpp-experiment-grid fieldset > p { margin: 14px 0 0; color: var(--muted); }
 .tpp-mechanism-experiment { grid-column: span 1; }
 .tpp-mechanism-cards { display: grid; grid-template-columns: 1fr; gap: 8px; }
