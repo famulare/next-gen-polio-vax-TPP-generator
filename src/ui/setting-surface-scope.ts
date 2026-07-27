@@ -50,6 +50,7 @@ function patchSurfaceScope(doc: Document): void {
     if (!anchorId) continue;
     const compatible = compatibleIds.has(anchorId);
     group.toggleAttribute("hidden", !compatible);
+    if (compatible) group.removeAttribute("display"); else group.setAttribute("display", "none");
     group.setAttribute("aria-hidden", String(!compatible));
   }
 
