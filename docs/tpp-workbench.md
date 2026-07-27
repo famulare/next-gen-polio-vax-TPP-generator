@@ -1,8 +1,8 @@
 # TPP translation layer and model workbench
 
-**Status:** LOCKED IMPLEMENTATION ADDENDUM  
+**Status:** LOCKED IMPLEMENTATION AND SETTING-SURFACE ADDENDUM  
 **Approved:** 2026-07-27, by Mike's direction  
-**Relationship to the canonical contract:** This addendum is subordinate to [`DESIGN_CONTRACT.md`](../DESIGN_CONTRACT.md). It governs the read-only TPP translation and comparison layer added after contract 2.1. If it conflicts with the canonical scientific semantics, the canonical contract wins and this layer must be corrected.
+**Relationship to the canonical contract:** This addendum is subordinate to [`DESIGN_CONTRACT.md`](../DESIGN_CONTRACT.md). It governs the TPP translation and comparison layer added after contract 2.1 and the `settings-2.3.0` selected-frequency surface semantics. If it conflicts with the canonical scientific semantics, the canonical contract wins and this layer must be corrected.
 
 ## Purpose
 
@@ -16,7 +16,7 @@ It is never presented as an intrinsic property of the vaccine product alone.
 
 ## Scientific invariants
 
-The workbench must not change any production equation, parameter, schedule transition, comparator, model identity, success rule, or export schema. It reads the same versioned scenario and public model functions as the core application.
+The workbench must not change any production equation, parameter, schedule transition, comparator, success rule, or canonical export schema. It reads the same versioned scenario and public model functions as the core application. The setting-surface amendment changes only the nonbinding display surface and is versioned in the setting manifest; direct named-setting decisions are unchanged.
 
 The following distinctions are binding:
 
@@ -29,7 +29,7 @@ The following distinctions are binding:
 7. `R_loc` is not a complete-population `R_e`, an outbreak forecast, or a probability of success.
 8. Parameter uncertainty and threshold-crossing probability are not quantified in this version.
 9. The module addresses transmission efficacy only; it is not a complete vaccine TPP.
-10. The setting surface holds `d_ih` and `d_hs` at the selected decision anchor. Named anchors with different link frequencies are omitted from that two-dimensional slice rather than plotted over nonmatching raster values.
+10. The setting surface holds `d_ih` and `d_hs` at the declared decision scope. Named anchors with different link frequencies are omitted from that two-dimensional slice rather than plotted over nonmatching raster values.
 
 ## Architecture
 
@@ -71,11 +71,11 @@ This module installs the view layer after the core app mounts. It relies only on
 - setting-surface unit corrections at the view boundary; and
 - the human-readable decision-record download.
 
-The workbench listens to both canonical scenario hash changes and the core transaction's committed status. It therefore refreshes only after the core app has produced a scientifically coherent scenario, including reset cases where the canonical hash may not change. It does not participate in the core app's transaction, frontier, identity, or export state.
+The workbench listens to both canonical scenario hash changes and the core transaction's committed status. It therefore refreshes only after the core app has produced a scientifically coherent scenario, including reset cases where the canonical hash may not change. It does not participate in the core app's transaction, frontier, identity, or canonical export state.
 
 ### `src/ui/setting-surface-scope.ts`
 
-The surface calculation in `src/model/model.ts` holds both link exposure frequencies at the selected decision setting. This view module labels that frequency slice and omits named anchor markers whose `d_ih` or `d_hs` differs from it. The selected marker therefore always belongs to the raster being displayed; no incompatible anchor is silently drawn over a color computed under another frequency convention.
+The surface calculation in `src/model/model.ts` holds both link exposure frequencies at the declared decision scope. This view module labels that frequency slice and omits named anchor markers whose `d_ih` or `d_hs` differs from it. The selected scope marker therefore always belongs to the raster being displayed; no incompatible anchor is silently drawn over a color computed under another frequency convention.
 
 ### Single entrypoint, post-mount installation
 
@@ -113,6 +113,7 @@ The guided mechanism contrast searches the current hypothetical product family f
 
 - exact reconciliation of the teaching waterfall with direct `R_loc`;
 - the linked Matlab setting convention and its one-exposure-per-day surface slice;
+- the separation of the take-context multiplier from modeled take by dose;
 - the mechanism-contrast construction and its direct-result separation;
 - explicit hypothetical-family context when a fixed comparator is selected; and
 - the conditioning and uncertainty language in the decision record.
