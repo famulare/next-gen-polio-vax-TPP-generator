@@ -1,5 +1,9 @@
 # TPP translation layer and model workbench
 
+**Status:** LOCKED IMPLEMENTATION ADDENDUM  
+**Approved:** 2026-07-27, by Mike's direction  
+**Relationship to the canonical contract:** This addendum is subordinate to [`DESIGN_CONTRACT.md`](../DESIGN_CONTRACT.md). It governs the read-only TPP translation and comparison layer added after contract 2.1. If it conflicts with the canonical scientific semantics, the canonical contract wins and this layer must be corrected.
+
 ## Purpose
 
 The core application is a teaching-first scientific model explorer. This translation layer adds a second reading of the same deterministic model for vaccine-development users who think in target-product-profile terms but need help keeping the epidemiologic conditioning straight.
@@ -66,7 +70,7 @@ This module installs the view layer after the core app mounts. It relies only on
 - setting-surface unit corrections at the view boundary; and
 - the human-readable decision-record download.
 
-The workbench listens to canonical scenario hash changes. It therefore updates after the core app commits a scientifically coherent scenario and does not participate in the core app's transaction, frontier, identity, or export state.
+The workbench listens to both canonical scenario hash changes and the core transaction's committed status. It therefore refreshes only after the core app has produced a scientifically coherent scenario, including reset cases where the canonical hash may not change. It does not participate in the core app's transaction, frontier, identity, or export state.
 
 ### Single entrypoint, post-mount installation
 
