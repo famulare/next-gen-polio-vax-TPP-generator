@@ -29,6 +29,7 @@ The following distinctions are binding:
 7. `R_loc` is not a complete-population `R_e`, an outbreak forecast, or a probability of success.
 8. Parameter uncertainty and threshold-crossing probability are not quantified in this version.
 9. The module addresses transmission efficacy only; it is not a complete vaccine TPP.
+10. The setting surface holds `d_ih` and `d_hs` at the selected decision anchor. Named anchors with different link frequencies are omitted from that two-dimensional slice rather than plotted over nonmatching raster values.
 
 ## Architecture
 
@@ -67,7 +68,8 @@ This module installs the view layer after the core app mounts. It relies only on
 - controlled setting, timing, and mechanism experiments;
 - the explicit causal map and direct-transmission waterfall;
 - clarification of the take-context and acquisition language;
-- setting-surface unit corrections at the view boundary; and
+- setting-surface unit corrections and selected-frequency slice labeling;
+- omission of named markers that do not lie on the selected frequency slice; and
 - the human-readable decision-record download.
 
 The workbench listens to both canonical scenario hash changes and the core transaction's committed status. It therefore refreshes only after the core app has produced a scientifically coherent scenario, including reset cases where the canonical hash may not change. It does not participate in the core app's transaction, frontier, identity, or export state.
@@ -107,7 +109,7 @@ The guided mechanism contrast searches the current hypothetical product family f
 `tests/tpp-analysis.test.ts` checks:
 
 - exact reconciliation of the teaching waterfall with direct `R_loc`;
-- the linked Matlab setting convention;
+- the linked Matlab setting convention and its one-exposure-per-day surface slice;
 - the mechanism-contrast construction and its direct-result separation;
 - explicit hypothetical-family context when a fixed comparator is selected; and
 - the conditioning and uncertainty language in the decision record.
