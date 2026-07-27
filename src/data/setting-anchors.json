@@ -1,6 +1,6 @@
 {
   "schemaVersion": "SettingManifestV2",
-  "version": "settings-2.2.0",
+  "version": "settings-2.3.0",
   "anchors": [
     { "id": "houston", "label": "Houston/Louisiana 1960", "T_ih": { "value": 5, "unit": "micrograms/exposure", "basis": "per_exposure" }, "T_hs": { "value": 5, "unit": "micrograms/exposure", "basis": "per_exposure" }, "dIh": { "value": 1, "unit": "exposures/person/day", "basis": "per_day" }, "dHs": { "value": 8.9685, "unit": "exposures/person/day", "basis": "per_day" }, "Ns": 3, "kind": "published" },
     { "id": "matlab", "label": "Matlab, Bangladesh 2016", "T_ih": { "value": 18.6, "unit": "micrograms/exposure", "basis": "per_exposure" }, "T_hs": { "value": 18.6, "unit": "micrograms/exposure", "basis": "per_exposure" }, "dIh": { "value": 1, "unit": "exposures/person/day", "basis": "per_day" }, "dHs": { "value": 1, "unit": "exposures/person/day", "basis": "per_day" }, "Ns": 3, "kind": "hybrid", "interval": { "low": 3.2, "high": 61.7, "unit": "micrograms/day" }, "tooltip": "The trial estimated household exposure in Matlab; this named anchor supplies the corresponding close-contact setting used by the model." },
