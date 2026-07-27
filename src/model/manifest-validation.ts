@@ -94,7 +94,7 @@ export function validateDiagnosticGridManifest(value: unknown): asserts value is
 
 export function validateSettingManifest(value: unknown): void {
   const root = record(value, "SettingManifestV2"); exact(root, ["schemaVersion", "version", "anchors", "matlabInterval", "defaultDecisionScope", "surfaceDisplayDomain"], "SettingManifestV2");
-  literal(root.schemaVersion, "SettingManifestV2", "setting schemaVersion"); literal(root.version, "settings-2.2.0", "setting version");
+  literal(root.schemaVersion, "SettingManifestV2", "setting schemaVersion"); literal(root.version, "settings-2.3.0", "setting version");
   if (!Array.isArray(root.anchors) || root.anchors.length !== 3) throw new Error("Setting manifest must contain three anchors");
   for (const [index, candidate] of root.anchors.entries()) {
     const anchor = record(candidate, `anchors[${index}]`);
