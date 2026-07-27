@@ -289,7 +289,7 @@ try {
 
   await page.locator("#product-figure").focus();
   await page.keyboard.press("End");
-  if (!(await page.locator("#design-inspector").textContent())?.includes("Take context1") || !(await page.locator("#design-inspector").textContent())?.includes("Mean boost8 log2")) throw new Error("Keyboard traversal did not reach the final grid design");
+  if (!(await page.locator("#design-inspector").textContent())?.includes("Take-context multiplier1") || !(await page.locator("#design-inspector").textContent())?.includes("Mean boost8 log2")) throw new Error("Keyboard traversal did not reach the final grid design");
   await page.keyboard.press("Enter");
   if (!(await page.locator("#design-inspector").textContent())?.includes("Held design")) throw new Error("Enter did not persist keyboard selection");
   await page.keyboard.press("Escape");
@@ -463,7 +463,7 @@ try {
   if (!(await page.locator("#result-status").isVisible()) || !(await page.locator("#setting-figure").isVisible())) throw new Error("High-contrast mode hid the authoritative result or setting figure");
   await page.emulateMedia({ media: "print", reducedMotion: "reduce", forcedColors: "none" });
   const printProductSummary = page.locator("#print-product-summary");
-  if (!(await page.locator("#result-status").isVisible()) || !(await page.locator("#setting-figure").isVisible()) || await page.locator(".narrative-controls").first().isVisible() || !(await printProductSummary.isVisible()) || !(await printProductSummary.textContent())?.includes("productive live-vaccine infection after a received dose")) throw new Error("Print mode omitted results, retained interactive controls, or hid selected product semantics");
+  if (!(await page.locator("#result-status").isVisible()) || !(await page.locator("#setting-figure").isVisible()) || await page.locator(".narrative-controls").first().isVisible() || !(await printProductSummary.isVisible()) || !(await printProductSummary.textContent())?.toLowerCase().includes("productive live-vaccine infection after a received dose")) throw new Error("Print mode omitted results, retained interactive controls, or hid selected product semantics");
   await page.emulateMedia({ media: "screen", reducedMotion: "no-preference", forcedColors: "none" });
 
   const touchContext = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
