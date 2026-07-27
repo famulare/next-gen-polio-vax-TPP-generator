@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { defaultScenario, scenarioWithDecisionScope, scenarioWithSetting } from "../src/model/model";
+import { buildSettingSurface, defaultScenario, scenarioWithDecisionScope, scenarioWithSetting } from "../src/model/model";
+import { buildScheduleState } from "../src/model/schedule";
 import {
   buildComparatorProfile,
   buildTppProfile,
@@ -25,6 +26,10 @@ test("Matlab is a valid linked-exposure point with one exposure per day on both 
   assert.equal(scenario.setting.dHs.value, 1);
   const diagnostics = buildTransmissionTeachingDiagnostics(scenario);
   assert.ok(diagnostics.reconciliationError < 1e-10);
+  const surface = buildSettingSurface(scenario, buildScheduleState(scenario.vaccine, scenario.schedule));
+  assert.ok(surface.length > 0);
+  assert.equal(surface[0]!.dIh, 1);
+  assert.equal(surface[0]!.dHs, 1);
 });
 
 test("mechanism contrast finds similar shedding indices with opposing component effects", () => {
@@ -45,6 +50,17 @@ test("fixed comparator profiles keep the hypothetical frontier family explicit",
   assert.equal(ipv.designFamily.sourceLabel, "the versioned hypothetical-product defaults");
   assert.ok(ipv.designFamily.administeredDoseTCID50 > 0);
   assert.match(decisionRecordMarkdown(ipv), /not applicable to IPV/i);
+});
+
+test("TPP profile separates the take-context multiplier from modeled take by dose", () => {
+  const profile = buildTppProfile(defaultScenario());
+  assert.equal(profile.scenario.vaccine.takeContext, 1);
+  assert.equal(profile.doseTakeProbabilities.length, 4);
+  for (const dose of profile.doseTakeProbabilities) {
+    assert.notEqual(dose.probability, null);
+    assert.ok((dose.probability ?? -1) >= 0 && (dose.probability ?? 2) <= 1);
+  }
+  assert.equal(profile.sabinLikeStartingAssumptions, true);
 });
 
 test("decision record states the conditioning, authoritative endpoint, and uncertainty boundary", () => {
